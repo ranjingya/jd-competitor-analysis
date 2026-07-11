@@ -1,4 +1,4 @@
-import { renderDashboard, showPageState } from "./dashboard.js";
+import { renderDashboard, renderTrendChart, showPageState, showTrendState } from "./dashboard.js";
 import { loadReport, loadReportIndex } from "./data-client.js";
 
 const granularityLabels = {
@@ -10,7 +10,10 @@ const granularityLabels = {
 const state = {
   index: null,
   activeGranularity: "day",
-  selectedPeriods: {}
+  activeMetricId: "gmv",
+  currentEntry: null,
+  selectedPeriods: {},
+  trendRequestId: 0
 };
 
 function reportsFor(granularity) {
@@ -51,25 +54,81 @@ function renderControls() {
   document.querySelector("#period-note").textContent = `${granularityLabels[state.activeGranularity]}维度共 ${reports.length} 个周期`;
 }
 
+/**
+ * 功能说明：按当前粒度和所选周期筛选趋势图需要加载的报告条目。
+ * 参数 entry：当前周期的报告索引条目。
+ * 返回值：按日期升序排列的趋势报告条目数组。
+ */
+function trendEntriesFor(entry) {
+  const reports = reportsFor(state.activeGranularity);
+  if (state.activeGranularity === "day") {
+    const selectedIndex = Math.max(0, reports.findIndex((item) => item.period_key === entry.period_key));
+    return reports.slice(Math.max(0, selectedIndex - 6), selectedIndex + 1);
+  }
+  if (state.activeGranularity === "week") {
+    const selectedMonth = String(entry.period_start || "").slice(0, 7);
+    return reports.filter((item) => String(item.period_start || "").startsWith(selectedMonth));
+  }
+  return reports;
+}
+
+/**
+ * 功能说明：加载当前指标所需的多个周期报告并刷新趋势图。
+ * 参数 entry：当前周期的报告索引条目。
+ * 返回值：Promise；完成后趋势图更新为最新请求。
+ */
+async function renderActiveTrend(entry) {
+  const requestId = state.trendRequestId + 1;
+  state.trendRequestId = requestId;
+  const entries = trendEntriesFor(entry);
+  showTrendState("正在加载趋势数据");
+  try {
+    const reports = await Promise.all(entries.map((item) => loadReport(item)));
+    if (requestId !== state.trendRequestId) {
+      return;
+    }
+    renderTrendChart(reports, state.activeMetricId, state.activeGranularity);
+  } catch (error) {
+    console.error("趋势数据加载失败", error);
+    if (requestId === state.trendRequestId) {
+      showTrendState("趋势数据加载失败，请检查对应周期报告", true);
+    }
+  }
+}
+
 async function selectActiveReport() {
   const reports = reportsFor(state.activeGranularity);
   if (!reports.length) {
     renderControls();
     showPageState("当前粒度暂无可用报告");
+    showTrendState("当前粒度暂无趋势数据");
     return;
   }
   const selectedKey = state.selectedPeriods[state.activeGranularity] || reports.at(-1).period_key;
   const entry = reports.find((item) => item.period_key === selectedKey) || reports.at(-1);
+  state.currentEntry = entry;
   state.selectedPeriods[state.activeGranularity] = entry.period_key;
   renderControls();
   showPageState(`正在加载${entry.period}报告`);
   try {
-    renderDashboard(await loadReport(entry));
+    const report = await loadReport(entry);
+    if (!(report.core_metrics || []).some((item) => item.id === state.activeMetricId)) {
+      state.activeMetricId = report.core_metrics?.[0]?.id || "";
+    }
+    renderDashboard(report, state.activeMetricId);
+    await renderActiveTrend(entry);
   } catch (error) {
     console.error("报告加载失败", error);
     showPageState("报告加载失败，请检查分析结果是否完整", true);
   }
 }
+
+document.addEventListener("dashboard:metric-select", (event) => {
+  state.activeMetricId = event.detail?.metricId || state.activeMetricId;
+  if (state.currentEntry) {
+    renderActiveTrend(state.currentEntry);
+  }
+});
 
 async function initialize() {
   try {
