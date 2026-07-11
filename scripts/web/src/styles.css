@@ -314,13 +314,13 @@ h1 {
 }
 
 .metric-gap.advantage {
-  background: var(--soft-teal);
-  color: var(--teal);
+  background: #fbe9e7;
+  color: #b42318;
 }
 
 .metric-gap.warning {
-  background: var(--soft-amber);
-  color: var(--amber);
+  background: #e4f3ea;
+  color: #18794e;
 }
 
 .content {

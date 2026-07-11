@@ -33,6 +33,21 @@ function formatValue(value, unit = "") {
   return `${value}${unit}`;
 }
 
+/**
+ * 功能说明：把核心指标差值压缩为带方向符号的纯数字。
+ * 参数 item：核心指标卡数据。
+ * 返回值：领先为正数、落后为负数的简短差值文本。
+ */
+function formatMetricGap(item) {
+  if (item.gap_abs_text == null || item.gap_abs_text === "") {
+    return "-";
+  }
+  const value = String(item.gap_abs_text).replace(/^[+-]/, "");
+  const sign = item.status === "warning" ? "-" : "+";
+  const unit = item.id === "conversion_rate" ? "pct" : "";
+  return `${sign}${value}${unit}`;
+}
+
 function valueTone(value, column = {}) {
   const text = String(value ?? "");
   const key = String(column.key || "");
@@ -197,7 +212,7 @@ export function renderDashboard(data) {
             <div class="metric-sub">竞品估算值</div>
           </div>
         </div>
-        <div class="metric-gap ${item.status === "warning" ? "warning" : "advantage"}">${escapeHtml(item.gap_text || "-")}</div>
+        <div class="metric-gap ${item.status === "warning" ? "warning" : "advantage"}">${escapeHtml(formatMetricGap(item))}</div>
       </article>
     `;
   }).join("");

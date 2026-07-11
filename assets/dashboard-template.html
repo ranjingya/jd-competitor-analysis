@@ -22,6 +22,10 @@
       box-sizing: border-box;
     }
 
+    [hidden] {
+      display: none !important;
+    }
+
     body {
       margin: 0;
       background: var(--bg);
@@ -30,15 +34,26 @@
       line-height: 1.5;
     }
 
+    button,
+    input {
+      font: inherit;
+    }
+
+    button:focus-visible,
+    input:focus-visible {
+      outline: 3px solid rgba(15, 123, 115, 0.24);
+      outline-offset: 2px;
+    }
+
     .page {
       width: min(1440px, calc(100% - 48px));
       margin: 0 auto;
-      padding: 42px 0 32px;
+      padding: 38px 0 30px;
     }
 
     .report-header {
       display: grid;
-      grid-template-columns: 1fr auto;
+      grid-template-columns: minmax(0, 1fr) auto;
       gap: 20px;
       align-items: start;
       margin-bottom: 18px;
@@ -56,6 +71,35 @@
       margin: 0;
       color: var(--muted);
       font-size: 14px;
+    }
+
+    .data-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--teal);
+      box-shadow: 0 0 0 4px rgba(15, 123, 115, 0.12);
+    }
+
+    .template-controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      min-height: 64px;
+      margin-bottom: 18px;
+      padding: 10px 0;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
     }
 
     .toolbar {
@@ -76,8 +120,29 @@
       cursor: pointer;
     }
 
+    .button:hover,
+    .file-button:hover {
+      border-color: var(--teal);
+      color: var(--teal);
+    }
+
     .file-button input {
       display: none;
+    }
+
+    .page-state {
+      margin-bottom: 18px;
+      padding: 22px;
+      border: 1px dashed var(--line);
+      border-radius: 8px;
+      background: rgba(255, 253, 248, 0.58);
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .page-state.error {
+      border-color: rgba(185, 105, 5, 0.42);
+      color: var(--amber);
     }
 
     .hero,
@@ -201,13 +266,13 @@
     }
 
     .gap.advantage {
-      background: var(--soft-teal);
-      color: var(--teal);
+      background: #fbe9e7;
+      color: #b42318;
     }
 
     .gap.warning {
-      background: var(--soft-amber);
-      color: var(--amber);
+      background: #e4f3ea;
+      color: #18794e;
     }
 
     .content {
@@ -533,6 +598,12 @@
         grid-template-columns: 1fr;
       }
 
+      .template-controls {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 12px;
+      }
+
       .toolbar {
         justify-content: flex-start;
       }
@@ -568,16 +639,27 @@
       <div>
         <h1 id="title">竞品准真实值看板</h1>
         <p class="meta" id="meta">等待数据载入</p>
-        <p class="note" id="load-note">生成版 HTML 会内置数据；模板通过 HTTP 打开时自动读取真实示例或空结构 JSON。</p>
       </div>
-      <div class="toolbar" aria-label="数据操作">
+      <div class="data-status" aria-live="polite">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span id="updated-at">等待报告数据</span>
+      </div>
+    </header>
+
+    <section class="template-controls" aria-label="模板数据操作">
+      <p class="note" id="load-note">生成版 HTML 可内置当前分析结果；模板预览只读取同目录 analysis_result.json。</p>
+      <div class="toolbar">
         <button class="button" type="button" id="reload-json">读取同目录 JSON</button>
         <label class="file-button">
           导入 JSON
           <input id="json-file" type="file" accept="application/json,.json">
         </label>
       </div>
-    </header>
+    </section>
+
+    <section class="page-state" id="page-state" aria-live="polite">正在读取报告数据</section>
+
+    <div id="dashboard" hidden>
 
     <section class="hero">
       <div class="hero-block">
@@ -608,6 +690,7 @@
     </section>
 
     <footer class="footnote" id="risks">-</footer>
+    </div>
   </main>
 
   <script>
@@ -616,6 +699,20 @@
       activeTab: 0,
       dimensions: {}
     };
+
+    /**
+     * 功能说明：切换模板的加载、错误和看板展示状态。
+     * 参数 message：状态提示文本。
+     * 参数 isError：是否使用错误状态样式。
+     * 返回值：无返回值，直接更新 DOM。
+     */
+    function showPageState(message, isError = false) {
+      const pageState = document.querySelector("#page-state");
+      pageState.hidden = false;
+      pageState.classList.toggle("error", isError);
+      pageState.textContent = message;
+      document.querySelector("#dashboard").hidden = true;
+    }
 
     /**
      * 功能说明：格式化页面中展示的值。
@@ -629,6 +726,21 @@
         return `${text}${unit}`;
       }
       return `${value ?? "-"}${unit}`;
+    }
+
+    /**
+     * 功能说明：把核心指标差值压缩为带方向符号的纯数字。
+     * 参数 item：核心指标卡数据。
+     * 返回值：领先为正数、落后为负数的简短差值文本。
+     */
+    function formatMetricGap(item) {
+      if (item.gap_abs_text == null || item.gap_abs_text === "") {
+        return "-";
+      }
+      const value = String(item.gap_abs_text).replace(/^[+-]/, "");
+      const sign = item.status === "warning" ? "-" : "+";
+      const unit = item.id === "conversion_rate" ? "pct" : "";
+      return `${sign}${value}${unit}`;
     }
 
     /**
@@ -707,6 +819,9 @@
       ].filter(Boolean).join(" | ");
       document.querySelector("#summary").textContent = data.meta?.summary || "-";
       document.querySelector("#hero-note").textContent = data.meta?.weakness_summary || "-";
+      document.querySelector("#updated-at").textContent = data.meta?.generated_at
+        ? `数据生成于 ${String(data.meta.generated_at).slice(0, 19).replace("T", " ")}`
+        : "分析结果已载入";
 
       const metrics = document.querySelector("#metrics");
       metrics.innerHTML = (data.core_metrics || []).map((item) => `
@@ -722,13 +837,15 @@
               <div class="sub">竞品估算值</div>
             </div>
           </div>
-          <div class="gap ${item.status === "warning" ? "warning" : "advantage"}">${item.gap_text || "-"}</div>
+          <div class="gap ${item.status === "warning" ? "warning" : "advantage"}">${formatMetricGap(item)}</div>
         </article>
       `).join("");
 
       renderTabs();
       renderDiagnosis();
       document.querySelector("#risks").textContent = `风险提示：${(data.risks || ["暂无"]).join("；")}`;
+      document.querySelector("#page-state").hidden = true;
+      document.querySelector("#dashboard").hidden = false;
       console.info("看板渲染完成");
     }
 
@@ -890,31 +1007,19 @@
     async function loadSiblingJson() {
       try {
         console.info("开始读取同目录 JSON");
-        const candidates = ["./examples/analysis-result.example.json", "./analysis-result.template.json"];
-        let data = null;
-        let loadedName = "";
-        for (const candidate of candidates) {
-          try {
-            const response = await fetch(candidate, { cache: "no-store" });
-            if (!response.ok) {
-              throw new Error(`HTTP ${response.status}`);
-            }
-            data = await response.json();
-            loadedName = candidate.replace("./", "");
-            break;
-          } catch (innerError) {
-            console.warn("JSON 候选读取失败", candidate, innerError);
-          }
+        showPageState("正在读取同目录 analysis_result.json");
+        const response = await fetch("./analysis_result.json", { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
         }
-        if (!data) {
-          throw new Error("未读取到可用 JSON");
-        }
-        document.querySelector("#load-note").textContent = `已读取同目录 ${loadedName}。`;
+        const data = await response.json();
+        document.querySelector("#load-note").textContent = "已读取同目录 analysis_result.json。";
         renderDashboard(data);
       } catch (error) {
-        console.warning?.("同目录 JSON 读取失败", error);
         console.warn("同目录 JSON 读取失败", error);
-        document.querySelector("#load-note").textContent = "当前打开方式无法自动读取 JSON，可启动本地 HTTP 服务或手动导入 JSON。";
+        document.querySelector("#load-note").textContent = "未读取到同目录 analysis_result.json，也可以手动导入分析结果。";
+        document.querySelector("#updated-at").textContent = "等待报告数据";
+        showPageState("暂无报告数据，请生成报告或导入 analysis_result.json", true);
       }
     }
 
@@ -932,6 +1037,7 @@
       } catch (error) {
         console.error("JSON 导入失败", error);
         document.querySelector("#load-note").textContent = "JSON 导入失败，请检查文件格式。";
+        showPageState("JSON 导入失败，请检查文件格式", true);
       }
     });
 

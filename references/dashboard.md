@@ -16,6 +16,32 @@ scripts/output/
 └── month/{period_file}/analysis_result.json
 ```
 
+## 启动前端
+
+首次安装依赖并启动开发服务器：
+
+```powershell
+cd <Skill根目录>/scripts/web
+npm ci
+npm run dev
+```
+
+浏览器打开 Vite 输出的本地地址，默认是 `http://127.0.0.1:5174/`。构建和预览命令：
+
+```powershell
+npm run build
+npm run preview
+```
+
+默认读取 `<Skill根目录>/scripts/output/`。需要读取其他输出目录时，在启动前设置环境变量：
+
+```powershell
+$env:REPORT_OUTPUT_DIR = "D:\path\to\report-output"
+npm run dev
+```
+
+Vite 中间件把该目录只读映射为 `/reports/`，只允许读取 `report-index.json` 和各周期的 `analysis_result.json`，不提供 Excel、`normalized_data.json` 或任意其他文件。
+
 ## 报告索引
 
 `report-index.json` 至少包含：
@@ -33,6 +59,49 @@ scripts/output/
 ```
 
 每个报告条目至少包含 `period`、`period_start`、`period_end`、`period_key`、`generated_at`、`confidence` 和 `path`。数组按开始日期和结束日期升序排列，最后一项是当前粒度的最新周期。
+
+其中 `path` 是浏览器读取地址，例如：
+
+```json
+{
+  "period": "YYYY-MM-DD~YYYY-MM-DD",
+  "period_start": "YYYY-MM-DD",
+  "period_end": "YYYY-MM-DD",
+  "period_key": "week:YYYY-MM-DD_YYYY-MM-DD",
+  "generated_at": "YYYY-MM-DDTHH:mm:ss",
+  "confidence": "high",
+  "path": "/reports/week/YYYY-MM-DD_YYYY-MM-DD/analysis_result.json"
+}
+```
+
+## 读取文件与结构
+
+前端启动后只读取两类 JSON：
+
+1. 首次读取 `/reports/report-index.json`，获取日、周、月三个报告条目数组。
+2. 根据当前粒度和周期条目的 `path`，读取对应的一份 `analysis_result.json`。
+
+`analysis_result.json` 的顶层结构：
+
+```text
+schema_version
+meta
+source_files
+self_validation
+competitor_core_conversions
+core_metrics
+comparison
+traffic_sources
+keywords
+customer_profile
+promotion
+tabs
+diagnosis
+action_tracking
+risks
+```
+
+页面直接消费 `meta`、`core_metrics[]`、`tabs[]`、`diagnosis[]` 和 `risks[]`。其余字段保留给审计、明细复核和后续分析使用，完整约束见 [analysis-result.md](analysis-result.md)。浏览器不读取 `normalized_data.json`。
 
 ## 加载流程
 

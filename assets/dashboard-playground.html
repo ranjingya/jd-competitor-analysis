@@ -305,13 +305,13 @@
     }
 
     .gap.advantage {
-      background: var(--soft-teal);
-      color: var(--teal);
+      background: #fbe9e7;
+      color: #b42318;
     }
 
     .gap.warning {
-      background: var(--soft-amber);
-      color: var(--amber);
+      background: #e4f3ea;
+      color: #18794e;
     }
 
     .content {
@@ -771,6 +771,21 @@
     }
 
     /**
+     * 功能说明：把核心指标差值压缩为带方向符号的纯数字。
+     * 参数 item：核心指标卡数据。
+     * 返回值：领先为正数、落后为负数的简短差值文本。
+     */
+    function formatMetricGap(item) {
+      if (item.gap_abs_text == null || item.gap_abs_text === "") {
+        return "-";
+      }
+      const value = String(item.gap_abs_text).replace(/^[+-]/, "");
+      const sign = item.status === "warning" ? "-" : "+";
+      const unit = item.id === "conversion_rate" ? "pct" : "";
+      return `${sign}${value}${unit}`;
+    }
+
+    /**
      * 功能说明：判断表格单元格的展示状态。
      * 参数 value：单元格原始值。
      * 参数 column：当前列定义。
@@ -1194,7 +1209,7 @@
               <div class="sub">竞品估算值</div>
             </div>
           </div>
-          <div class="gap ${item.status === "warning" ? "warning" : "advantage"}">${item.gap_text || "-"}</div>
+          <div class="gap ${item.status === "warning" ? "warning" : "advantage"}">${formatMetricGap(item)}</div>
         </article>
       `).join("");
 
