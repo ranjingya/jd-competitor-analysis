@@ -236,12 +236,12 @@ h1 {
 
 .hero-label.advantage,
 .summary {
-  color: var(--teal);
+  color: var(--amber);
 }
 
 .hero-label.warning,
 .weakness-text {
-  color: var(--amber);
+  color: var(--teal);
 }
 
 .summary,
@@ -314,13 +314,13 @@ h1 {
 }
 
 .metric-gap.advantage {
-  background: #fbe9e7;
-  color: #b42318;
+  background: var(--soft-amber);
+  color: var(--amber);
 }
 
 .metric-gap.warning {
-  background: #e4f3ea;
-  color: #18794e;
+  background: var(--soft-teal);
+  color: var(--teal);
 }
 
 .content {
@@ -400,11 +400,11 @@ h1 {
   padding: 14px 16px;
   border: 1px solid var(--line);
   border-radius: 7px;
-  background: var(--soft-teal);
+  background: var(--soft-amber);
 }
 
 .insight-card.warning {
-  background: var(--soft-amber);
+  background: var(--soft-teal);
 }
 
 .insight-card h4,
@@ -413,12 +413,12 @@ h1 {
 }
 
 .insight-card h4 {
-  color: var(--teal);
+  color: var(--amber);
   font-size: 15px;
 }
 
 .insight-card.warning h4 {
-  color: var(--amber);
+  color: var(--teal);
 }
 
 .insight-card p {
@@ -503,12 +503,12 @@ h1 {
 }
 
 .cell-good {
-  color: var(--teal);
+  color: var(--amber);
   font-weight: 900;
 }
 
 .cell-bad {
-  color: var(--amber);
+  color: var(--teal);
   font-weight: 900;
 }
 
@@ -534,11 +534,11 @@ h1 {
   padding: 14px 16px;
   border: 1px solid var(--line);
   border-radius: 7px;
-  background: var(--soft-teal);
+  background: var(--soft-amber);
 }
 
 .diagnosis-card.warning {
-  background: #efe8dd;
+  background: var(--soft-teal);
 }
 
 .diagnosis-card h3,
@@ -547,12 +547,12 @@ h1 {
 }
 
 .diagnosis-card h3 {
-  color: var(--teal);
+  color: var(--amber);
   font-size: 17px;
 }
 
 .diagnosis-card.warning h3 {
-  color: var(--amber);
+  color: var(--teal);
 }
 
 .diagnosis-evidence {
