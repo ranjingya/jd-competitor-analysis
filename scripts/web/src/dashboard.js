@@ -371,8 +371,12 @@ export function renderDashboard(data, activeMetricId = "") {
     meta.self_spu ? `本品 SPU ${meta.self_spu}` : "",
     meta.competitor_spu ? `竞品 SPU ${meta.competitor_spu}` : ""
   ].filter(Boolean).join(" | ");
-  document.querySelector("#summary").textContent = meta.summary || "-";
-  document.querySelector("#weakness").textContent = meta.weakness_summary || "-";
+  const summary = meta.summary || "-";
+  const weakness = meta.weakness_summary || "-";
+  document.querySelector("#summary").textContent = summary;
+  document.querySelector("#summary").title = summary;
+  document.querySelector("#weakness").textContent = weakness;
+  document.querySelector("#weakness").title = weakness;
   const metricItems = data.core_metrics || [];
   const preferredMetricId = activeMetricId || dashboardState.activeMetricId;
   dashboardState.activeMetricId = metricItems.some((item) => item.id === preferredMetricId)

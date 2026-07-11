@@ -215,23 +215,30 @@ h1 {
 
 .hero {
   display: grid;
-  grid-template-columns: 1fr 1.1fr;
-  gap: 18px;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.35fr);
+  gap: 24px;
   align-items: center;
-  padding: 20px 26px;
+  min-height: 88px;
+  padding: 14px 22px;
   margin-bottom: 16px;
 }
 
 .hero-block {
   display: grid;
-  gap: 4px;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
   min-width: 0;
 }
 
 .hero-label {
   margin: 0;
-  font-size: 15px;
+  padding-left: 8px;
+  border-left: 3px solid currentColor;
+  font-size: 12px;
   font-weight: 900;
+  line-height: 1.3;
+  white-space: nowrap;
 }
 
 .hero-label.advantage,
@@ -247,10 +254,13 @@ h1 {
 .summary,
 .weakness-text {
   margin: 0;
-  font-size: 26px;
+  min-width: 0;
+  overflow: hidden;
+  font-size: clamp(18px, 1.7vw, 22px);
   font-weight: 900;
-  line-height: 1.2;
-  overflow-wrap: anywhere;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .metrics-trend {
@@ -283,12 +293,27 @@ h1 {
 }
 
 .metric-card:hover {
-  transform: translateX(1px);
+  box-shadow: 0 6px 18px rgba(31, 41, 51, 0.12);
 }
 
 .metric-card.active {
-  box-shadow: 0 0 0 2px rgba(31, 41, 51, 0.2), var(--shadow);
-  transform: translateX(2px);
+  z-index: 1;
+  outline: 1px solid rgba(31, 41, 51, 0.72);
+  outline-offset: -1px;
+  box-shadow: 0 8px 20px rgba(31, 41, 51, 0.15);
+  transform: none;
+}
+
+.metric-card.active::after {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  width: 4px;
+  height: 28px;
+  border-radius: 4px 0 0 4px;
+  background: var(--text);
+  content: "";
+  transform: translateY(-50%);
 }
 
 .metric-card.status-advantage {
@@ -699,6 +724,11 @@ h1 {
   .report-header,
   .hero {
     grid-template-columns: 1fr;
+  }
+
+  .hero {
+    gap: 10px;
+    min-height: 0;
   }
 
   .view-switcher,
