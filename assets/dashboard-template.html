@@ -1,0 +1,946 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>竞品准真实值看板模板</title>
+  <style>
+    :root {
+      --bg: #f4efe6;
+      --panel: #fffdf8;
+      --line: #ded6c8;
+      --text: #1f2933;
+      --muted: #667085;
+      --teal: #0f7b73;
+      --amber: #b96905;
+      --soft-teal: #dff1ec;
+      --soft-amber: #f4e7d3;
+      --shadow: 0 12px 32px rgba(31, 41, 51, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+      line-height: 1.5;
+    }
+
+    .page {
+      width: min(1440px, calc(100% - 48px));
+      margin: 0 auto;
+      padding: 42px 0 32px;
+    }
+
+    .report-header {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 20px;
+      align-items: start;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: 32px;
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+
+    .meta,
+    .note {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .button,
+    .file-button {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .file-button input {
+      display: none;
+    }
+
+    .hero,
+    .metric-card,
+    .panel,
+    .diagnosis-card,
+    .footnote {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 253, 248, 0.86);
+      box-shadow: var(--shadow);
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1fr 1.1fr;
+      gap: 22px;
+      align-items: center;
+      padding: 26px 30px;
+      margin-bottom: 24px;
+    }
+
+    .eyebrow {
+      margin: 0 0 6px;
+      font-size: 17px;
+      font-weight: 800;
+    }
+
+    .hero-block {
+      display: grid;
+      gap: 8px;
+      align-content: start;
+    }
+
+    .hero-label {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 900;
+      line-height: 1.2;
+    }
+
+    .hero-label.advantage {
+      color: var(--teal);
+    }
+
+    .hero-label.warning {
+      color: var(--amber);
+    }
+
+    .summary {
+      margin: 0;
+      color: var(--teal);
+      font-size: 28px;
+      font-weight: 900;
+      line-height: 1.28;
+    }
+
+    .weakness-box {
+      min-width: 0;
+    }
+
+    .weakness-text {
+      margin: 0;
+      color: var(--amber);
+      font-size: 28px;
+      font-weight: 900;
+      line-height: 1.28;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 22px;
+      margin-bottom: 24px;
+    }
+
+    .metric-card {
+      padding: 20px 22px 14px;
+      min-height: 150px;
+    }
+
+    .metric-title {
+      margin: 0 0 14px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .metric-values {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      align-items: end;
+    }
+
+    .value {
+      font-size: 28px;
+      font-weight: 900;
+      line-height: 1.1;
+    }
+
+    .self {
+      color: var(--teal);
+    }
+
+    .competitor {
+      color: var(--amber);
+    }
+
+    .sub {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .gap {
+      margin-top: 12px;
+      border-radius: 6px;
+      padding: 5px 10px;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .gap.advantage {
+      background: var(--soft-teal);
+      color: var(--teal);
+    }
+
+    .gap.warning {
+      background: var(--soft-amber);
+      color: var(--amber);
+    }
+
+    .content {
+      display: grid;
+      grid-template-columns: minmax(0, 1.55fr) minmax(360px, 0.95fr);
+      gap: 28px;
+      margin-bottom: 24px;
+    }
+
+    .panel {
+      padding: 26px 28px;
+    }
+
+    .panel h2 {
+      margin: 0 0 4px;
+      font-size: 24px;
+      line-height: 1.25;
+    }
+
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 20px 0;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 10px;
+    }
+
+    .tab {
+      border: 1px solid var(--line);
+      background: transparent;
+      border-radius: 8px;
+      padding: 8px 14px;
+      color: var(--muted);
+      cursor: pointer;
+    }
+
+    .tab.active {
+      background: var(--teal);
+      border-color: var(--teal);
+      color: white;
+      font-weight: 800;
+    }
+
+    .tab-body h3 {
+      margin: 0 0 14px;
+      color: var(--teal);
+      font-size: 19px;
+    }
+
+    .tab-section {
+      margin-top: 18px;
+    }
+
+    .tab-section-title {
+      margin: 0 0 10px;
+      font-size: 15px;
+      font-weight: 900;
+      color: var(--text);
+    }
+
+    .insight-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .insight-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbf7ef;
+      padding: 12px 14px;
+    }
+
+    .insight-card.warning {
+      background: var(--soft-amber);
+    }
+
+    .insight-card.advantage {
+      background: var(--soft-teal);
+    }
+
+    .insight-card h4 {
+      margin: 0 0 8px;
+      font-size: 15px;
+      color: var(--teal);
+    }
+
+    .insight-card.warning h4 {
+      color: var(--amber);
+    }
+
+    .insight-card p {
+      margin: 0;
+      color: #46515c;
+      font-size: 13px;
+    }
+
+    .compare-row {
+      display: grid;
+      grid-template-columns: minmax(120px, 0.8fr) 1fr 1fr;
+      gap: 14px;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(222, 214, 200, 0.75);
+    }
+
+    .compare-row:last-child {
+      border-bottom: 0;
+    }
+
+    .label {
+      font-weight: 800;
+    }
+
+    .bar-wrap {
+      display: grid;
+      gap: 5px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .bar {
+      height: 9px;
+      border-radius: 999px;
+      background: #e8e0d4;
+      overflow: hidden;
+    }
+
+    .bar span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+    }
+
+    .bar-self span {
+      background: var(--teal);
+    }
+
+    .bar-competitor span {
+      background: var(--amber);
+    }
+
+    .table-tools {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .dimension-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .dimension-tab {
+      border: 1px solid var(--line);
+      background: #fffdf8;
+      border-radius: 8px;
+      padding: 6px 10px;
+      color: var(--muted);
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .dimension-tab.active {
+      border-color: var(--teal);
+      background: var(--soft-teal);
+      color: var(--teal);
+      font-weight: 900;
+    }
+
+    .data-filter {
+      width: min(320px, 100%);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fffdf8;
+      color: var(--text);
+      padding: 8px 10px;
+      font-size: 13px;
+    }
+
+    .table-wrap {
+      max-height: 360px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 253, 248, 0.78);
+    }
+
+    .data-table {
+      width: 100%;
+      min-width: 720px;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .data-table th,
+    .data-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(222, 214, 200, 0.72);
+      text-align: left;
+      vertical-align: top;
+      white-space: nowrap;
+    }
+
+    .data-table th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: #f7f1e8;
+      color: #3d4650;
+      font-weight: 900;
+    }
+
+    .cell-good {
+      color: var(--teal);
+      font-weight: 900;
+    }
+
+    .cell-bad {
+      color: var(--amber);
+      font-weight: 900;
+    }
+
+    .cell-neutral {
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .data-table tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .notes {
+      margin: 18px 0 0;
+      padding-left: 18px;
+      color: #46515c;
+    }
+
+    .notes li {
+      margin: 5px 0;
+    }
+
+    .diagnosis-list {
+      display: grid;
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .diagnosis-card {
+      box-shadow: none;
+      padding: 14px 16px;
+      background: #efe8dd;
+    }
+
+    .diagnosis-card.advantage {
+      background: var(--soft-teal);
+    }
+
+    .diagnosis-card h3 {
+      margin: 0 0 5px;
+      color: var(--teal);
+      font-size: 17px;
+    }
+
+    .diagnosis-card.warning h3 {
+      color: var(--amber);
+    }
+
+    .diagnosis-card p {
+      margin: 0;
+      color: #46515c;
+      font-size: 13px;
+    }
+
+    .diagnosis-evidence {
+      font-weight: 800;
+    }
+
+    .diagnosis-advice {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(27, 31, 42, 0.1);
+    }
+
+    .diagnosis-advice-label {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .diagnosis-card.advantage .diagnosis-advice-label {
+      color: var(--teal);
+    }
+
+    .diagnosis-card.warning .diagnosis-advice-label {
+      color: var(--amber);
+    }
+
+    .footnote {
+      padding: 14px 22px;
+      color: var(--muted);
+      font-size: 13px;
+      box-shadow: none;
+    }
+
+    @media (max-width: 980px) {
+      .page {
+        width: min(100% - 28px, 760px);
+        padding-top: 24px;
+      }
+
+      .report-header,
+      .hero,
+      .content {
+        grid-template-columns: 1fr;
+      }
+
+      .toolbar {
+        justify-content: flex-start;
+      }
+
+      .metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 640px) {
+      h1 {
+        font-size: 25px;
+      }
+
+      .summary,
+      .weakness-text {
+        font-size: 22px;
+      }
+
+      .metrics {
+        grid-template-columns: 1fr;
+      }
+
+      .compare-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="report-header">
+      <div>
+        <h1 id="title">竞品准真实值看板</h1>
+        <p class="meta" id="meta">等待数据载入</p>
+        <p class="note" id="load-note">生成版 HTML 会内置数据；模板通过 HTTP 打开时自动读取真实示例或空结构 JSON。</p>
+      </div>
+      <div class="toolbar" aria-label="数据操作">
+        <button class="button" type="button" id="reload-json">读取同目录 JSON</button>
+        <label class="file-button">
+          导入 JSON
+          <input id="json-file" type="file" accept="application/json,.json">
+        </label>
+      </div>
+    </header>
+
+    <section class="hero">
+      <div class="hero-block">
+        <p class="hero-label advantage">优点</p>
+        <p class="summary" id="summary">-</p>
+      </div>
+      <div class="hero-block weakness-box">
+        <p class="hero-label warning">弱点</p>
+        <p class="weakness-text" id="hero-note">-</p>
+      </div>
+    </section>
+
+    <section class="metrics" id="metrics"></section>
+
+    <section class="content">
+      <article class="panel">
+        <h2>差距来源分析</h2>
+        <p class="note">用 Tab 承载流量来源、关键词、客户画像三类解释项。</p>
+        <div class="tabs" id="tabs"></div>
+        <div class="tab-body" id="tab-body"></div>
+      </article>
+
+      <aside class="panel">
+        <h2>AI核心判断与建议</h2>
+        <p class="note">按优势、短板和动作优先级归纳。</p>
+        <div class="diagnosis-list" id="diagnosis"></div>
+      </aside>
+    </section>
+
+    <footer class="footnote" id="risks">-</footer>
+  </main>
+
+  <script>
+    const state = {
+      data: null,
+      activeTab: 0,
+      dimensions: {}
+    };
+
+    /**
+     * 功能说明：格式化页面中展示的值。
+     * 参数 value：待展示的原始值。
+     * 参数 unit：数值单位。
+     * 返回值：适合放入页面的字符串。
+     */
+    function formatValue(value, unit = "") {
+      if (typeof value === "number") {
+        const text = Number.isInteger(value) ? value.toLocaleString("zh-CN") : value.toFixed(2);
+        return `${text}${unit}`;
+      }
+      return `${value ?? "-"}${unit}`;
+    }
+
+    /**
+     * 功能说明：判断表格单元格的展示状态。
+     * 参数 value：单元格原始值。
+     * 参数 column：当前列定义。
+     * 返回值：状态样式类名。
+     */
+    function valueTone(value, column = {}) {
+      const text = String(value ?? "");
+      const key = String(column.key || "");
+      if (/落后|竞品独有|补词机会|成交落后|访客落后|短板/.test(text)) {
+        return "cell-bad";
+      }
+      if (/领先|本品独有|本品优势|优势|保持优势/.test(text)) {
+        return "cell-good";
+      }
+      if (typeof value === "number" && /(gap|差距|visitor_gap|gmv_gap|order_gap|gap_rate)/.test(key)) {
+        if (value > 0) {
+          return "cell-good";
+        }
+        if (value < 0) {
+          return "cell-bad";
+        }
+      }
+      if (text === "-" || text === "暂无") {
+        return "cell-neutral";
+      }
+      return "";
+    }
+
+    /**
+     * 功能说明：渲染带状态样式的数据表单元格。
+     * 参数 row：当前表格行。
+     * 参数 column：当前列定义。
+     * 返回值：单元格 HTML 字符串。
+     */
+    function renderCell(row, column) {
+      const value = row[column.key];
+      const tone = valueTone(value, column);
+      return `<span class="${tone}">${formatValue(value, column.unit || "")}</span>`;
+    }
+
+    /**
+     * 功能说明：计算对比条的相对宽度。
+     * 参数 value：当前项数值。
+     * 参数 max：同组最大数值。
+     * 返回值：百分比宽度。
+     */
+    function ratioWidth(value, max) {
+      if (typeof value !== "number") {
+        return 0;
+      }
+      if (max <= 0) {
+        return 100;
+      }
+      return Math.max(4, Math.round((value / max) * 100));
+    }
+
+    /**
+     * 功能说明：把 analysis_result 结构渲染到看板页面。
+     * 参数 data：分析结果 JSON 对象。
+     * 返回值：无返回值，直接更新 DOM。
+     */
+    function renderDashboard(data) {
+      console.info("开始渲染看板", data?.meta);
+      state.data = data;
+      state.filter = "";
+      state.dimensions = {};
+      document.querySelector("#title").textContent = data.meta?.title || "竞品准真实值看板";
+      document.querySelector("#meta").textContent = [
+        data.meta?.period,
+        data.meta?.granularity ? `分析粒度：${data.meta.granularity}` : "",
+        data.meta?.self_spu ? `本品 SPU ${data.meta.self_spu}` : "",
+        data.meta?.competitor_spu ? `竞品 SPU ${data.meta.competitor_spu}` : ""
+      ].filter(Boolean).join(" | ");
+      document.querySelector("#summary").textContent = data.meta?.summary || "-";
+      document.querySelector("#hero-note").textContent = data.meta?.weakness_summary || "-";
+
+      const metrics = document.querySelector("#metrics");
+      metrics.innerHTML = (data.core_metrics || []).map((item) => `
+        <article class="metric-card">
+          <p class="metric-title">${item.label || "-"}</p>
+          <div class="metric-values">
+            <div>
+              <div class="value self">${formatValue(item.self_value, item.unit)}</div>
+              <div class="sub">本品真实值</div>
+            </div>
+            <div>
+              <div class="value competitor">${formatValue(item.competitor_value, item.unit)}</div>
+              <div class="sub">竞品估算值</div>
+            </div>
+          </div>
+          <div class="gap ${item.status === "warning" ? "warning" : "advantage"}">${item.gap_text || "-"}</div>
+        </article>
+      `).join("");
+
+      renderTabs();
+      renderDiagnosis();
+      document.querySelector("#risks").textContent = `风险提示：${(data.risks || ["暂无"]).join("；")}`;
+      console.info("看板渲染完成");
+    }
+
+    /**
+     * 功能说明：渲染差距来源 Tab 导航与当前面板。
+     * 返回值：无返回值，直接更新 DOM。
+     */
+    function renderTabs() {
+      const tabs = state.data?.tabs || [];
+      const nav = document.querySelector("#tabs");
+      nav.innerHTML = tabs.map((tab, index) => `
+        <button class="tab ${index === state.activeTab ? "active" : ""}" type="button" data-tab-index="${index}">
+          ${tab.label || `Tab ${index + 1}`}
+        </button>
+      `).join("");
+
+      nav.querySelectorAll("[data-tab-index]").forEach((button) => {
+        button.addEventListener("click", () => {
+          state.activeTab = Number(button.dataset.tabIndex);
+          state.filter = "";
+          console.info("切换分析 Tab", state.activeTab);
+          renderTabs();
+        });
+      });
+
+      const current = tabs[state.activeTab] || tabs[0] || {};
+      const highlights = current.highlights || current.items || [];
+      const max = Math.max(0, ...highlights.flatMap((item) => [
+        typeof item.self_value === "number" ? item.self_value : 0,
+        typeof item.competitor_value === "number" ? item.competitor_value : 0
+      ]));
+      const rows = current.rows || [];
+      const columns = current.columns || [];
+      const dimensionField = current.dimension_field;
+      const dimensionOptions = dimensionField
+        ? [...new Set(rows.map((row) => row[dimensionField]).filter(Boolean))]
+        : [];
+      const activeDimension = state.dimensions?.[current.id] || dimensionOptions[0] || "";
+      const query = (state.filter || "").trim().toLowerCase();
+      const dimensionRows = activeDimension
+        ? rows.filter((row) => row[dimensionField] === activeDimension)
+        : rows;
+      const filteredRows = query
+        ? dimensionRows.filter((row) => Object.values(row).some((value) => String(value ?? "").toLowerCase().includes(query)))
+        : dimensionRows;
+
+      document.querySelector("#tab-body").innerHTML = `
+        <h3>${current.headline || "-"}</h3>
+        <section class="tab-section">
+          <p class="tab-section-title">AI 建议重点</p>
+          <div class="insight-grid">
+            ${highlights.map((item) => `
+              <article class="insight-card ${item.status === "warning" ? "warning" : "advantage"}">
+                <h4>${item.label || "-"}</h4>
+                <p>${item.gap_text || "-"}</p>
+                ${item.action ? `<p>${item.action}</p>` : ""}
+              </article>
+            `).join("")}
+          </div>
+        </section>
+        <section class="tab-section">
+          <div class="table-tools">
+            <p class="tab-section-title">完整数据对比</p>
+            <input class="data-filter" id="data-filter" type="search" placeholder="筛选当前表格" value="${state.filter || ""}">
+          </div>
+          ${dimensionOptions.length ? `
+            <div class="dimension-tabs">
+              ${dimensionOptions.map((dimension) => `
+                <button class="dimension-tab ${dimension === activeDimension ? "active" : ""}" type="button" data-dimension="${dimension}">
+                  ${dimension}
+                </button>
+              `).join("")}
+            </div>
+          ` : ""}
+          ${columns.length ? `
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>${columns.map((column) => `<th>${column.label}</th>`).join("")}</tr>
+                </thead>
+                <tbody>
+                  ${filteredRows.map((row) => `
+                    <tr>
+                      ${columns.map((column) => `<td>${renderCell(row, column)}</td>`).join("")}
+                    </tr>
+                  `).join("")}
+                </tbody>
+              </table>
+            </div>
+          ` : `
+            <div>
+              ${highlights.map((item) => `
+            <div class="compare-row">
+              <div class="label">
+                ${item.label || "-"}
+                ${item.gap_text ? `<div class="sub">${item.gap_text}</div>` : ""}
+              </div>
+              <div class="bar-wrap">
+                <span>本品 ${formatValue(item.self_value, item.unit)}</span>
+                <div class="bar bar-self"><span style="width:${ratioWidth(item.self_value, max)}%"></span></div>
+              </div>
+              <div class="bar-wrap">
+                <span>竞品 ${formatValue(item.competitor_value, item.unit)}</span>
+                <div class="bar bar-competitor"><span style="width:${ratioWidth(item.competitor_value, max)}%"></span></div>
+              </div>
+            </div>
+              `).join("")}
+            </div>
+          `}
+        </section>
+        <ul class="notes">
+          ${(current.notes || []).map((note) => `<li>${note}</li>`).join("")}
+        </ul>
+      `;
+
+      const filter = document.querySelector("#data-filter");
+      if (filter) {
+        filter.addEventListener("input", (event) => {
+          state.filter = event.target.value;
+          renderTabs();
+          document.querySelector("#data-filter")?.focus();
+        });
+      }
+
+      document.querySelectorAll("[data-dimension]").forEach((button) => {
+        button.addEventListener("click", () => {
+          state.dimensions = state.dimensions || {};
+          state.dimensions[current.id] = button.dataset.dimension;
+          state.filter = "";
+          renderTabs();
+        });
+      });
+    }
+
+    /**
+     * 功能说明：渲染诊断建议卡片。
+     * 返回值：无返回值，直接更新 DOM。
+     */
+    function renderDiagnosis() {
+      const target = document.querySelector("#diagnosis");
+      target.innerHTML = (state.data?.diagnosis || []).map((item) => `
+        <section class="diagnosis-card ${item.status === "warning" ? "warning" : "advantage"}">
+          <h3>${item.title || "-"}</h3>
+          <p class="diagnosis-evidence">${item.evidence || item.text || "-"}</p>
+          ${item.recommendation ? `
+            <div class="diagnosis-advice">
+              <span class="diagnosis-advice-label">建议</span>
+              <p>${item.recommendation}</p>
+            </div>
+          ` : ""}
+        </section>
+      `).join("");
+    }
+
+    /**
+     * 功能说明：从同目录读取 JSON，适合通过 HTTP 服务打开页面时使用。
+     * 返回值：Promise，成功时渲染页面，失败时保留当前提示。
+     */
+    async function loadSiblingJson() {
+      try {
+        console.info("开始读取同目录 JSON");
+        const candidates = ["./examples/analysis-result.example.json", "./analysis-result.template.json"];
+        let data = null;
+        let loadedName = "";
+        for (const candidate of candidates) {
+          try {
+            const response = await fetch(candidate, { cache: "no-store" });
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}`);
+            }
+            data = await response.json();
+            loadedName = candidate.replace("./", "");
+            break;
+          } catch (innerError) {
+            console.warn("JSON 候选读取失败", candidate, innerError);
+          }
+        }
+        if (!data) {
+          throw new Error("未读取到可用 JSON");
+        }
+        document.querySelector("#load-note").textContent = `已读取同目录 ${loadedName}。`;
+        renderDashboard(data);
+      } catch (error) {
+        console.warning?.("同目录 JSON 读取失败", error);
+        console.warn("同目录 JSON 读取失败", error);
+        document.querySelector("#load-note").textContent = "当前打开方式无法自动读取 JSON，可启动本地 HTTP 服务或手动导入 JSON。";
+      }
+    }
+
+    document.querySelector("#reload-json").addEventListener("click", loadSiblingJson);
+    document.querySelector("#json-file").addEventListener("change", async (event) => {
+      const [file] = event.target.files || [];
+      if (!file) {
+        return;
+      }
+      try {
+        console.info("开始导入 JSON 文件", file.name);
+        const data = JSON.parse(await file.text());
+        document.querySelector("#load-note").textContent = `已导入 ${file.name}。`;
+        renderDashboard(data);
+      } catch (error) {
+        console.error("JSON 导入失败", error);
+        document.querySelector("#load-note").textContent = "JSON 导入失败，请检查文件格式。";
+      }
+    });
+
+    if (window.__ANALYSIS_DATA__) {
+      document.querySelector("#load-note").textContent = "已读取 HTML 内置数据。";
+      renderDashboard(window.__ANALYSIS_DATA__);
+    } else {
+      loadSiblingJson();
+    }
+  </script>
+</body>
+</html>

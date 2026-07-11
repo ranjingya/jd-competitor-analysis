@@ -1,0 +1,192 @@
+{
+  "schema_version": "1.0",
+  "meta": {
+    "title": null,
+    "period": null,
+    "period_start": null,
+    "period_end": null,
+    "period_key": null,
+    "granularity": null,
+    "self_name": null,
+    "self_spu": null,
+    "competitor_name": null,
+    "competitor_spu": null,
+    "confidence": null,
+    "summary": null,
+    "weakness_summary": null
+  },
+  "source_files": [],
+  "self_validation": [],
+  "competitor_core_conversions": [],
+  "core_metrics": [],
+  "comparison": [],
+  "traffic_sources": [],
+  "keywords": {
+    "summary": {
+      "common_count": 0,
+      "self_only_count": 0,
+      "competitor_only_count": 0
+    },
+    "coverage": {
+      "self_visitor_rate": null,
+      "competitor_visitor_rate": null,
+      "self_gmv_rate": null,
+      "competitor_gmv_rate": null
+    },
+    "rows": [],
+    "notes": []
+  },
+  "customer_profile": {
+    "dimensions": [],
+    "notes": []
+  },
+  "promotion": {
+    "available": false,
+    "self": {},
+    "competitor": {},
+    "attributed_gmv_rate": null,
+    "judgement": null,
+    "notes": []
+  },
+  "tabs": [
+    {
+      "id": "traffic",
+      "label": "流量来源",
+      "headline": "按渠道路径比较访客规模、成交金额和转化效率",
+      "highlights": [],
+      "columns": [
+        {
+          "key": "path",
+          "label": "渠道路径"
+        },
+        {
+          "key": "self_visitors",
+          "label": "本品访客"
+        },
+        {
+          "key": "competitor_visitors",
+          "label": "竞品访客"
+        },
+        {
+          "key": "visitor_gap",
+          "label": "访客差距"
+        },
+        {
+          "key": "self_gmv",
+          "label": "本品成交金额"
+        },
+        {
+          "key": "competitor_gmv",
+          "label": "竞品成交金额"
+        },
+        {
+          "key": "self_conversion_rate_pct",
+          "label": "本品转化率",
+          "unit": "%"
+        },
+        {
+          "key": "competitor_conversion_rate_pct",
+          "label": "竞品转化率",
+          "unit": "%"
+        },
+        {
+          "key": "conversion_gap_pct",
+          "label": "转化差距",
+          "unit": "pct"
+        },
+        {
+          "key": "judgement",
+          "label": "判断"
+        }
+      ],
+      "rows": [],
+      "notes": [
+        "渠道值按原始区间估算，核心指标另受顶层渠道约束。"
+      ]
+    },
+    {
+      "id": "keywords",
+      "label": "关键词",
+      "headline": "比较全部披露关键词的覆盖关系、访客和成交差距",
+      "highlights": [],
+      "columns": [
+        {
+          "key": "keyword",
+          "label": "关键词"
+        },
+        {
+          "key": "coverage_relation",
+          "label": "覆盖关系"
+        },
+        {
+          "key": "self_visitors",
+          "label": "本品访客"
+        },
+        {
+          "key": "competitor_visitors",
+          "label": "竞品访客"
+        },
+        {
+          "key": "visitor_gap",
+          "label": "访客差距"
+        },
+        {
+          "key": "self_gmv",
+          "label": "本品成交金额"
+        },
+        {
+          "key": "competitor_gmv",
+          "label": "竞品成交金额"
+        },
+        {
+          "key": "gmv_gap",
+          "label": "成交差距"
+        },
+        {
+          "key": "opportunity",
+          "label": "机会判断"
+        }
+      ],
+      "rows": [],
+      "notes": []
+    },
+    {
+      "id": "customer_profile",
+      "label": "客户画像",
+      "headline": "按性别、年龄、地区、省份和城市维度比较成交客户结构",
+      "highlights": [],
+      "dimension_field": "dimension",
+      "dimension_label": "画像维度",
+      "columns": [
+        {
+          "key": "name",
+          "label": "画像项"
+        },
+        {
+          "key": "self_rate",
+          "label": "本品占比",
+          "unit": "%"
+        },
+        {
+          "key": "competitor_rate",
+          "label": "竞品占比",
+          "unit": "%"
+        },
+        {
+          "key": "gap_rate",
+          "label": "占比差距",
+          "unit": "pct"
+        },
+        {
+          "key": "judgement",
+          "label": "判断"
+        }
+      ],
+      "rows": [],
+      "notes": []
+    }
+  ],
+  "diagnosis": [],
+  "action_tracking": [],
+  "risks": []
+}

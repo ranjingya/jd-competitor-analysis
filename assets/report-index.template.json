@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "updated_at": null,
+  "meta": {
+    "title": null,
+    "self_spu": null,
+    "competitor_spu": null
+  },
+  "reports": {
+    "day": [],
+    "week": [],
+    "month": []
+  }
+}

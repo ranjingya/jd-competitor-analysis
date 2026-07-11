@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="京东自营竞品准真实值分析看板">
+  <title>竞品准真实值看板</title>
+  <link rel="stylesheet" href="/src/styles.css">
+</head>
+<body>
+  <main class="page">
+    <header class="report-header">
+      <div>
+        <h1 id="title">竞品准真实值看板</h1>
+        <p class="meta" id="meta">正在读取报告索引</p>
+      </div>
+      <div class="data-status" aria-live="polite">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span id="updated-at">等待数据</span>
+      </div>
+    </header>
+
+    <section class="view-switcher" aria-label="分析周期切换">
+      <div class="granularity-switch" id="granularity-switch"></div>
+      <div class="period-control">
+        <label class="period-label" for="period-select">分析周期</label>
+        <select class="period-select" id="period-select" disabled></select>
+        <span class="switch-note" id="period-note"></span>
+      </div>
+    </section>
+
+    <section class="page-state" id="page-state" aria-live="polite">正在加载报告数据</section>
+
+    <div id="dashboard" hidden>
+      <section class="hero">
+        <div class="hero-block">
+          <p class="hero-label advantage">优点</p>
+          <p class="summary" id="summary">-</p>
+        </div>
+        <div class="hero-block">
+          <p class="hero-label warning">弱点</p>
+          <p class="weakness-text" id="weakness">-</p>
+        </div>
+      </section>
+
+      <section class="metrics" id="metrics"></section>
+
+      <section class="content">
+        <article class="panel analysis-panel">
+          <h2>差距来源分析</h2>
+          <p class="note">流量来源、关键词、客户画像</p>
+          <div class="tabs" id="tabs"></div>
+          <div class="tab-body" id="tab-body"></div>
+        </article>
+
+        <aside class="panel diagnosis-panel">
+          <h2>AI核心判断与建议</h2>
+          <p class="note">按优势、短板和动作优先级归纳</p>
+          <div class="diagnosis-list" id="diagnosis"></div>
+        </aside>
+      </section>
+
+      <footer class="footnote" id="risks">-</footer>
+    </div>
+  </main>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

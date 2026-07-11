@@ -1,0 +1,7 @@
+.venv/
+node_modules/
+dist/
+竞品分析数据/
+output/
+__pycache__/
+*.py[cod]
