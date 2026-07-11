@@ -62,18 +62,25 @@ function renderMetrics(report) {
   if (!metrics.some((metric) => metric.id === state.activeMetricId)) {
     state.activeMetricId = metrics[0]?.id || "";
   }
-  target.innerHTML = metrics.map((metric) => `
-    <button class="playground-metric ${metric.id === state.activeMetricId ? "active" : ""}" type="button" data-metric-id="${escapeHtml(metric.id)}" aria-pressed="${metric.id === state.activeMetricId}">
-      <span class="metric-topline">
-        <strong>${escapeHtml(metric.label || "-")}</strong>
-        <em class="${metric.status === "warning" ? "warning" : "advantage"}">${escapeHtml(formatGap(metric))}</em>
-      </span>
-      <span class="metric-values">
-        <span><b class="self">${escapeHtml(formatValue(metric.self_value, metric.unit))}</b><small>本品</small></span>
-        <span><b class="competitor">${escapeHtml(formatValue(metric.competitor_value, metric.unit))}</b><small>竞品</small></span>
-      </span>
-    </button>
-  `).join("");
+  target.innerHTML = metrics.map((metric) => {
+    const statusClass = metric.status === "warning" ? "warning" : "advantage";
+    const statusText = statusClass === "warning" ? "落后" : "领先";
+    return `
+      <button class="playground-metric status-${statusClass} ${metric.id === state.activeMetricId ? "active" : ""}" type="button" data-metric-id="${escapeHtml(metric.id)}" aria-pressed="${metric.id === state.activeMetricId}">
+        <span class="metric-topline">
+          <strong>${escapeHtml(metric.label || "-")}</strong>
+          <span class="metric-judgement">
+            <i class="status-badge">${statusText}</i>
+            <em>${escapeHtml(formatGap(metric))}</em>
+          </span>
+        </span>
+        <span class="metric-values">
+          <span><b class="self">${escapeHtml(formatValue(metric.self_value, metric.unit))}</b><small>本品</small></span>
+          <span><b class="competitor">${escapeHtml(formatValue(metric.competitor_value, metric.unit))}</b><small>竞品</small></span>
+        </span>
+      </button>
+    `;
+  }).join("");
   target.querySelectorAll("[data-metric-id]").forEach((button) => {
     button.addEventListener("click", () => {
       state.activeMetricId = button.dataset.metricId;

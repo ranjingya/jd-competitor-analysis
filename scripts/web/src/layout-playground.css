@@ -190,16 +190,30 @@ h1 {
 }
 
 .playground-metric {
+  position: relative;
   min-width: 0;
   padding: 11px 13px;
+  overflow: hidden;
+  border-left-width: 4px;
   color: inherit;
   text-align: left;
   cursor: pointer;
+  transition: box-shadow 160ms ease, transform 160ms ease;
 }
 
 .playground-metric.active {
-  border-color: var(--teal);
-  box-shadow: 0 0 0 2px rgba(15, 123, 115, 0.12);
+  box-shadow: 0 0 0 2px rgba(31, 41, 51, 0.2);
+  transform: translateX(2px);
+}
+
+.playground-metric.status-advantage {
+  border-left-color: var(--amber);
+  background: linear-gradient(90deg, var(--soft-amber), var(--panel) 64%);
+}
+
+.playground-metric.status-warning {
+  border-left-color: var(--teal);
+  background: linear-gradient(90deg, var(--soft-teal), var(--panel) 64%);
 }
 
 .metric-topline,
@@ -214,18 +228,43 @@ h1 {
   font-size: 13px;
 }
 
-.metric-topline em {
+.metric-judgement {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-badge {
+  padding: 2px 6px;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 900;
+  line-height: 1.4;
+}
+
+.metric-judgement em {
   font-size: 11px;
   font-style: normal;
   font-weight: 900;
   white-space: nowrap;
 }
 
-.metric-topline em.advantage {
+.status-advantage .status-badge {
+  background: var(--amber);
+}
+
+.status-advantage .metric-judgement em {
   color: var(--amber);
 }
 
-.metric-topline em.warning {
+.status-warning .status-badge {
+  background: var(--teal);
+}
+
+.status-warning .metric-judgement em {
   color: var(--teal);
 }
 
