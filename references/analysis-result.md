@@ -4,7 +4,7 @@
 
 `analysis_result.json` 保存按当前估算逻辑生成的准真实值、差距、建议和风险，是 HTML 看板与人工复核共同使用的数据契约。本文档是该 JSON 的结构与字段约束规范；字段来源见 [field-map.md](field-map.md)，计算规则见 [estimation.md](estimation.md)，页面消费规则见 [dashboard.md](dashboard.md)。
 
-可执行样例位于 `assets/examples/analysis-result.example.json`；不含业务值的空结构位于 `assets/analysis-result.template.json`。空结构用于初始化和联调，本文档负责字段语义与约束。
+可执行样例位于 `assets/analysis-result.example.json`；不含业务值的空结构位于 `assets/analysis-result.template.json`。空结构用于初始化和联调，本文档负责字段语义与约束。
 
 ## 顶层结构
 
