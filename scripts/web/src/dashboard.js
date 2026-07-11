@@ -48,6 +48,16 @@ function formatMetricGap(item) {
   return `${sign}${value}${unit}`;
 }
 
+/**
+ * 功能说明：从核心指标倍率说明中提取纯倍率数字。
+ * 参数 item：核心指标卡数据。
+ * 返回值：不包含本品或竞品说明的倍率文本。
+ */
+function formatMetricRatio(item) {
+  const match = String(item.ratio_text || "").match(/(\d+(?:\.\d+)?)x/i);
+  return match ? `${match[1]}x` : "-";
+}
+
 function valueTone(value, column = {}) {
   const text = String(value ?? "");
   const key = String(column.key || "");
@@ -212,7 +222,11 @@ export function renderDashboard(data) {
             <div class="metric-sub">竞品估算值</div>
           </div>
         </div>
-        <div class="metric-gap ${item.status === "warning" ? "warning" : "advantage"}">${escapeHtml(formatMetricGap(item))}</div>
+        <div class="metric-gap ${item.status === "warning" ? "warning" : "advantage"}">
+          <span>${escapeHtml(formatMetricGap(item))}</span>
+          <span class="metric-gap-divider" aria-hidden="true"></span>
+          <span>${escapeHtml(formatMetricRatio(item))}</span>
+        </div>
       </article>
     `;
   }).join("");

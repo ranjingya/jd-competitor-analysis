@@ -258,11 +258,22 @@
     }
 
     .gap {
+      display: flex;
+      align-items: center;
+      gap: 9px;
       margin-top: 12px;
       border-radius: 6px;
       padding: 5px 10px;
       font-size: 13px;
       font-weight: 800;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .gap-divider {
+      width: 1px;
+      height: 14px;
+      background: currentColor;
+      opacity: 0.38;
     }
 
     .gap.advantage {
@@ -744,6 +755,16 @@
     }
 
     /**
+     * 功能说明：从核心指标倍率说明中提取纯倍率数字。
+     * 参数 item：核心指标卡数据。
+     * 返回值：不包含本品或竞品说明的倍率文本。
+     */
+    function formatMetricRatio(item) {
+      const match = String(item.ratio_text || "").match(/(\d+(?:\.\d+)?)x/i);
+      return match ? `${match[1]}x` : "-";
+    }
+
+    /**
      * 功能说明：判断表格单元格的展示状态。
      * 参数 value：单元格原始值。
      * 参数 column：当前列定义。
@@ -837,7 +858,11 @@
               <div class="sub">竞品估算值</div>
             </div>
           </div>
-          <div class="gap ${item.status === "warning" ? "warning" : "advantage"}">${formatMetricGap(item)}</div>
+          <div class="gap ${item.status === "warning" ? "warning" : "advantage"}">
+            <span>${formatMetricGap(item)}</span>
+            <span class="gap-divider" aria-hidden="true"></span>
+            <span>${formatMetricRatio(item)}</span>
+          </div>
         </article>
       `).join("");
 

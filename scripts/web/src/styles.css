@@ -306,11 +306,22 @@ h1 {
 }
 
 .metric-gap {
+  display: flex;
+  align-items: center;
+  gap: 9px;
   margin-top: 12px;
   border-radius: 6px;
   padding: 5px 10px;
   font-size: 13px;
   font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.metric-gap-divider {
+  width: 1px;
+  height: 14px;
+  background: currentColor;
+  opacity: 0.38;
 }
 
 .metric-gap.advantage {
