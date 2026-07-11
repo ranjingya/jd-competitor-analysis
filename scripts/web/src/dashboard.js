@@ -271,7 +271,7 @@ export function renderTrendChart(reports, metricId, granularity) {
   const metric = series[0].metric;
   const scopeLabels = { day: `近 ${series.length} 天`, week: `本月 ${series.length} 周`, month: `${series.length} 个月` };
   document.querySelector("#trend-title").textContent = `${metric.label || "指标"}趋势`;
-  document.querySelector("#trend-scope").textContent = `${scopeLabels[granularity] || `${series.length} 个周期`} · 点击上方指标切换`;
+  document.querySelector("#trend-scope").textContent = `${scopeLabels[granularity] || `${series.length} 个周期`} · 点击指标卡切换`;
   const target = document.querySelector("#trend-chart");
   disposeTrendChart();
   target.innerHTML = "";
@@ -382,9 +382,17 @@ export function renderDashboard(data, activeMetricId = "") {
   metrics.innerHTML = metricItems.map((item) => {
     const selfText = formatValue(item.self_value, item.unit);
     const competitorText = formatValue(item.competitor_value, item.unit);
+    const statusClass = item.status === "warning" ? "warning" : "advantage";
     return `
-      <button class="metric-card ${item.id === dashboardState.activeMetricId ? "active" : ""}" type="button" data-metric-id="${escapeHtml(item.id)}" aria-pressed="${item.id === dashboardState.activeMetricId}">
-        <p class="metric-title">${escapeHtml(item.label || "-")}</p>
+      <button class="metric-card status-${statusClass} ${item.id === dashboardState.activeMetricId ? "active" : ""}" type="button" data-metric-id="${escapeHtml(item.id)}" aria-pressed="${item.id === dashboardState.activeMetricId}">
+        <div class="metric-card-head">
+          <p class="metric-title">${escapeHtml(item.label || "-")}</p>
+          <div class="metric-gap">
+            <span>${escapeHtml(formatMetricGap(item))}</span>
+            <span class="metric-gap-divider" aria-hidden="true"></span>
+            <span>${escapeHtml(formatMetricRatio(item))}</span>
+          </div>
+        </div>
         <div class="metric-values">
           <div>
             <div class="metric-value self">${escapeHtml(selfText)}</div>
@@ -394,11 +402,6 @@ export function renderDashboard(data, activeMetricId = "") {
             <div class="metric-value competitor">${escapeHtml(competitorText)}</div>
             <div class="metric-sub">竞品估算值</div>
           </div>
-        </div>
-        <div class="metric-gap ${item.status === "warning" ? "warning" : "advantage"}">
-          <span>${escapeHtml(formatMetricGap(item))}</span>
-          <span class="metric-gap-divider" aria-hidden="true"></span>
-          <span>${escapeHtml(formatMetricRatio(item))}</span>
         </div>
       </button>
     `;
