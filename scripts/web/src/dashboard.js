@@ -1,3 +1,10 @@
+import * as echarts from "echarts/core";
+import { LineChart } from "echarts/charts";
+import { GridComponent, LegendComponent, TooltipComponent } from "echarts/components";
+import { SVGRenderer } from "echarts/renderers";
+
+echarts.use([LineChart, GridComponent, LegendComponent, TooltipComponent, SVGRenderer]);
+
 const granularityLabels = {
   day: "日",
   week: "周",
@@ -11,6 +18,9 @@ const dashboardState = {
   filter: "",
   dimensions: {}
 };
+
+let trendChartInstance = null;
+let trendResizeObserver = null;
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -199,30 +209,6 @@ function compactNumber(value) {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
-function niceMaximum(value) {
-  if (!Number.isFinite(value) || value <= 0) {
-    return 1;
-  }
-  const magnitude = 10 ** Math.floor(Math.log10(value));
-  const normalized = value / magnitude;
-  const step = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
-  return step * magnitude;
-}
-
-function smoothPath(points) {
-  if (points.length < 2) {
-    return "";
-  }
-  let path = `M ${points[0].x} ${points[0].y}`;
-  for (let index = 0; index < points.length - 1; index += 1) {
-    const current = points[index];
-    const next = points[index + 1];
-    const middleX = (current.x + next.x) / 2;
-    path += ` C ${middleX} ${current.y}, ${middleX} ${next.y}, ${next.x} ${next.y}`;
-  }
-  return path;
-}
-
 function trendPeriodLabel(meta, granularity) {
   const start = String(meta.period_start || "");
   const end = String(meta.period_end || "");
@@ -235,6 +221,15 @@ function trendPeriodLabel(meta, granularity) {
   return start.slice(5) || meta.period || "-";
 }
 
+function disposeTrendChart() {
+  trendResizeObserver?.disconnect();
+  trendResizeObserver = null;
+  if (trendChartInstance && !trendChartInstance.isDisposed()) {
+    trendChartInstance.dispose();
+  }
+  trendChartInstance = null;
+}
+
 /**
  * 功能说明：显示趋势图加载、空数据或错误状态。
  * 参数 message：需要显示的状态文本。
@@ -242,6 +237,7 @@ function trendPeriodLabel(meta, granularity) {
  * 返回值：无；直接更新趋势图容器。
  */
 export function showTrendState(message, isError = false) {
+  disposeTrendChart();
   const target = document.querySelector("#trend-chart");
   target.innerHTML = `<div class="trend-empty ${isError ? "error" : ""}">${escapeHtml(message)}</div>`;
 }
@@ -251,7 +247,7 @@ export function showTrendState(message, isError = false) {
  * 参数 reports：按时间升序排列的 `analysis_result.json` 数组。
  * 参数 metricId：当前选择的核心指标 ID。
  * 参数 granularity：当前报告粒度。
- * 返回值：无；直接更新趋势标题、范围说明和 SVG 图表。
+ * 返回值：无；直接更新趋势标题、范围说明和 ECharts 图表。
  */
 export function renderTrendChart(reports, metricId, granularity) {
   const series = reports.map((report) => {
@@ -276,72 +272,85 @@ export function renderTrendChart(reports, metricId, granularity) {
   const scopeLabels = { day: `近 ${series.length} 天`, week: `本月 ${series.length} 周`, month: `${series.length} 个月` };
   document.querySelector("#trend-title").textContent = `${metric.label || "指标"}趋势`;
   document.querySelector("#trend-scope").textContent = `${scopeLabels[granularity] || `${series.length} 个周期`} · 点击上方指标切换`;
-
-  const width = 1100;
-  const height = 310;
-  const margin = { top: 18, right: 24, bottom: 48, left: 68 };
-  const plotWidth = width - margin.left - margin.right;
-  const plotHeight = height - margin.top - margin.bottom;
-  const maximum = niceMaximum(Math.max(...series.flatMap((item) => [item.selfValue, item.competitorValue])));
-  const xAt = (index) => series.length === 1
-    ? margin.left + plotWidth / 2
-    : margin.left + (plotWidth * index) / (series.length - 1);
-  const yAt = (value) => margin.top + plotHeight - (value / maximum) * plotHeight;
-  const selfPoints = series.map((item, index) => ({ x: xAt(index), y: yAt(item.selfValue) }));
-  const competitorPoints = series.map((item, index) => ({ x: xAt(index), y: yAt(item.competitorValue) }));
-  const ticks = Array.from({ length: 5 }, (_, index) => (maximum * index) / 4);
-  const hitWidth = plotWidth / Math.max(series.length, 1);
-
   const target = document.querySelector("#trend-chart");
-  target.innerHTML = `
-    <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(metric.label || "指标")}本品与竞品趋势图">
-      ${ticks.map((tick) => {
-        const y = yAt(tick);
+  disposeTrendChart();
+  target.innerHTML = "";
+  target.setAttribute("aria-label", `${metric.label || "指标"}本品与竞品趋势图`);
+  trendChartInstance = echarts.init(target, null, { renderer: "svg" });
+  const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  trendChartInstance.setOption({
+    animationDuration: reduceMotion ? 0 : 420,
+    color: ["#0f7b73", "#b96905"],
+    tooltip: {
+      trigger: "axis",
+      confine: true,
+      backgroundColor: "rgba(255, 253, 248, 0.97)",
+      borderColor: "#ded6c8",
+      borderWidth: 1,
+      textStyle: { color: "#1f2933", fontSize: 12 },
+      formatter(params) {
+        const rows = Array.isArray(params) ? params : [params];
+        const index = rows[0]?.dataIndex ?? 0;
+        const item = series[index];
         return `
-          <line class="trend-grid-line" x1="${margin.left}" y1="${y}" x2="${width - margin.right}" y2="${y}"></line>
-          <text class="trend-axis-label" x="${margin.left - 12}" y="${y + 4}" text-anchor="end">${escapeHtml(compactNumber(tick))}</text>
+          <strong>${escapeHtml(item.period)}</strong><br>
+          ${rows.map((row) => `${row.marker}${escapeHtml(row.seriesName)}　<b>${escapeHtml(formatValue(row.value, metric.unit))}</b>`).join("<br>")}
         `;
-      }).join("")}
-      ${series.map((item, index) => `
-        <text class="trend-axis-label" x="${xAt(index)}" y="${height - 15}" text-anchor="middle">${escapeHtml(item.label)}</text>
-      `).join("")}
-      ${series.length > 1 ? `<path class="trend-line self" d="${smoothPath(selfPoints)}"></path>` : ""}
-      ${series.length > 1 ? `<path class="trend-line competitor" d="${smoothPath(competitorPoints)}"></path>` : ""}
-      ${selfPoints.map((point) => `<circle class="trend-point self" cx="${point.x}" cy="${point.y}" r="5"></circle>`).join("")}
-      ${competitorPoints.map((point) => `<circle class="trend-point competitor" cx="${point.x}" cy="${point.y}" r="5"></circle>`).join("")}
-      ${series.map((item, index) => {
-        const hitLeft = Math.max(margin.left, xAt(index) - hitWidth / 2);
-        const hitRight = Math.min(width - margin.right, xAt(index) + hitWidth / 2);
-        return `
-          <rect class="trend-hit-area" data-trend-index="${index}" x="${hitLeft}" y="${margin.top}" width="${hitRight - hitLeft}" height="${plotHeight}" tabindex="0">
-            <title>${escapeHtml(`${item.period}；本品 ${formatValue(item.selfValue, metric.unit)}；竞品 ${formatValue(item.competitorValue, metric.unit)}`)}</title>
-          </rect>
-        `;
-      }).join("")}
-    </svg>
-    <div class="trend-tooltip" id="trend-tooltip" hidden></div>
-  `;
-
-  const tooltip = document.querySelector("#trend-tooltip");
-  const showTooltip = (index) => {
-    const item = series[index];
-    const top = Math.max(72, Math.min(selfPoints[index].y, competitorPoints[index].y));
-    tooltip.innerHTML = `
-      <strong>${escapeHtml(item.period)}</strong>
-      <div class="trend-tooltip-row self"><span>本品</span><b>${escapeHtml(formatValue(item.selfValue, metric.unit))}</b></div>
-      <div class="trend-tooltip-row competitor"><span>竞品</span><b>${escapeHtml(formatValue(item.competitorValue, metric.unit))}</b></div>
-    `;
-    tooltip.style.left = `${(xAt(index) / width) * 100}%`;
-    tooltip.style.top = `${(top / height) * 100}%`;
-    tooltip.hidden = false;
-  };
-  target.querySelectorAll("[data-trend-index]").forEach((area) => {
-    const index = Number(area.dataset.trendIndex);
-    area.addEventListener("mouseenter", () => showTooltip(index));
-    area.addEventListener("focus", () => showTooltip(index));
-    area.addEventListener("mouseleave", () => { tooltip.hidden = true; });
-    area.addEventListener("blur", () => { tooltip.hidden = true; });
+      }
+    },
+    legend: {
+      top: 0,
+      right: 4,
+      itemWidth: 10,
+      itemHeight: 10,
+      textStyle: { color: "#667085", fontSize: 12 },
+      data: ["本品", "竞品"]
+    },
+    grid: { top: 36, right: 18, bottom: 8, left: 8, containLabel: true },
+    xAxis: {
+      type: "category",
+      boundaryGap: series.length === 1,
+      data: series.map((item) => item.label),
+      axisLine: { lineStyle: { color: "#ded6c8" } },
+      axisTick: { show: false },
+      axisLabel: { color: "#667085", fontSize: 11, margin: 12 }
+    },
+    yAxis: {
+      type: "value",
+      min: 0,
+      splitNumber: 4,
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: { color: "#667085", fontSize: 11, formatter: compactNumber },
+      splitLine: { lineStyle: { color: "#ded6c8", type: "dashed" } }
+    },
+    series: [
+      {
+        name: "本品",
+        type: "line",
+        smooth: 0.35,
+        symbol: "circle",
+        symbolSize: 7,
+        showSymbol: true,
+        lineStyle: { width: 3 },
+        data: series.map((item) => item.selfValue)
+      },
+      {
+        name: "竞品",
+        type: "line",
+        smooth: 0.35,
+        symbol: "circle",
+        symbolSize: 7,
+        showSymbol: true,
+        lineStyle: { width: 3 },
+        data: series.map((item) => item.competitorValue)
+      }
+    ]
   });
+  if (typeof ResizeObserver === "function") {
+    trendResizeObserver = new ResizeObserver(() => trendChartInstance?.resize());
+    trendResizeObserver.observe(target);
+  }
 }
 
 /**
