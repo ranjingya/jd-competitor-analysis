@@ -64,16 +64,45 @@
           "label": "判断"
         },
         {
+          "key": "visitor_gap",
+          "label": "访客差距"
+        },
+        {
+          "key": "gmv_gap",
+          "label": "成交金额差距"
+        },
+        {
+          "key": "conversion_gap_pct",
+          "label": "转化差距",
+          "unit": "pct"
+        },
+        {
+          "key": "self_current_level_visitor_rate_pct",
+          "label": "本品同层访客占比",
+          "unit": "%"
+        },
+        {
+          "key": "competitor_current_level_visitor_rate_pct",
+          "label": "竞品同层访客占比",
+          "unit": "%"
+        },
+        {
+          "key": "self_total_visitor_rate_pct",
+          "label": "本品总访客占比",
+          "unit": "%"
+        },
+        {
+          "key": "competitor_total_visitor_rate_pct",
+          "label": "竞品总访客占比",
+          "unit": "%"
+        },
+        {
           "key": "self_visitors",
           "label": "本品访客"
         },
         {
           "key": "competitor_visitors",
           "label": "竞品访客"
-        },
-        {
-          "key": "visitor_gap",
-          "label": "访客差距"
         },
         {
           "key": "self_gmv",
@@ -84,10 +113,6 @@
           "label": "竞品成交金额"
         },
         {
-          "key": "gmv_gap",
-          "label": "成交金额差距"
-        },
-        {
           "key": "self_conversion_rate_pct",
           "label": "本品转化率",
           "unit": "%"
@@ -96,11 +121,6 @@
           "key": "competitor_conversion_rate_pct",
           "label": "竞品转化率",
           "unit": "%"
-        },
-        {
-          "key": "conversion_gap_pct",
-          "label": "转化差距",
-          "unit": "pct"
         }
       ],
       "rows": [],
@@ -123,6 +143,14 @@
           "label": "机会判断"
         },
         {
+          "key": "visitor_gap",
+          "label": "访客差距"
+        },
+        {
+          "key": "gmv_gap",
+          "label": "成交差距"
+        },
+        {
           "key": "coverage_relation",
           "label": "覆盖关系"
         },
@@ -135,20 +163,12 @@
           "label": "竞品访客"
         },
         {
-          "key": "visitor_gap",
-          "label": "访客差距"
-        },
-        {
           "key": "self_gmv",
           "label": "本品成交金额"
         },
         {
           "key": "competitor_gmv",
           "label": "竞品成交金额"
-        },
-        {
-          "key": "gmv_gap",
-          "label": "成交差距"
         }
       ],
       "rows": [],
@@ -171,6 +191,11 @@
           "label": "判断"
         },
         {
+          "key": "gap_rate",
+          "label": "占比差距",
+          "unit": "pct"
+        },
+        {
           "key": "self_rate",
           "label": "本品占比",
           "unit": "%"
@@ -179,11 +204,6 @@
           "key": "competitor_rate",
           "label": "竞品占比",
           "unit": "%"
-        },
-        {
-          "key": "gap_rate",
-          "label": "占比差距",
-          "unit": "pct"
         }
       ],
       "rows": [],

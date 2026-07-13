@@ -83,6 +83,8 @@
 
 每个 Tab 至少包含 `id`、`label`、`headline`、`highlights`、`columns`、`rows` 和 `notes`。客户画像 Tab 同时包含 `dimension_field` 和 `dimension_label`。
 
+流量来源行包含本品与竞品的 `current_level_visitor_rate` 和 `total_visitor_rate`，页面使用对应 `*_pct` 字段展示百分比。三个 Tab 的差距列紧跟判断列，并支持点击表头排序；渠道排序仅在同一父节点的同级行之间生效。
+
 ### `diagnosis[]`
 
 每项至少包含 `title`、`evidence`、`recommendation`、`status` 和 `source`。证据和建议分开保存，禁止把建议拼进证据字段。

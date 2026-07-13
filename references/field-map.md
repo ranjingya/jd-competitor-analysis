@@ -101,6 +101,8 @@
 |---|---|---|
 | `traffic_sources[].path` | 三级渠道字段 | 过滤空层级后使用 ` > ` 拼接。 |
 | 两侧访客、成交和转化字段 | 对应渠道区间与占比 | 按 [estimation.md](estimation.md) 的父子渠道约束估算。 |
+| `traffic_sources[].self_current_level_visitor_rate`、`competitor_current_level_visitor_rate` | 两侧访客估算值、渠道层级 | 以同一父渠道下的兄弟节点访客合计为分母计算同层访客占比。 |
+| `traffic_sources[].self_total_visitor_rate`、`competitor_total_visitor_rate` | 两侧源表访客占比、一级渠道访客合计 | 优先使用源表披露占比；缺失时以一级渠道访客合计为分母回算。 |
 | `traffic_sources[].gap_tags` | 两侧最终值 | 生成访客、成交和转化差距标签。 |
 | `traffic_sources[].suggested_action` | 差距组合 | 根据流量规模和承接效率生成动作方向。 |
 

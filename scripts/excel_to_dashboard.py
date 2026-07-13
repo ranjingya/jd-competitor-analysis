@@ -581,8 +581,64 @@ def analyze_core(
     return validation, conversions, comparison, cards, buyers, risks
 
 
+def enrich_traffic_visitor_rates(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """补充渠道访客的同层占比和总占比。
+
+    功能说明：按同一父渠道分组计算兄弟节点访客占比，并整理源表披露的全渠道访客占比；源表总占比缺失时按一级渠道访客合计回算。
+    参数 rows：已经完成层级路径、两侧访客值和源表访客占比解析的渠道行。
+    返回值：补充本品与竞品同层访客占比、总访客占比后的渠道行列表。
+    """
+
+    sibling_totals: dict[tuple[str, ...], dict[str, float]] = {}
+    root_totals = {"self_visitors": 0.0, "competitor_visitors": 0.0}
+    for row in rows:
+        levels = tuple(
+            value
+            for value in (row.get("level_1"), row.get("level_2"), row.get("level_3"))
+            if value and value != "-"
+        )
+        parent_key = levels[:-1]
+        totals = sibling_totals.setdefault(parent_key, {"self_visitors": 0.0, "competitor_visitors": 0.0})
+        for visitor_key in ("self_visitors", "competitor_visitors"):
+            value = row.get(visitor_key)
+            if isinstance(value, (int, float)):
+                totals[visitor_key] += value
+                if len(levels) == 1:
+                    root_totals[visitor_key] += value
+
+    for row in rows:
+        levels = tuple(
+            value
+            for value in (row.get("level_1"), row.get("level_2"), row.get("level_3"))
+            if value and value != "-"
+        )
+        totals = sibling_totals.get(levels[:-1], {})
+        for side in ("self", "competitor"):
+            visitor_key = f"{side}_visitors"
+            source_rate_key = f"{side}_visitor_rate"
+            value = row.get(visitor_key)
+            sibling_total = totals.get(visitor_key)
+            total_value = root_totals.get(visitor_key)
+            current_level_rate = value / sibling_total if isinstance(value, (int, float)) and sibling_total else None
+            source_total_rate = row.get(source_rate_key)
+            total_rate = (
+                source_total_rate
+                if isinstance(source_total_rate, (int, float))
+                else value / total_value if isinstance(value, (int, float)) and total_value else None
+            )
+            row[f"{side}_current_level_visitor_rate"] = current_level_rate
+            row[f"{side}_total_visitor_rate"] = total_rate
+    return rows
+
+
 def analyze_traffic(rows: list[dict[str, Any]], competitor_prefix: str) -> list[dict[str, Any]]:
-    """解析完整流量来源并生成渠道差距。"""
+    """解析完整流量来源并生成渠道差距。
+
+    功能说明：读取三级渠道区间数据，生成路径、两侧访客与成交估算、差距判断、转化效率及访客占比。
+    参数 rows：流量来源工作表的标准化原始行。
+    参数 competitor_prefix：源表中目标竞品字段使用的列名前缀。
+    返回值：包含层级结构、对比指标、占比和建议动作的渠道明细列表。
+    """
 
     result = []
     for row in rows:
@@ -635,7 +691,7 @@ def analyze_traffic(rows: list[dict[str, Any]], competitor_prefix: str) -> list[
                 "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
             }
         )
-    return result
+    return enrich_traffic_visitor_rates(result)
 
 
 def analyze_keywords(
@@ -822,6 +878,10 @@ def build_tabs(traffic: list[dict[str, Any]], keywords: dict[str, Any], profile:
             **item,
             "self_conversion_rate_pct": item["self_conversion_rate"] * 100 if item["self_conversion_rate"] is not None else None,
             "competitor_conversion_rate_pct": item["competitor_conversion_rate"] * 100 if item["competitor_conversion_rate"] is not None else None,
+            "self_current_level_visitor_rate_pct": item["self_current_level_visitor_rate"] * 100 if item["self_current_level_visitor_rate"] is not None else None,
+            "competitor_current_level_visitor_rate_pct": item["competitor_current_level_visitor_rate"] * 100 if item["competitor_current_level_visitor_rate"] is not None else None,
+            "self_total_visitor_rate_pct": item["self_total_visitor_rate"] * 100 if item["self_total_visitor_rate"] is not None else None,
+            "competitor_total_visitor_rate_pct": item["competitor_total_visitor_rate"] * 100 if item["competitor_total_visitor_rate"] is not None else None,
         }
         for item in traffic
     ]
@@ -867,18 +927,22 @@ def build_tabs(traffic: list[dict[str, Any]], keywords: dict[str, Any], profile:
             "columns": [
                 {"key": "path", "label": "渠道路径"},
                 {"key": "judgement", "label": "判断"},
+                {"key": "visitor_gap", "label": "访客差距"},
+                {"key": "gmv_gap", "label": "成交金额差距"},
+                {"key": "conversion_gap_pct", "label": "转化差距", "unit": "pct"},
+                {"key": "self_current_level_visitor_rate_pct", "label": "本品同层访客占比", "unit": "%"},
+                {"key": "competitor_current_level_visitor_rate_pct", "label": "竞品同层访客占比", "unit": "%"},
+                {"key": "self_total_visitor_rate_pct", "label": "本品总访客占比", "unit": "%"},
+                {"key": "competitor_total_visitor_rate_pct", "label": "竞品总访客占比", "unit": "%"},
                 {"key": "self_visitors", "label": "本品访客"},
                 {"key": "competitor_visitors", "label": "竞品访客"},
-                {"key": "visitor_gap", "label": "访客差距"},
                 {"key": "self_gmv", "label": "本品成交金额"},
                 {"key": "competitor_gmv", "label": "竞品成交金额"},
-                {"key": "gmv_gap", "label": "成交金额差距"},
                 {"key": "self_conversion_rate_pct", "label": "本品转化率", "unit": "%"},
                 {"key": "competitor_conversion_rate_pct", "label": "竞品转化率", "unit": "%"},
-                {"key": "conversion_gap_pct", "label": "转化差距", "unit": "pct"},
             ],
             "rows": traffic_rows,
-            "notes": ["渠道值按原始区间估算，核心指标另受顶层渠道约束。"],
+            "notes": ["同层访客占比按同一父渠道下的兄弟节点计算；总访客占比优先采用源表披露值。渠道值按原始区间估算，核心指标另受顶层渠道约束。"],
         },
         {
             "id": "keywords",
@@ -888,13 +952,13 @@ def build_tabs(traffic: list[dict[str, Any]], keywords: dict[str, Any], profile:
             "columns": [
                 {"key": "keyword", "label": "关键词"},
                 {"key": "opportunity", "label": "机会判断"},
+                {"key": "visitor_gap", "label": "访客差距"},
+                {"key": "gmv_gap", "label": "成交差距"},
                 {"key": "coverage_relation", "label": "覆盖关系"},
                 {"key": "self_visitors", "label": "本品访客"},
                 {"key": "competitor_visitors", "label": "竞品访客"},
-                {"key": "visitor_gap", "label": "访客差距"},
                 {"key": "self_gmv", "label": "本品成交金额"},
                 {"key": "competitor_gmv", "label": "竞品成交金额"},
-                {"key": "gmv_gap", "label": "成交差距"},
             ],
             "rows": keyword_rows,
             "notes": keywords["notes"],
@@ -909,9 +973,9 @@ def build_tabs(traffic: list[dict[str, Any]], keywords: dict[str, Any], profile:
             "columns": [
                 {"key": "name", "label": "画像项"},
                 {"key": "judgement", "label": "判断"},
+                {"key": "gap_rate", "label": "占比差距", "unit": "pct"},
                 {"key": "self_rate", "label": "本品占比", "unit": "%"},
                 {"key": "competitor_rate", "label": "竞品占比", "unit": "%"},
-                {"key": "gap_rate", "label": "占比差距", "unit": "pct"},
             ],
             "rows": profile_rows,
             "notes": profile["notes"],

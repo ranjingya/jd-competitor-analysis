@@ -14,7 +14,7 @@
     "confidence": "high",
     "summary": "本品成交金额、访客数领先。",
     "weakness_summary": "本品成交转化率、成交客单价落后，需要优先优化。",
-    "generated_at": "2026-07-11T16:46:20"
+    "generated_at": "2026-07-13T14:40:11"
   },
   "source_files": [
     {
@@ -509,7 +509,11 @@
       "conversion_gap_pct": -4.999999999999999,
       "judgement": "本品领先",
       "suggested_action": "优化价格权益、主图卖点、评价和促销承接",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.9803921568627451,
+      "self_total_visitor_rate": 0.975,
+      "competitor_current_level_visitor_rate": 0.975609756097561,
+      "competitor_total_visitor_rate": 0.975
     },
     {
       "level_1": "站内场域",
@@ -531,7 +535,11 @@
       "conversion_gap_pct": -4.999999999999999,
       "judgement": "本品领先",
       "suggested_action": "优化价格权益、主图卖点、评价和促销承接",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.6996268656716418,
+      "self_total_visitor_rate": 0.625,
+      "competitor_current_level_visitor_rate": 0.5673758865248227,
+      "competitor_total_visitor_rate": 0.625
     },
     {
       "level_1": "站内场域",
@@ -553,7 +561,11 @@
       "conversion_gap_pct": -2.0000000000000004,
       "judgement": "本品领先",
       "suggested_action": "优化价格权益、主图卖点、评价和促销承接",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.06996268656716417,
+      "self_total_visitor_rate": 0.125,
+      "competitor_current_level_visitor_rate": 0.05673758865248227,
+      "competitor_total_visitor_rate": 0.0875
     },
     {
       "level_1": "站内场域",
@@ -575,7 +587,11 @@
       "conversion_gap_pct": -1.25,
       "judgement": "本品领先",
       "suggested_action": "优化价格权益、主图卖点、评价和促销承接",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.21344717182497333,
+      "self_total_visitor_rate": 0.037500000000000006,
+      "competitor_current_level_visitor_rate": 0.18072289156626506,
+      "competitor_total_visitor_rate": 0.0175
     },
     {
       "level_1": "站内场域",
@@ -597,7 +613,11 @@
       "conversion_gap_pct": -2.4999999999999996,
       "judgement": "本品领先",
       "suggested_action": "优化价格权益、主图卖点、评价和促销承接",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.128068303094984,
+      "self_total_visitor_rate": 0.0175,
+      "competitor_current_level_visitor_rate": 0.18072289156626506,
+      "competitor_total_visitor_rate": 0.0175
     },
     {
       "level_1": "站内场域",
@@ -619,7 +639,11 @@
       "conversion_gap_pct": 2.4999999999999996,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.128068303094984,
+      "self_total_visitor_rate": 0.0175,
+      "competitor_current_level_visitor_rate": 0.18072289156626506,
+      "competitor_total_visitor_rate": 0.0175
     },
     {
       "level_1": "站内场域",
@@ -641,7 +665,11 @@
       "conversion_gap_pct": -8.249999999999998,
       "judgement": "本品领先",
       "suggested_action": "优化价格权益、主图卖点、评价和促销承接",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.128068303094984,
+      "self_total_visitor_rate": 0.0175,
+      "competitor_current_level_visitor_rate": 0.07228915662650602,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -663,7 +691,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.128068303094984,
+      "self_total_visitor_rate": 0.0175,
+      "competitor_current_level_visitor_rate": 0.07228915662650602,
+      "competitor_total_visitor_rate": 0.0175
     },
     {
       "level_1": "站内场域",
@@ -685,7 +717,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.032017075773746,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": 0.018072289156626505,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -707,7 +743,11 @@
       "conversion_gap_pct": 3.7500000000000004,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.032017075773746,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": 0.07228915662650602,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -729,7 +769,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.032017075773746,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": 0.006024096385542169,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -751,7 +795,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.012806830309498399,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": 0.006024096385542169,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -773,7 +821,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.012806830309498399,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": 0.018072289156626505,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -795,7 +847,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.012806830309498399,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": 0.018072289156626505,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -817,7 +873,11 @@
       "conversion_gap_pct": 12.5,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.012806830309498399,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": 0.018072289156626505,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -839,7 +899,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.012806830309498399,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": 0.006024096385542169,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -861,7 +925,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.012806830309498399,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": 0.006024096385542169,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -883,7 +951,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.012806830309498399,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": 0.006024096385542169,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -905,7 +977,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.012806830309498399,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": 0.006024096385542169,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -927,7 +1003,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.012806830309498399,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": 0.018072289156626505,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -949,7 +1029,11 @@
       "conversion_gap_pct": -32.49999999999999,
       "judgement": "结构分化",
       "suggested_action": "优化价格权益、主图卖点、评价和促销承接",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.012806830309498399,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": 0.006024096385542169,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -971,7 +1055,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.012806830309498399,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": 0.006024096385542169,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -993,7 +1081,11 @@
       "conversion_gap_pct": 12.5,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.0032017075773745998,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": 0.006024096385542169,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -1015,7 +1107,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.0032017075773745998,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": null,
+      "competitor_total_visitor_rate": null
     },
     {
       "level_1": "站内场域",
@@ -1037,7 +1133,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.0032017075773745998,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": 0.006024096385542169,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -1059,7 +1159,11 @@
       "conversion_gap_pct": 17.5,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.0032017075773745998,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": null,
+      "competitor_total_visitor_rate": null
     },
     {
       "level_1": "站内场域",
@@ -1081,7 +1185,11 @@
       "conversion_gap_pct": -52.5,
       "judgement": "结构分化",
       "suggested_action": "优化价格权益、主图卖点、评价和促销承接",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.0010672358591248667,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": 0.006024096385542169,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -1103,7 +1211,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.0010672358591248667,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": 0.006024096385542169,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -1125,7 +1237,11 @@
       "conversion_gap_pct": 27.500000000000004,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.0010672358591248667,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": null,
+      "competitor_total_visitor_rate": null
     },
     {
       "level_1": "站内场域",
@@ -1147,7 +1263,11 @@
       "conversion_gap_pct": 0,
       "judgement": "结构分化",
       "suggested_action": "补强渠道入口、资源位和投放承接",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.0010672358591248667,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": 0.018072289156626505,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -1169,7 +1289,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.0010672358591248667,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": null,
+      "competitor_total_visitor_rate": null
     },
     {
       "level_1": "站内场域",
@@ -1191,7 +1315,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.0010672358591248667,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": null,
+      "competitor_total_visitor_rate": null
     },
     {
       "level_1": "站内场域",
@@ -1213,7 +1341,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.0010672358591248667,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": null,
+      "competitor_total_visitor_rate": null
     },
     {
       "level_1": "站内场域",
@@ -1235,7 +1367,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.0010672358591248667,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": 0.006024096385542169,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -1257,7 +1393,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.0010672358591248667,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": 0.006024096385542169,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -1279,7 +1419,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.0010672358591248667,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": null,
+      "competitor_total_visitor_rate": null
     },
     {
       "level_1": "站内场域",
@@ -1301,7 +1445,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.0010672358591248667,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": null,
+      "competitor_total_visitor_rate": null
     },
     {
       "level_1": "站内场域",
@@ -1323,7 +1471,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.0010672358591248667,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": null,
+      "competitor_total_visitor_rate": null
     },
     {
       "level_1": "站内场域",
@@ -1345,7 +1497,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.0010672358591248667,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": null,
+      "competitor_total_visitor_rate": null
     },
     {
       "level_1": "站内场域",
@@ -1367,7 +1523,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.0010672358591248667,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": null,
+      "competitor_total_visitor_rate": null
     },
     {
       "level_1": "站内场域",
@@ -1389,7 +1549,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.0010672358591248667,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": null,
+      "competitor_total_visitor_rate": null
     },
     {
       "level_1": "站内场域",
@@ -1411,7 +1575,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.0010672358591248667,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": null,
+      "competitor_total_visitor_rate": null
     },
     {
       "level_1": "站内场域",
@@ -1433,7 +1601,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.0010672358591248667,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": null,
+      "competitor_total_visitor_rate": null
     },
     {
       "level_1": "站内场域",
@@ -1455,7 +1627,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.0010672358591248667,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": null,
+      "competitor_total_visitor_rate": null
     },
     {
       "level_1": "站内场域",
@@ -1477,7 +1653,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.0010672358591248667,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": null,
+      "competitor_total_visitor_rate": null
     },
     {
       "level_1": "站内场域",
@@ -1499,7 +1679,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.0010672358591248667,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": null,
+      "competitor_total_visitor_rate": null
     },
     {
       "level_1": "站内场域",
@@ -1521,7 +1705,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.0010672358591248667,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": 0.006024096385542169,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -1543,7 +1731,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.0010672358591248667,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": null,
+      "competitor_total_visitor_rate": null
     },
     {
       "level_1": "站内场域",
@@ -1565,7 +1757,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.0010672358591248667,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": null,
+      "competitor_total_visitor_rate": null
     },
     {
       "level_1": "站内场域",
@@ -1587,7 +1783,11 @@
       "conversion_gap_pct": 0,
       "judgement": "结构分化",
       "suggested_action": "补强渠道入口、资源位和投放承接",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": null,
+      "self_total_visitor_rate": null,
+      "competitor_current_level_visitor_rate": 0.006024096385542169,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -1609,7 +1809,11 @@
       "conversion_gap_pct": -102.49999999999999,
       "judgement": "本品落后",
       "suggested_action": "补强渠道入口、资源位和投放承接",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": null,
+      "self_total_visitor_rate": null,
+      "competitor_current_level_visitor_rate": 0.006024096385542169,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -1631,7 +1835,11 @@
       "conversion_gap_pct": 0,
       "judgement": "结构分化",
       "suggested_action": "补强渠道入口、资源位和投放承接",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": null,
+      "self_total_visitor_rate": null,
+      "competitor_current_level_visitor_rate": 0.006024096385542169,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -1653,7 +1861,11 @@
       "conversion_gap_pct": 0,
       "judgement": "结构分化",
       "suggested_action": "补强渠道入口、资源位和投放承接",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": null,
+      "self_total_visitor_rate": null,
+      "competitor_current_level_visitor_rate": 0.006024096385542169,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -1675,7 +1887,11 @@
       "conversion_gap_pct": 0,
       "judgement": "结构分化",
       "suggested_action": "补强渠道入口、资源位和投放承接",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": null,
+      "self_total_visitor_rate": null,
+      "competitor_current_level_visitor_rate": 0.006024096385542169,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -1697,7 +1913,11 @@
       "conversion_gap_pct": 0,
       "judgement": "结构分化",
       "suggested_action": "补强渠道入口、资源位和投放承接",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": null,
+      "self_total_visitor_rate": null,
+      "competitor_current_level_visitor_rate": 0.006024096385542169,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -1719,7 +1939,11 @@
       "conversion_gap_pct": 0,
       "judgement": "结构分化",
       "suggested_action": "补强渠道入口、资源位和投放承接",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": null,
+      "self_total_visitor_rate": null,
+      "competitor_current_level_visitor_rate": 0.006024096385542169,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -1741,7 +1965,11 @@
       "conversion_gap_pct": 0.0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.06996268656716417,
+      "self_total_visitor_rate": 0.125,
+      "competitor_current_level_visitor_rate": 0.13238770685579196,
+      "competitor_total_visitor_rate": 0.175
     },
     {
       "level_1": "站内场域",
@@ -1763,7 +1991,11 @@
       "conversion_gap_pct": -4.999999999999999,
       "judgement": "本品领先",
       "suggested_action": "优化价格权益、主图卖点、评价和促销承接",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.06996268656716417,
+      "self_total_visitor_rate": 0.125,
+      "competitor_current_level_visitor_rate": 0.09456264775413711,
+      "competitor_total_visitor_rate": 0.175
     },
     {
       "level_1": "站内场域",
@@ -1785,7 +2017,11 @@
       "conversion_gap_pct": -4.999999999999999,
       "judgement": "本品领先",
       "suggested_action": "优化价格权益、主图卖点、评价和促销承接",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.9523809523809523,
+      "self_total_visitor_rate": 0.125,
+      "competitor_current_level_visitor_rate": 0.8695652173913043,
+      "competitor_total_visitor_rate": 0.125
     },
     {
       "level_1": "站内场域",
@@ -1807,7 +2043,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.047619047619047616,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": 0.13043478260869565,
+      "competitor_total_visitor_rate": 0.0175
     },
     {
       "level_1": "站内场域",
@@ -1829,7 +2069,11 @@
       "conversion_gap_pct": -3.7500000000000004,
       "judgement": "本品领先",
       "suggested_action": "优化价格权益、主图卖点、评价和促销承接",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.04197761194029851,
+      "self_total_visitor_rate": 0.0625,
+      "competitor_current_level_visitor_rate": 0.09456264775413711,
+      "competitor_total_visitor_rate": 0.125
     },
     {
       "level_1": "站内场域",
@@ -1851,7 +2095,11 @@
       "conversion_gap_pct": -5.000000000000002,
       "judgement": "本品领先",
       "suggested_action": "优化价格权益、主图卖点、评价和促销承接",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.02332089552238806,
+      "self_total_visitor_rate": 0.037500000000000006,
+      "competitor_current_level_visitor_rate": 0.028368794326241134,
+      "competitor_total_visitor_rate": 0.037500000000000006
     },
     {
       "level_1": "站内场域",
@@ -1873,7 +2121,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.006996268656716418,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": 0.005673758865248227,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -1895,7 +2147,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 1.0,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": 1.0,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -1917,7 +2173,11 @@
       "conversion_gap_pct": -10.75,
       "judgement": "结构分化",
       "suggested_action": "优化价格权益、主图卖点、评价和促销承接",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.006996268656716418,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": 0.005673758865248227,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -1939,7 +2199,11 @@
       "conversion_gap_pct": 1.7500000000000002,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.5769230769230769,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": 0.15,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -1961,7 +2225,11 @@
       "conversion_gap_pct": -13.749999999999998,
       "judgement": "本品领先",
       "suggested_action": "优化价格权益、主图卖点、评价和促销承接",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.23076923076923078,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": 0.6,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -1983,7 +2251,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.057692307692307696,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": null,
+      "competitor_total_visitor_rate": null
     },
     {
       "level_1": "站内场域",
@@ -2005,7 +2277,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.019230769230769232,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": null,
+      "competitor_total_visitor_rate": null
     },
     {
       "level_1": "站内场域",
@@ -2027,7 +2303,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.019230769230769232,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": null,
+      "competitor_total_visitor_rate": null
     },
     {
       "level_1": "站内场域",
@@ -2049,7 +2329,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.019230769230769232,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": null,
+      "competitor_total_visitor_rate": null
     },
     {
       "level_1": "站内场域",
@@ -2071,7 +2355,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.019230769230769232,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": 0.05,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -2093,7 +2381,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.019230769230769232,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": null,
+      "competitor_total_visitor_rate": null
     },
     {
       "level_1": "站内场域",
@@ -2115,7 +2407,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.019230769230769232,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": null,
+      "competitor_total_visitor_rate": null
     },
     {
       "level_1": "站内场域",
@@ -2137,7 +2433,11 @@
       "conversion_gap_pct": -27.500000000000004,
       "judgement": "结构分化",
       "suggested_action": "优化价格权益、主图卖点、评价和促销承接",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.019230769230769232,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": 0.05,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -2159,7 +2459,11 @@
       "conversion_gap_pct": 0,
       "judgement": "结构分化",
       "suggested_action": "补强渠道入口、资源位和投放承接",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": null,
+      "self_total_visitor_rate": null,
+      "competitor_current_level_visitor_rate": 0.05,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -2181,7 +2485,11 @@
       "conversion_gap_pct": 0,
       "judgement": "结构分化",
       "suggested_action": "补强渠道入口、资源位和投放承接",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": null,
+      "self_total_visitor_rate": null,
+      "competitor_current_level_visitor_rate": 0.05,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -2203,7 +2511,11 @@
       "conversion_gap_pct": 0,
       "judgement": "结构分化",
       "suggested_action": "补强渠道入口、资源位和投放承接",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": null,
+      "self_total_visitor_rate": null,
+      "competitor_current_level_visitor_rate": 0.05,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -2225,7 +2537,11 @@
       "conversion_gap_pct": 0.0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.003498134328358209,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": 0.005673758865248227,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -2247,7 +2563,11 @@
       "conversion_gap_pct": 0.0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.967741935483871,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": 1.0,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -2269,7 +2589,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.03225806451612903,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": null,
+      "competitor_total_visitor_rate": null
     },
     {
       "level_1": "站内场域",
@@ -2291,7 +2615,11 @@
       "conversion_gap_pct": 5.000000000000002,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.003498134328358209,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": 0.005673758865248227,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -2313,7 +2641,11 @@
       "conversion_gap_pct": 0.0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.0013992537313432835,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": 0.0014184397163120568,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -2335,7 +2667,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.0013992537313432835,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": 0.0014184397163120568,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -2357,7 +2693,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.0013992537313432835,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": 0.00047281323877068556,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -2379,7 +2719,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.9230769230769231,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": 0.5,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站内场域",
@@ -2401,7 +2745,11 @@
       "conversion_gap_pct": 0,
       "judgement": "本品领先",
       "suggested_action": "保持渠道优势，沉淀可复用打法",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.07692307692307693,
+      "self_total_visitor_rate": 0.005,
+      "competitor_current_level_visitor_rate": 0.5,
+      "competitor_total_visitor_rate": 0.005
     },
     {
       "level_1": "站外渠道",
@@ -2423,7 +2771,11 @@
       "conversion_gap_pct": -13.750000000000002,
       "judgement": "结构分化",
       "suggested_action": "优化价格权益、主图卖点、评价和促销承接",
-      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束"
+      "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+      "self_current_level_visitor_rate": 0.0196078431372549,
+      "self_total_visitor_rate": 0.0175,
+      "competitor_current_level_visitor_rate": 0.024390243902439025,
+      "competitor_total_visitor_rate": 0.037500000000000006
     }
   ],
   "keywords": {
@@ -9223,16 +9575,45 @@
           "label": "判断"
         },
         {
+          "key": "visitor_gap",
+          "label": "访客差距"
+        },
+        {
+          "key": "gmv_gap",
+          "label": "成交金额差距"
+        },
+        {
+          "key": "conversion_gap_pct",
+          "label": "转化差距",
+          "unit": "pct"
+        },
+        {
+          "key": "self_current_level_visitor_rate_pct",
+          "label": "本品同层访客占比",
+          "unit": "%"
+        },
+        {
+          "key": "competitor_current_level_visitor_rate_pct",
+          "label": "竞品同层访客占比",
+          "unit": "%"
+        },
+        {
+          "key": "self_total_visitor_rate_pct",
+          "label": "本品总访客占比",
+          "unit": "%"
+        },
+        {
+          "key": "competitor_total_visitor_rate_pct",
+          "label": "竞品总访客占比",
+          "unit": "%"
+        },
+        {
           "key": "self_visitors",
           "label": "本品访客"
         },
         {
           "key": "competitor_visitors",
           "label": "竞品访客"
-        },
-        {
-          "key": "visitor_gap",
-          "label": "访客差距"
         },
         {
           "key": "self_gmv",
@@ -9243,10 +9624,6 @@
           "label": "竞品成交金额"
         },
         {
-          "key": "gmv_gap",
-          "label": "成交金额差距"
-        },
-        {
           "key": "self_conversion_rate_pct",
           "label": "本品转化率",
           "unit": "%"
@@ -9255,11 +9632,6 @@
           "key": "competitor_conversion_rate_pct",
           "label": "竞品转化率",
           "unit": "%"
-        },
-        {
-          "key": "conversion_gap_pct",
-          "label": "转化差距",
-          "unit": "pct"
         }
       ],
       "rows": [
@@ -9284,8 +9656,16 @@
           "judgement": "本品领先",
           "suggested_action": "优化价格权益、主图卖点、评价和促销承接",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.9803921568627451,
+          "self_total_visitor_rate": 0.975,
+          "competitor_current_level_visitor_rate": 0.975609756097561,
+          "competitor_total_visitor_rate": 0.975,
           "self_conversion_rate_pct": 12.5,
-          "competitor_conversion_rate_pct": 17.5
+          "competitor_conversion_rate_pct": 17.5,
+          "self_current_level_visitor_rate_pct": 98.0392156862745,
+          "competitor_current_level_visitor_rate_pct": 97.5609756097561,
+          "self_total_visitor_rate_pct": 97.5,
+          "competitor_total_visitor_rate_pct": 97.5
         },
         {
           "level_1": "站内场域",
@@ -9308,8 +9688,16 @@
           "judgement": "本品领先",
           "suggested_action": "优化价格权益、主图卖点、评价和促销承接",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.6996268656716418,
+          "self_total_visitor_rate": 0.625,
+          "competitor_current_level_visitor_rate": 0.5673758865248227,
+          "competitor_total_visitor_rate": 0.625,
           "self_conversion_rate_pct": 12.5,
-          "competitor_conversion_rate_pct": 17.5
+          "competitor_conversion_rate_pct": 17.5,
+          "self_current_level_visitor_rate_pct": 69.96268656716418,
+          "competitor_current_level_visitor_rate_pct": 56.73758865248227,
+          "self_total_visitor_rate_pct": 62.5,
+          "competitor_total_visitor_rate_pct": 62.5
         },
         {
           "level_1": "站内场域",
@@ -9332,8 +9720,16 @@
           "judgement": "本品领先",
           "suggested_action": "优化价格权益、主图卖点、评价和促销承接",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.06996268656716417,
+          "self_total_visitor_rate": 0.125,
+          "competitor_current_level_visitor_rate": 0.05673758865248227,
+          "competitor_total_visitor_rate": 0.0875,
           "self_conversion_rate_pct": 1.7500000000000002,
-          "competitor_conversion_rate_pct": 3.7500000000000004
+          "competitor_conversion_rate_pct": 3.7500000000000004,
+          "self_current_level_visitor_rate_pct": 6.996268656716417,
+          "competitor_current_level_visitor_rate_pct": 5.673758865248227,
+          "self_total_visitor_rate_pct": 12.5,
+          "competitor_total_visitor_rate_pct": 8.75
         },
         {
           "level_1": "站内场域",
@@ -9356,8 +9752,16 @@
           "judgement": "本品领先",
           "suggested_action": "优化价格权益、主图卖点、评价和促销承接",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.21344717182497333,
+          "self_total_visitor_rate": 0.037500000000000006,
+          "competitor_current_level_visitor_rate": 0.18072289156626506,
+          "competitor_total_visitor_rate": 0.0175,
           "self_conversion_rate_pct": 0.5,
-          "competitor_conversion_rate_pct": 1.7500000000000002
+          "competitor_conversion_rate_pct": 1.7500000000000002,
+          "self_current_level_visitor_rate_pct": 21.344717182497334,
+          "competitor_current_level_visitor_rate_pct": 18.072289156626507,
+          "self_total_visitor_rate_pct": 3.7500000000000004,
+          "competitor_total_visitor_rate_pct": 1.7500000000000002
         },
         {
           "level_1": "站内场域",
@@ -9380,8 +9784,16 @@
           "judgement": "本品领先",
           "suggested_action": "优化价格权益、主图卖点、评价和促销承接",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.128068303094984,
+          "self_total_visitor_rate": 0.0175,
+          "competitor_current_level_visitor_rate": 0.18072289156626506,
+          "competitor_total_visitor_rate": 0.0175,
           "self_conversion_rate_pct": 3.7500000000000004,
-          "competitor_conversion_rate_pct": 6.25
+          "competitor_conversion_rate_pct": 6.25,
+          "self_current_level_visitor_rate_pct": 12.806830309498398,
+          "competitor_current_level_visitor_rate_pct": 18.072289156626507,
+          "self_total_visitor_rate_pct": 1.7500000000000002,
+          "competitor_total_visitor_rate_pct": 1.7500000000000002
         },
         {
           "level_1": "站内场域",
@@ -9404,8 +9816,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.128068303094984,
+          "self_total_visitor_rate": 0.0175,
+          "competitor_current_level_visitor_rate": 0.18072289156626506,
+          "competitor_total_visitor_rate": 0.0175,
           "self_conversion_rate_pct": 8.75,
-          "competitor_conversion_rate_pct": 6.25
+          "competitor_conversion_rate_pct": 6.25,
+          "self_current_level_visitor_rate_pct": 12.806830309498398,
+          "competitor_current_level_visitor_rate_pct": 18.072289156626507,
+          "self_total_visitor_rate_pct": 1.7500000000000002,
+          "competitor_total_visitor_rate_pct": 1.7500000000000002
         },
         {
           "level_1": "站内场域",
@@ -9428,8 +9848,16 @@
           "judgement": "本品领先",
           "suggested_action": "优化价格权益、主图卖点、评价和促销承接",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.128068303094984,
+          "self_total_visitor_rate": 0.0175,
+          "competitor_current_level_visitor_rate": 0.07228915662650602,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": 0.5,
-          "competitor_conversion_rate_pct": 8.75
+          "competitor_conversion_rate_pct": 8.75,
+          "self_current_level_visitor_rate_pct": 12.806830309498398,
+          "competitor_current_level_visitor_rate_pct": 7.228915662650602,
+          "self_total_visitor_rate_pct": 1.7500000000000002,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -9452,8 +9880,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.128068303094984,
+          "self_total_visitor_rate": 0.0175,
+          "competitor_current_level_visitor_rate": 0.07228915662650602,
+          "competitor_total_visitor_rate": 0.0175,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 12.806830309498398,
+          "competitor_current_level_visitor_rate_pct": 7.228915662650602,
+          "self_total_visitor_rate_pct": 1.7500000000000002,
+          "competitor_total_visitor_rate_pct": 1.7500000000000002
         },
         {
           "level_1": "站内场域",
@@ -9476,8 +9912,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.032017075773746,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": 0.018072289156626505,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 3.2017075773745995,
+          "competitor_current_level_visitor_rate_pct": 1.8072289156626504,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -9500,8 +9944,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.032017075773746,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": 0.07228915662650602,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": 3.7500000000000004,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 3.2017075773745995,
+          "competitor_current_level_visitor_rate_pct": 7.228915662650602,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -9524,8 +9976,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.032017075773746,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": 0.006024096385542169,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 3.2017075773745995,
+          "competitor_current_level_visitor_rate_pct": 0.6024096385542169,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -9548,8 +10008,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.012806830309498399,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": 0.006024096385542169,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 1.2806830309498398,
+          "competitor_current_level_visitor_rate_pct": 0.6024096385542169,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -9572,8 +10040,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.012806830309498399,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": 0.018072289156626505,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 1.2806830309498398,
+          "competitor_current_level_visitor_rate_pct": 1.8072289156626504,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -9596,8 +10072,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.012806830309498399,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": 0.018072289156626505,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 1.2806830309498398,
+          "competitor_current_level_visitor_rate_pct": 1.8072289156626504,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -9620,8 +10104,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.012806830309498399,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": 0.018072289156626505,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": 12.5,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 1.2806830309498398,
+          "competitor_current_level_visitor_rate_pct": 1.8072289156626504,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -9644,8 +10136,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.012806830309498399,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": 0.006024096385542169,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 1.2806830309498398,
+          "competitor_current_level_visitor_rate_pct": 0.6024096385542169,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -9668,8 +10168,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.012806830309498399,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": 0.006024096385542169,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 1.2806830309498398,
+          "competitor_current_level_visitor_rate_pct": 0.6024096385542169,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -9692,8 +10200,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.012806830309498399,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": 0.006024096385542169,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 1.2806830309498398,
+          "competitor_current_level_visitor_rate_pct": 0.6024096385542169,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -9716,8 +10232,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.012806830309498399,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": 0.006024096385542169,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 1.2806830309498398,
+          "competitor_current_level_visitor_rate_pct": 0.6024096385542169,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -9740,8 +10264,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.012806830309498399,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": 0.018072289156626505,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 1.2806830309498398,
+          "competitor_current_level_visitor_rate_pct": 1.8072289156626504,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -9764,8 +10296,16 @@
           "judgement": "结构分化",
           "suggested_action": "优化价格权益、主图卖点、评价和促销承接",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.012806830309498399,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": 0.006024096385542169,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": 32.49999999999999
+          "competitor_conversion_rate_pct": 32.49999999999999,
+          "self_current_level_visitor_rate_pct": 1.2806830309498398,
+          "competitor_current_level_visitor_rate_pct": 0.6024096385542169,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -9788,8 +10328,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.012806830309498399,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": 0.006024096385542169,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 1.2806830309498398,
+          "competitor_current_level_visitor_rate_pct": 0.6024096385542169,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -9812,8 +10360,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.0032017075773745998,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": 0.006024096385542169,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": 12.5,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 0.32017075773745995,
+          "competitor_current_level_visitor_rate_pct": 0.6024096385542169,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -9836,8 +10392,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.0032017075773745998,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": null,
+          "competitor_total_visitor_rate": null,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 0.32017075773745995,
+          "competitor_current_level_visitor_rate_pct": null,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": null
         },
         {
           "level_1": "站内场域",
@@ -9860,8 +10424,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.0032017075773745998,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": 0.006024096385542169,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 0.32017075773745995,
+          "competitor_current_level_visitor_rate_pct": 0.6024096385542169,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -9884,8 +10456,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.0032017075773745998,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": null,
+          "competitor_total_visitor_rate": null,
           "self_conversion_rate_pct": 17.5,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 0.32017075773745995,
+          "competitor_current_level_visitor_rate_pct": null,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": null
         },
         {
           "level_1": "站内场域",
@@ -9908,8 +10488,16 @@
           "judgement": "结构分化",
           "suggested_action": "优化价格权益、主图卖点、评价和促销承接",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.0010672358591248667,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": 0.006024096385542169,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": 52.5
+          "competitor_conversion_rate_pct": 52.5,
+          "self_current_level_visitor_rate_pct": 0.10672358591248667,
+          "competitor_current_level_visitor_rate_pct": 0.6024096385542169,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -9932,8 +10520,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.0010672358591248667,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": 0.006024096385542169,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 0.10672358591248667,
+          "competitor_current_level_visitor_rate_pct": 0.6024096385542169,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -9956,8 +10552,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.0010672358591248667,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": null,
+          "competitor_total_visitor_rate": null,
           "self_conversion_rate_pct": 27.500000000000004,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 0.10672358591248667,
+          "competitor_current_level_visitor_rate_pct": null,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": null
         },
         {
           "level_1": "站内场域",
@@ -9980,8 +10584,16 @@
           "judgement": "结构分化",
           "suggested_action": "补强渠道入口、资源位和投放承接",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.0010672358591248667,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": 0.018072289156626505,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 0.10672358591248667,
+          "competitor_current_level_visitor_rate_pct": 1.8072289156626504,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -10004,8 +10616,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.0010672358591248667,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": null,
+          "competitor_total_visitor_rate": null,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 0.10672358591248667,
+          "competitor_current_level_visitor_rate_pct": null,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": null
         },
         {
           "level_1": "站内场域",
@@ -10028,8 +10648,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.0010672358591248667,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": null,
+          "competitor_total_visitor_rate": null,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 0.10672358591248667,
+          "competitor_current_level_visitor_rate_pct": null,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": null
         },
         {
           "level_1": "站内场域",
@@ -10052,8 +10680,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.0010672358591248667,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": null,
+          "competitor_total_visitor_rate": null,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 0.10672358591248667,
+          "competitor_current_level_visitor_rate_pct": null,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": null
         },
         {
           "level_1": "站内场域",
@@ -10076,8 +10712,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.0010672358591248667,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": 0.006024096385542169,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 0.10672358591248667,
+          "competitor_current_level_visitor_rate_pct": 0.6024096385542169,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -10100,8 +10744,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.0010672358591248667,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": 0.006024096385542169,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 0.10672358591248667,
+          "competitor_current_level_visitor_rate_pct": 0.6024096385542169,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -10124,8 +10776,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.0010672358591248667,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": null,
+          "competitor_total_visitor_rate": null,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 0.10672358591248667,
+          "competitor_current_level_visitor_rate_pct": null,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": null
         },
         {
           "level_1": "站内场域",
@@ -10148,8 +10808,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.0010672358591248667,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": null,
+          "competitor_total_visitor_rate": null,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 0.10672358591248667,
+          "competitor_current_level_visitor_rate_pct": null,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": null
         },
         {
           "level_1": "站内场域",
@@ -10172,8 +10840,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.0010672358591248667,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": null,
+          "competitor_total_visitor_rate": null,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 0.10672358591248667,
+          "competitor_current_level_visitor_rate_pct": null,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": null
         },
         {
           "level_1": "站内场域",
@@ -10196,8 +10872,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.0010672358591248667,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": null,
+          "competitor_total_visitor_rate": null,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 0.10672358591248667,
+          "competitor_current_level_visitor_rate_pct": null,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": null
         },
         {
           "level_1": "站内场域",
@@ -10220,8 +10904,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.0010672358591248667,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": null,
+          "competitor_total_visitor_rate": null,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 0.10672358591248667,
+          "competitor_current_level_visitor_rate_pct": null,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": null
         },
         {
           "level_1": "站内场域",
@@ -10244,8 +10936,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.0010672358591248667,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": null,
+          "competitor_total_visitor_rate": null,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 0.10672358591248667,
+          "competitor_current_level_visitor_rate_pct": null,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": null
         },
         {
           "level_1": "站内场域",
@@ -10268,8 +10968,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.0010672358591248667,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": null,
+          "competitor_total_visitor_rate": null,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 0.10672358591248667,
+          "competitor_current_level_visitor_rate_pct": null,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": null
         },
         {
           "level_1": "站内场域",
@@ -10292,8 +11000,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.0010672358591248667,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": null,
+          "competitor_total_visitor_rate": null,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 0.10672358591248667,
+          "competitor_current_level_visitor_rate_pct": null,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": null
         },
         {
           "level_1": "站内场域",
@@ -10316,8 +11032,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.0010672358591248667,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": null,
+          "competitor_total_visitor_rate": null,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 0.10672358591248667,
+          "competitor_current_level_visitor_rate_pct": null,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": null
         },
         {
           "level_1": "站内场域",
@@ -10340,8 +11064,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.0010672358591248667,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": null,
+          "competitor_total_visitor_rate": null,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 0.10672358591248667,
+          "competitor_current_level_visitor_rate_pct": null,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": null
         },
         {
           "level_1": "站内场域",
@@ -10364,8 +11096,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.0010672358591248667,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": null,
+          "competitor_total_visitor_rate": null,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 0.10672358591248667,
+          "competitor_current_level_visitor_rate_pct": null,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": null
         },
         {
           "level_1": "站内场域",
@@ -10388,8 +11128,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.0010672358591248667,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": 0.006024096385542169,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 0.10672358591248667,
+          "competitor_current_level_visitor_rate_pct": 0.6024096385542169,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -10412,8 +11160,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.0010672358591248667,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": null,
+          "competitor_total_visitor_rate": null,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 0.10672358591248667,
+          "competitor_current_level_visitor_rate_pct": null,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": null
         },
         {
           "level_1": "站内场域",
@@ -10436,8 +11192,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.0010672358591248667,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": null,
+          "competitor_total_visitor_rate": null,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 0.10672358591248667,
+          "competitor_current_level_visitor_rate_pct": null,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": null
         },
         {
           "level_1": "站内场域",
@@ -10460,8 +11224,16 @@
           "judgement": "结构分化",
           "suggested_action": "补强渠道入口、资源位和投放承接",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": null,
+          "self_total_visitor_rate": null,
+          "competitor_current_level_visitor_rate": 0.006024096385542169,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": null,
+          "competitor_current_level_visitor_rate_pct": 0.6024096385542169,
+          "self_total_visitor_rate_pct": null,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -10484,8 +11256,16 @@
           "judgement": "本品落后",
           "suggested_action": "补强渠道入口、资源位和投放承接",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": null,
+          "self_total_visitor_rate": null,
+          "competitor_current_level_visitor_rate": 0.006024096385542169,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": 102.49999999999999
+          "competitor_conversion_rate_pct": 102.49999999999999,
+          "self_current_level_visitor_rate_pct": null,
+          "competitor_current_level_visitor_rate_pct": 0.6024096385542169,
+          "self_total_visitor_rate_pct": null,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -10508,8 +11288,16 @@
           "judgement": "结构分化",
           "suggested_action": "补强渠道入口、资源位和投放承接",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": null,
+          "self_total_visitor_rate": null,
+          "competitor_current_level_visitor_rate": 0.006024096385542169,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": null,
+          "competitor_current_level_visitor_rate_pct": 0.6024096385542169,
+          "self_total_visitor_rate_pct": null,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -10532,8 +11320,16 @@
           "judgement": "结构分化",
           "suggested_action": "补强渠道入口、资源位和投放承接",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": null,
+          "self_total_visitor_rate": null,
+          "competitor_current_level_visitor_rate": 0.006024096385542169,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": null,
+          "competitor_current_level_visitor_rate_pct": 0.6024096385542169,
+          "self_total_visitor_rate_pct": null,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -10556,8 +11352,16 @@
           "judgement": "结构分化",
           "suggested_action": "补强渠道入口、资源位和投放承接",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": null,
+          "self_total_visitor_rate": null,
+          "competitor_current_level_visitor_rate": 0.006024096385542169,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": null,
+          "competitor_current_level_visitor_rate_pct": 0.6024096385542169,
+          "self_total_visitor_rate_pct": null,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -10580,8 +11384,16 @@
           "judgement": "结构分化",
           "suggested_action": "补强渠道入口、资源位和投放承接",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": null,
+          "self_total_visitor_rate": null,
+          "competitor_current_level_visitor_rate": 0.006024096385542169,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": null,
+          "competitor_current_level_visitor_rate_pct": 0.6024096385542169,
+          "self_total_visitor_rate_pct": null,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -10604,8 +11416,16 @@
           "judgement": "结构分化",
           "suggested_action": "补强渠道入口、资源位和投放承接",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": null,
+          "self_total_visitor_rate": null,
+          "competitor_current_level_visitor_rate": 0.006024096385542169,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": null,
+          "competitor_current_level_visitor_rate_pct": 0.6024096385542169,
+          "self_total_visitor_rate_pct": null,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -10628,8 +11448,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.06996268656716417,
+          "self_total_visitor_rate": 0.125,
+          "competitor_current_level_visitor_rate": 0.13238770685579196,
+          "competitor_total_visitor_rate": 0.175,
           "self_conversion_rate_pct": 8.75,
-          "competitor_conversion_rate_pct": 8.75
+          "competitor_conversion_rate_pct": 8.75,
+          "self_current_level_visitor_rate_pct": 6.996268656716417,
+          "competitor_current_level_visitor_rate_pct": 13.238770685579196,
+          "self_total_visitor_rate_pct": 12.5,
+          "competitor_total_visitor_rate_pct": 17.5
         },
         {
           "level_1": "站内场域",
@@ -10652,8 +11480,16 @@
           "judgement": "本品领先",
           "suggested_action": "优化价格权益、主图卖点、评价和促销承接",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.06996268656716417,
+          "self_total_visitor_rate": 0.125,
+          "competitor_current_level_visitor_rate": 0.09456264775413711,
+          "competitor_total_visitor_rate": 0.175,
           "self_conversion_rate_pct": 3.7500000000000004,
-          "competitor_conversion_rate_pct": 8.75
+          "competitor_conversion_rate_pct": 8.75,
+          "self_current_level_visitor_rate_pct": 6.996268656716417,
+          "competitor_current_level_visitor_rate_pct": 9.456264775413711,
+          "self_total_visitor_rate_pct": 12.5,
+          "competitor_total_visitor_rate_pct": 17.5
         },
         {
           "level_1": "站内场域",
@@ -10676,8 +11512,16 @@
           "judgement": "本品领先",
           "suggested_action": "优化价格权益、主图卖点、评价和促销承接",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.9523809523809523,
+          "self_total_visitor_rate": 0.125,
+          "competitor_current_level_visitor_rate": 0.8695652173913043,
+          "competitor_total_visitor_rate": 0.125,
           "self_conversion_rate_pct": 3.7500000000000004,
-          "competitor_conversion_rate_pct": 8.75
+          "competitor_conversion_rate_pct": 8.75,
+          "self_current_level_visitor_rate_pct": 95.23809523809523,
+          "competitor_current_level_visitor_rate_pct": 86.95652173913044,
+          "self_total_visitor_rate_pct": 12.5,
+          "competitor_total_visitor_rate_pct": 12.5
         },
         {
           "level_1": "站内场域",
@@ -10700,8 +11544,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.047619047619047616,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": 0.13043478260869565,
+          "competitor_total_visitor_rate": 0.0175,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 4.761904761904762,
+          "competitor_current_level_visitor_rate_pct": 13.043478260869565,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": 1.7500000000000002
         },
         {
           "level_1": "站内场域",
@@ -10724,8 +11576,16 @@
           "judgement": "本品领先",
           "suggested_action": "优化价格权益、主图卖点、评价和促销承接",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.04197761194029851,
+          "self_total_visitor_rate": 0.0625,
+          "competitor_current_level_visitor_rate": 0.09456264775413711,
+          "competitor_total_visitor_rate": 0.125,
           "self_conversion_rate_pct": 8.75,
-          "competitor_conversion_rate_pct": 12.5
+          "competitor_conversion_rate_pct": 12.5,
+          "self_current_level_visitor_rate_pct": 4.197761194029851,
+          "competitor_current_level_visitor_rate_pct": 9.456264775413711,
+          "self_total_visitor_rate_pct": 6.25,
+          "competitor_total_visitor_rate_pct": 12.5
         },
         {
           "level_1": "站内场域",
@@ -10748,8 +11608,16 @@
           "judgement": "本品领先",
           "suggested_action": "优化价格权益、主图卖点、评价和促销承接",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.02332089552238806,
+          "self_total_visitor_rate": 0.037500000000000006,
+          "competitor_current_level_visitor_rate": 0.028368794326241134,
+          "competitor_total_visitor_rate": 0.037500000000000006,
           "self_conversion_rate_pct": 17.5,
-          "competitor_conversion_rate_pct": 22.5
+          "competitor_conversion_rate_pct": 22.5,
+          "self_current_level_visitor_rate_pct": 2.332089552238806,
+          "competitor_current_level_visitor_rate_pct": 2.8368794326241136,
+          "self_total_visitor_rate_pct": 3.7500000000000004,
+          "competitor_total_visitor_rate_pct": 3.7500000000000004
         },
         {
           "level_1": "站内场域",
@@ -10772,8 +11640,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.006996268656716418,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": 0.005673758865248227,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 0.6996268656716418,
+          "competitor_current_level_visitor_rate_pct": 0.5673758865248227,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -10796,8 +11672,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 1.0,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": 1.0,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 100.0,
+          "competitor_current_level_visitor_rate_pct": 100.0,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -10820,8 +11704,16 @@
           "judgement": "结构分化",
           "suggested_action": "优化价格权益、主图卖点、评价和促销承接",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.006996268656716418,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": 0.005673758865248227,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": 1.7500000000000002,
-          "competitor_conversion_rate_pct": 12.5
+          "competitor_conversion_rate_pct": 12.5,
+          "self_current_level_visitor_rate_pct": 0.6996268656716418,
+          "competitor_current_level_visitor_rate_pct": 0.5673758865248227,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -10844,8 +11736,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.5769230769230769,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": 0.15,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": 1.7500000000000002,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 57.692307692307686,
+          "competitor_current_level_visitor_rate_pct": 15.0,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -10868,8 +11768,16 @@
           "judgement": "本品领先",
           "suggested_action": "优化价格权益、主图卖点、评价和促销承接",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.23076923076923078,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": 0.6,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": 3.7500000000000004,
-          "competitor_conversion_rate_pct": 17.5
+          "competitor_conversion_rate_pct": 17.5,
+          "self_current_level_visitor_rate_pct": 23.076923076923077,
+          "competitor_current_level_visitor_rate_pct": 60.0,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -10892,8 +11800,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.057692307692307696,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": null,
+          "competitor_total_visitor_rate": null,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 5.769230769230769,
+          "competitor_current_level_visitor_rate_pct": null,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": null
         },
         {
           "level_1": "站内场域",
@@ -10916,8 +11832,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.019230769230769232,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": null,
+          "competitor_total_visitor_rate": null,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 1.9230769230769231,
+          "competitor_current_level_visitor_rate_pct": null,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": null
         },
         {
           "level_1": "站内场域",
@@ -10940,8 +11864,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.019230769230769232,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": null,
+          "competitor_total_visitor_rate": null,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 1.9230769230769231,
+          "competitor_current_level_visitor_rate_pct": null,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": null
         },
         {
           "level_1": "站内场域",
@@ -10964,8 +11896,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.019230769230769232,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": null,
+          "competitor_total_visitor_rate": null,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 1.9230769230769231,
+          "competitor_current_level_visitor_rate_pct": null,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": null
         },
         {
           "level_1": "站内场域",
@@ -10988,8 +11928,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.019230769230769232,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": 0.05,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 1.9230769230769231,
+          "competitor_current_level_visitor_rate_pct": 5.0,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -11012,8 +11960,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.019230769230769232,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": null,
+          "competitor_total_visitor_rate": null,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 1.9230769230769231,
+          "competitor_current_level_visitor_rate_pct": null,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": null
         },
         {
           "level_1": "站内场域",
@@ -11036,8 +11992,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.019230769230769232,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": null,
+          "competitor_total_visitor_rate": null,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 1.9230769230769231,
+          "competitor_current_level_visitor_rate_pct": null,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": null
         },
         {
           "level_1": "站内场域",
@@ -11060,8 +12024,16 @@
           "judgement": "结构分化",
           "suggested_action": "优化价格权益、主图卖点、评价和促销承接",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.019230769230769232,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": 0.05,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": 27.500000000000004
+          "competitor_conversion_rate_pct": 27.500000000000004,
+          "self_current_level_visitor_rate_pct": 1.9230769230769231,
+          "competitor_current_level_visitor_rate_pct": 5.0,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -11084,8 +12056,16 @@
           "judgement": "结构分化",
           "suggested_action": "补强渠道入口、资源位和投放承接",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": null,
+          "self_total_visitor_rate": null,
+          "competitor_current_level_visitor_rate": 0.05,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": null,
+          "competitor_current_level_visitor_rate_pct": 5.0,
+          "self_total_visitor_rate_pct": null,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -11108,8 +12088,16 @@
           "judgement": "结构分化",
           "suggested_action": "补强渠道入口、资源位和投放承接",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": null,
+          "self_total_visitor_rate": null,
+          "competitor_current_level_visitor_rate": 0.05,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": null,
+          "competitor_current_level_visitor_rate_pct": 5.0,
+          "self_total_visitor_rate_pct": null,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -11132,8 +12120,16 @@
           "judgement": "结构分化",
           "suggested_action": "补强渠道入口、资源位和投放承接",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": null,
+          "self_total_visitor_rate": null,
+          "competitor_current_level_visitor_rate": 0.05,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": null,
+          "competitor_current_level_visitor_rate_pct": 5.0,
+          "self_total_visitor_rate_pct": null,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -11156,8 +12152,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.003498134328358209,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": 0.005673758865248227,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": 12.5,
-          "competitor_conversion_rate_pct": 12.5
+          "competitor_conversion_rate_pct": 12.5,
+          "self_current_level_visitor_rate_pct": 0.3498134328358209,
+          "competitor_current_level_visitor_rate_pct": 0.5673758865248227,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -11180,8 +12184,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.967741935483871,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": 1.0,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": 12.5,
-          "competitor_conversion_rate_pct": 12.5
+          "competitor_conversion_rate_pct": 12.5,
+          "self_current_level_visitor_rate_pct": 96.7741935483871,
+          "competitor_current_level_visitor_rate_pct": 100.0,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -11204,8 +12216,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.03225806451612903,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": null,
+          "competitor_total_visitor_rate": null,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 3.225806451612903,
+          "competitor_current_level_visitor_rate_pct": null,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": null
         },
         {
           "level_1": "站内场域",
@@ -11228,8 +12248,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.003498134328358209,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": 0.005673758865248227,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": 22.5,
-          "competitor_conversion_rate_pct": 17.5
+          "competitor_conversion_rate_pct": 17.5,
+          "self_current_level_visitor_rate_pct": 0.3498134328358209,
+          "competitor_current_level_visitor_rate_pct": 0.5673758865248227,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -11252,8 +12280,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.0013992537313432835,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": 0.0014184397163120568,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": 12.5,
-          "competitor_conversion_rate_pct": 12.5
+          "competitor_conversion_rate_pct": 12.5,
+          "self_current_level_visitor_rate_pct": 0.13992537313432835,
+          "competitor_current_level_visitor_rate_pct": 0.14184397163120568,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -11276,8 +12312,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.0013992537313432835,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": 0.0014184397163120568,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 0.13992537313432835,
+          "competitor_current_level_visitor_rate_pct": 0.14184397163120568,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -11300,8 +12344,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.0013992537313432835,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": 0.00047281323877068556,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 0.13992537313432835,
+          "competitor_current_level_visitor_rate_pct": 0.04728132387706856,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -11324,8 +12376,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.9230769230769231,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": 0.5,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 92.3076923076923,
+          "competitor_current_level_visitor_rate_pct": 50.0,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站内场域",
@@ -11348,8 +12408,16 @@
           "judgement": "本品领先",
           "suggested_action": "保持渠道优势，沉淀可复用打法",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.07692307692307693,
+          "self_total_visitor_rate": 0.005,
+          "competitor_current_level_visitor_rate": 0.5,
+          "competitor_total_visitor_rate": 0.005,
           "self_conversion_rate_pct": null,
-          "competitor_conversion_rate_pct": null
+          "competitor_conversion_rate_pct": null,
+          "self_current_level_visitor_rate_pct": 7.6923076923076925,
+          "competitor_current_level_visitor_rate_pct": 50.0,
+          "self_total_visitor_rate_pct": 0.5,
+          "competitor_total_visitor_rate_pct": 0.5
         },
         {
           "level_1": "站外渠道",
@@ -11372,12 +12440,20 @@
           "judgement": "结构分化",
           "suggested_action": "优化价格权益、主图卖点、评价和促销承接",
           "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
+          "self_current_level_visitor_rate": 0.0196078431372549,
+          "self_total_visitor_rate": 0.0175,
+          "competitor_current_level_visitor_rate": 0.024390243902439025,
+          "competitor_total_visitor_rate": 0.037500000000000006,
           "self_conversion_rate_pct": 8.75,
-          "competitor_conversion_rate_pct": 22.5
+          "competitor_conversion_rate_pct": 22.5,
+          "self_current_level_visitor_rate_pct": 1.9607843137254901,
+          "competitor_current_level_visitor_rate_pct": 2.4390243902439024,
+          "self_total_visitor_rate_pct": 1.7500000000000002,
+          "competitor_total_visitor_rate_pct": 3.7500000000000004
         }
       ],
       "notes": [
-        "渠道值按原始区间估算，核心指标另受顶层渠道约束。"
+        "同层访客占比按同一父渠道下的兄弟节点计算；总访客占比优先采用源表披露值。渠道值按原始区间估算，核心指标另受顶层渠道约束。"
       ]
     },
     {
@@ -11414,6 +12490,14 @@
           "label": "机会判断"
         },
         {
+          "key": "visitor_gap",
+          "label": "访客差距"
+        },
+        {
+          "key": "gmv_gap",
+          "label": "成交差距"
+        },
+        {
           "key": "coverage_relation",
           "label": "覆盖关系"
         },
@@ -11426,20 +12510,12 @@
           "label": "竞品访客"
         },
         {
-          "key": "visitor_gap",
-          "label": "访客差距"
-        },
-        {
           "key": "self_gmv",
           "label": "本品成交金额"
         },
         {
           "key": "competitor_gmv",
           "label": "竞品成交金额"
-        },
-        {
-          "key": "gmv_gap",
-          "label": "成交差距"
         }
       ],
       "rows": [
@@ -14795,6 +15871,11 @@
           "label": "判断"
         },
         {
+          "key": "gap_rate",
+          "label": "占比差距",
+          "unit": "pct"
+        },
+        {
           "key": "self_rate",
           "label": "本品占比",
           "unit": "%"
@@ -14803,11 +15884,6 @@
           "key": "competitor_rate",
           "label": "竞品占比",
           "unit": "%"
-        },
-        {
-          "key": "gap_rate",
-          "label": "占比差距",
-          "unit": "pct"
         }
       ],
       "rows": [
