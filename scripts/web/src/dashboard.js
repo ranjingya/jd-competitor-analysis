@@ -15,8 +15,11 @@ const dashboardState = {
   data: null,
   activeTab: 0,
   activeMetricId: "",
-  filter: "",
-  dimensions: {}
+  dimensions: {},
+  sorts: {},
+  expandedTrafficPaths: new Set(),
+  trafficTreeKey: "",
+  renderedTableKey: ""
 };
 
 let trendChartInstance = null;
@@ -36,12 +39,43 @@ function formatValue(value, unit = "") {
     return "-";
   }
   if (typeof value === "number") {
-    const text = Number.isInteger(value)
-      ? value.toLocaleString("zh-CN")
-      : value.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    return `${text}${unit}`;
+    return `${value.toFixed(2)}${unit}`;
   }
   return `${value}${unit}`;
+}
+
+/**
+ * 功能说明：计算重点卡的带方向差值。
+ * 参数 item：包含本品值、竞品值和单位的重点数据。
+ * 返回值：带正负方向和展示单位的差值文本。
+ */
+function formatHighlightGap(item) {
+  const selfValue = typeof item.self_value === "number" ? item.self_value : 0;
+  const competitorValue = typeof item.competitor_value === "number" ? item.competitor_value : 0;
+  const gap = selfValue - competitorValue;
+  const sign = gap > 0 ? "+" : "";
+  const unit = item.unit === "%" ? "pct" : (item.unit || "");
+  return `${sign}${gap.toFixed(2)}${unit}`;
+}
+
+/**
+ * 功能说明：计算重点卡的强弱倍率或独有状态。
+ * 参数 item：包含本品值和竞品值的重点数据。
+ * 返回值：倍率、独有状态或无可比标识。
+ */
+function formatHighlightRatio(item) {
+  const selfValue = typeof item.self_value === "number" ? item.self_value : 0;
+  const competitorValue = typeof item.competitor_value === "number" ? item.competitor_value : 0;
+  if (selfValue > 0 && competitorValue > 0) {
+    return `${(Math.max(selfValue, competitorValue) / Math.min(selfValue, competitorValue)).toFixed(2)}x`;
+  }
+  if (selfValue > 0) {
+    return "本品独有";
+  }
+  if (competitorValue > 0) {
+    return "竞品独有";
+  }
+  return "-";
 }
 
 /**
@@ -53,10 +87,11 @@ function formatMetricGap(item) {
   if (item.gap_abs_text == null || item.gap_abs_text === "") {
     return "-";
   }
-  const value = String(item.gap_abs_text).replace(/^[+-]/, "");
+  const rawValue = String(item.gap_abs_text).replaceAll(",", "").replace(/^[+-]/, "");
+  const value = Number(rawValue);
   const sign = item.status === "warning" ? "-" : "+";
   const unit = item.id === "conversion_rate" ? "pct" : "";
-  return `${sign}${value}${unit}`;
+  return Number.isFinite(value) ? `${sign}${value.toFixed(2)}${unit}` : "-";
 }
 
 /**
@@ -66,7 +101,7 @@ function formatMetricGap(item) {
  */
 function formatMetricRatio(item) {
   const match = String(item.ratio_text || "").match(/(\d+(?:\.\d+)?)x/i);
-  return match ? `${match[1]}x` : "-";
+  return match ? `${Number(match[1]).toFixed(2)}x` : "-";
 }
 
 function valueTone(value, column = {}) {
@@ -89,7 +124,154 @@ function renderCell(row, column) {
   return `<span class="${valueTone(value, column)}">${escapeHtml(formatValue(value, column.unit || ""))}</span>`;
 }
 
+/**
+ * 功能说明：比较两行在指定列上的排序先后，并把空值固定放在末尾。
+ * 参数 leftRow：左侧数据行。
+ * 参数 rightRow：右侧数据行。
+ * 参数 column：当前排序列定义。
+ * 参数 direction：排序方向，desc 为降序，asc 为升序。
+ * 返回值：适用于 Array.sort 的比较结果。
+ */
+function compareRows(leftRow, rightRow, column, direction) {
+  const leftValue = leftRow[column.key];
+  const rightValue = rightRow[column.key];
+  const leftEmpty = leftValue == null || leftValue === "" || leftValue === "-";
+  const rightEmpty = rightValue == null || rightValue === "" || rightValue === "-";
+  if (leftEmpty || rightEmpty) {
+    return leftEmpty === rightEmpty ? 0 : leftEmpty ? 1 : -1;
+  }
+  let result;
+  if (typeof leftValue === "number" && typeof rightValue === "number") {
+    result = leftValue - rightValue;
+  } else {
+    result = String(leftValue).localeCompare(String(rightValue), "zh-CN", { numeric: true, sensitivity: "base" });
+  }
+  return direction === "desc" ? -result : result;
+}
+
+/**
+ * 功能说明：按当前列稳定排序普通表格行。
+ * 参数 rows：待排序的数据行。
+ * 参数 column：当前排序列定义；为空时保持原始顺序。
+ * 参数 direction：排序方向。
+ * 返回值：排序后的新数组。
+ */
+function sortRows(rows, column, direction) {
+  if (!column || !direction) {
+    return rows;
+  }
+  return rows
+    .map((row, index) => ({ row, index }))
+    .sort((left, right) => compareRows(left.row, right.row, column, direction) || left.index - right.index)
+    .map((item) => item.row);
+}
+
+/**
+ * 功能说明：渲染带省略展示和完整信息 Tooltip 的冻结文本单元格。
+ * 参数 row：当前表格行。
+ * 参数 column：冻结首列定义。
+ * 返回值：冻结列使用的 HTML 字符串。
+ */
+function renderFrozenTextCell(row, column) {
+  const text = formatValue(row[column.key], column.unit || "");
+  return `
+    <span class="frozen-cell-tip" tabindex="0" data-tooltip="${escapeHtml(text)}">
+      <span class="frozen-cell-label">${escapeHtml(text)}</span>
+    </span>
+  `;
+}
+
+/**
+ * 功能说明：把流量来源行整理为可展开的渠道树，并按展开状态计算可见行。
+ * 参数 rows：当前流量来源 Tab 的全部渠道行。
+ * 参数 sortColumn：当前排序列定义；为空时保持原始同级顺序。
+ * 参数 sortDirection：当前排序方向。
+ * 返回值：包含可见行、节点元信息和父节点集合的树形渲染数据。
+ */
+function buildTrafficTree(rows, sortColumn, sortDirection) {
+  const nodes = rows.map((row, index) => {
+    const levels = [row.level_1, row.level_2, row.level_3]
+      .filter((value) => value != null && value !== "" && value !== "-");
+    const key = levels.join(" > ");
+    return {
+      row,
+      index,
+      key,
+      label: levels.at(-1) || row.path || "-",
+      depth: Math.max(levels.length - 1, 0),
+      ancestors: levels.slice(0, -1).map((_, levelIndex) => levels.slice(0, levelIndex + 1).join(" > ")),
+      parentKey: levels.length > 1 ? levels.slice(0, -1).join(" > ") : ""
+    };
+  });
+  const parentKeys = new Set(nodes.flatMap((node) => node.ancestors));
+  const treeKey = `${dashboardState.data?.meta?.period_key || "-"}:${nodes.map((node) => node.key).join("|")}`;
+  if (dashboardState.trafficTreeKey !== treeKey) {
+    dashboardState.trafficTreeKey = treeKey;
+    dashboardState.expandedTrafficPaths = new Set(
+      nodes.filter((node) => node.depth === 0 && parentKeys.has(node.key)).map((node) => node.key)
+    );
+  }
+
+  const childrenByParent = new Map();
+  nodes.forEach((node) => {
+    const siblings = childrenByParent.get(node.parentKey) || [];
+    siblings.push(node);
+    childrenByParent.set(node.parentKey, siblings);
+  });
+  if (sortColumn && sortDirection) {
+    childrenByParent.forEach((siblings) => {
+      siblings.sort((left, right) =>
+        compareRows(left.row, right.row, sortColumn, sortDirection) || left.index - right.index
+      );
+    });
+  }
+  const visibleNodes = [];
+  const appendChildren = (parentKey) => {
+    (childrenByParent.get(parentKey) || []).forEach((node) => {
+      visibleNodes.push(node);
+      if (dashboardState.expandedTrafficPaths.has(node.key)) {
+        appendChildren(node.key);
+      }
+    });
+  };
+  appendChildren("");
+  return {
+    rows: visibleNodes.map((node) => node.row),
+    metaByKey: new Map(nodes.map((node) => [node.key, { ...node, hasChildren: parentKeys.has(node.key) }]))
+  };
+}
+
+/**
+ * 功能说明：渲染树形渠道单元格，包含层级缩进和展开收起按钮。
+ * 参数 row：当前渠道数据行。
+ * 参数 tree：buildTrafficTree 返回的树形渲染数据。
+ * 返回值：渠道路径首列使用的 HTML 字符串。
+ */
+function renderTrafficTreeCell(row, tree) {
+  const key = [row.level_1, row.level_2, row.level_3]
+    .filter((value) => value != null && value !== "" && value !== "-")
+    .join(" > ");
+  const meta = tree.metaByKey.get(key) || { key, label: row.path || "-", depth: 0, hasChildren: false };
+  const expanded = dashboardState.expandedTrafficPaths.has(meta.key);
+  const control = meta.hasChildren
+    ? `<button class="tree-toggle" type="button" data-traffic-tree-key="${escapeHtml(meta.key)}" aria-expanded="${expanded}" aria-label="${expanded ? "收起" : "展开"}${escapeHtml(meta.label)}">${expanded ? "−" : "+"}</button>`
+    : '<span class="tree-toggle-placeholder" aria-hidden="true"></span>';
+  return `
+    <span class="tree-cell" style="--tree-depth: ${meta.depth}">
+      ${control}
+      <span class="tree-label">${escapeHtml(meta.label)}</span>
+    </span>
+  `;
+}
+
 function renderTabs() {
+  const previousTableWrap = document.querySelector("#tab-body .table-wrap");
+  const previousTableScroll = {
+    left: previousTableWrap?.scrollLeft || 0,
+    top: previousTableWrap?.scrollTop || 0
+  };
+  const previousTableKey = dashboardState.renderedTableKey;
+  const previousPageScroll = { left: window.scrollX, top: window.scrollY };
   const tabs = dashboardState.data?.tabs || [];
   if (dashboardState.activeTab >= tabs.length) {
     dashboardState.activeTab = 0;
@@ -103,15 +285,17 @@ function renderTabs() {
   nav.querySelectorAll("[data-tab-index]").forEach((button) => {
     button.addEventListener("click", () => {
       dashboardState.activeTab = Number(button.dataset.tabIndex);
-      dashboardState.filter = "";
       renderTabs();
     });
   });
 
   const current = tabs[dashboardState.activeTab] || tabs[0] || {};
+  const currentTableKey = `${dashboardState.data?.meta?.period_key || "-"}:${current.id || "-"}`;
   const highlights = current.highlights || [];
   const rows = current.rows || [];
   const columns = current.columns || [];
+  const currentSort = dashboardState.sorts[current.id] || null;
+  const sortColumn = currentSort ? columns.find((column) => column.key === currentSort.key) : null;
   const dimensionField = current.dimension_field;
   const dimensionOptions = dimensionField
     ? [...new Set(rows.map((row) => row[dimensionField]).filter(Boolean))]
@@ -120,21 +304,29 @@ function renderTabs() {
   const dimensionRows = activeDimension
     ? rows.filter((row) => row[dimensionField] === activeDimension)
     : rows;
-  const query = dashboardState.filter.trim().toLowerCase();
-  const filteredRows = query
-    ? dimensionRows.filter((row) => Object.values(row).some((value) => String(value ?? "").toLowerCase().includes(query)))
-    : dimensionRows;
+  const trafficTree = current.id === "traffic"
+    ? buildTrafficTree(dimensionRows, sortColumn, currentSort?.direction)
+    : null;
+  const displayRows = trafficTree
+    ? trafficTree.rows
+    : sortRows(dimensionRows, sortColumn, currentSort?.direction);
 
   document.querySelector("#tab-body").innerHTML = `
     <h3>${escapeHtml(current.headline || "-")}</h3>
     <section class="tab-section">
-      <p class="section-title">AI建议重点</p>
+      <p class="section-title">优势与劣势</p>
       <div class="insight-grid">
         ${highlights.map((item) => `
           <article class="insight-card ${item.status === "warning" ? "warning" : "advantage"}">
-            <h4>${escapeHtml(item.label || "-")}</h4>
-            <p class="insight-gap">${escapeHtml(item.gap_text || "-")}</p>
-            ${item.action ? `<p>${escapeHtml(item.action)}</p>` : ""}
+            <div class="insight-card-label">
+              <p class="insight-type">${item.status === "warning" ? "劣势" : "优势"}</p>
+              <h4>${escapeHtml(item.label || "-")}</h4>
+            </div>
+            <div class="insight-compare ${item.status === "warning" ? "warning" : "advantage"}">
+              <span>${escapeHtml(formatHighlightGap(item))}</span>
+              <span class="insight-compare-divider" aria-hidden="true"></span>
+              <span>${escapeHtml(formatHighlightRatio(item))}</span>
+            </div>
           </article>
         `).join("") || '<p class="empty-inline">当前周期暂无重点数据</p>'}
       </div>
@@ -142,7 +334,6 @@ function renderTabs() {
     <section class="tab-section">
       <div class="table-tools">
         <p class="section-title">完整数据对比</p>
-        <input class="data-filter" id="data-filter" type="search" placeholder="筛选当前表格" value="${escapeHtml(dashboardState.filter)}">
       </div>
       ${dimensionOptions.length ? `
         <div class="dimension-tabs">
@@ -154,11 +345,27 @@ function renderTabs() {
         </div>
       ` : ""}
       <div class="table-wrap">
-        <table class="data-table">
-          <thead><tr>${columns.map((column) => `<th>${escapeHtml(column.label)}</th>`).join("")}</tr></thead>
+        <table class="data-table data-table-${escapeHtml(current.id || "default")}">
+          <thead><tr>${columns.map((column) => {
+            const active = currentSort?.key === column.key;
+            const direction = active ? currentSort.direction : "";
+            const ariaSort = direction === "desc" ? "descending" : direction === "asc" ? "ascending" : "none";
+            return `<th aria-sort="${ariaSort}">
+              <button class="sort-button ${active ? "active" : ""}" type="button" data-sort-key="${escapeHtml(column.key)}">
+                <span>${escapeHtml(column.label)}</span>
+                ${active ? `<span class="sort-arrow" aria-hidden="true">${direction === "desc" ? "↓" : "↑"}</span>` : ""}
+              </button>
+            </th>`;
+          }).join("")}</tr></thead>
           <tbody>
-            ${filteredRows.map((row) => `
-              <tr>${columns.map((column) => `<td>${renderCell(row, column)}</td>`).join("")}</tr>
+            ${displayRows.map((row) => `
+              <tr class="${trafficTree ? "tree-row" : ""}">${columns.map((column, columnIndex) => `
+                <td>${trafficTree && column.key === "path"
+                  ? renderTrafficTreeCell(row, trafficTree)
+                  : columnIndex === 0 && ["keywords", "customer_profile"].includes(current.id)
+                    ? renderFrozenTextCell(row, column)
+                    : renderCell(row, column)}</td>
+              `).join("")}</tr>
             `).join("") || `<tr><td class="empty-cell" colspan="${Math.max(columns.length, 1)}">没有符合条件的数据</td></tr>`}
           </tbody>
         </table>
@@ -166,47 +373,91 @@ function renderTabs() {
     </section>
     ${(current.notes || []).length ? `<ul class="notes">${current.notes.map((note) => `<li>${escapeHtml(note)}</li>`).join("")}</ul>` : ""}
   `;
+  dashboardState.renderedTableKey = currentTableKey;
+  if (previousTableKey === currentTableKey) {
+    const currentTableWrap = document.querySelector("#tab-body .table-wrap");
+    if (currentTableWrap) {
+      currentTableWrap.scrollLeft = previousTableScroll.left;
+      currentTableWrap.scrollTop = previousTableScroll.top;
+    }
+    window.scrollTo(previousPageScroll.left, previousPageScroll.top);
+  }
 
-  document.querySelector("#data-filter")?.addEventListener("input", (event) => {
-    dashboardState.filter = event.target.value;
-    renderTabs();
-    document.querySelector("#data-filter")?.focus();
-  });
   document.querySelectorAll("[data-dimension]").forEach((button) => {
     button.addEventListener("click", () => {
       dashboardState.dimensions[current.id] = button.dataset.dimension;
-      dashboardState.filter = "";
       renderTabs();
     });
+  });
+  document.querySelectorAll("[data-sort-key]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const key = button.dataset.sortKey;
+      const previous = dashboardState.sorts[current.id];
+      if (!previous || previous.key !== key) {
+        dashboardState.sorts[current.id] = { key, direction: "desc" };
+      } else if (previous.direction === "desc") {
+        dashboardState.sorts[current.id] = { key, direction: "asc" };
+      } else {
+        delete dashboardState.sorts[current.id];
+      }
+      renderTabs();
+      document.querySelector(`[data-sort-key="${CSS.escape(key)}"]`)?.focus({ preventScroll: true });
+    });
+  });
+  document.querySelectorAll("[data-traffic-tree-key]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const key = button.dataset.trafficTreeKey;
+      if (dashboardState.expandedTrafficPaths.has(key)) {
+        dashboardState.expandedTrafficPaths.delete(key);
+      } else {
+        dashboardState.expandedTrafficPaths.add(key);
+      }
+      renderTabs();
+      const restoredToggle = [...document.querySelectorAll("[data-traffic-tree-key]")]
+        .find((item) => item.dataset.trafficTreeKey === key);
+      restoredToggle?.focus({ preventScroll: true });
+    });
+  });
+  document.querySelectorAll(".frozen-cell-tip").forEach((tip) => {
+    tip.addEventListener("click", () => tip.classList.toggle("show-tooltip"));
+    tip.addEventListener("blur", () => tip.classList.remove("show-tooltip"));
   });
 }
 
 function renderDiagnosis() {
   const target = document.querySelector("#diagnosis");
-  const diagnosis = dashboardState.data?.diagnosis || [];
-  target.innerHTML = diagnosis.map((item) => `
+  const tabs = dashboardState.data?.tabs || [];
+  const primarySuggestions = [];
+  const secondarySuggestions = [];
+  tabs.forEach((tab) => {
+    const highlights = [...(tab.highlights || [])].sort((left, right) =>
+      Number(right.status === "warning") - Number(left.status === "warning")
+    );
+    const suggestions = highlights.map((item) => ({ ...item, sourceLabel: tab.label || "差距来源" }));
+    if (suggestions[0]) {
+      primarySuggestions.push(suggestions[0]);
+    }
+    secondarySuggestions.push(...suggestions.slice(1));
+  });
+  const suggestions = [...primarySuggestions, ...secondarySuggestions].slice(0, 5);
+  target.innerHTML = suggestions.map((item) => `
     <section class="diagnosis-card ${item.status === "warning" ? "warning" : "advantage"}">
-      <h3>${escapeHtml(item.title || "-")}</h3>
-      <p class="diagnosis-evidence">${escapeHtml(item.evidence || item.text || "-")}</p>
-      ${item.recommendation ? `
-        <div class="diagnosis-advice">
-          <span>建议</span>
-          <p>${escapeHtml(item.recommendation)}</p>
-        </div>
-      ` : ""}
+      <p class="diagnosis-type">${escapeHtml(item.sourceLabel)} · ${item.status === "warning" ? "劣势" : "优势"}</p>
+      <h3>${escapeHtml(item.action || "持续跟踪当前差距并验证优化效果")}</h3>
+      <p class="diagnosis-context">关注：${escapeHtml(item.label || "-")}</p>
     </section>
-  `).join("") || '<p class="empty-inline">当前周期暂无诊断建议</p>';
+  `).join("") || '<p class="empty-inline">当前周期暂无行动建议</p>';
 }
 
 function compactNumber(value) {
   const absolute = Math.abs(value);
   if (absolute >= 1000000) {
-    return `${(value / 1000000).toFixed(1).replace(/\.0$/, "")}M`;
+    return `${(value / 1000000).toFixed(2)}M`;
   }
   if (absolute >= 1000) {
-    return `${(value / 1000).toFixed(1).replace(/\.0$/, "")}K`;
+    return `${(value / 1000).toFixed(2)}K`;
   }
-  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+  return value.toFixed(2);
 }
 
 function trendPeriodLabel(meta, granularity) {

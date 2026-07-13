@@ -14,7 +14,7 @@
     "confidence": "high",
     "summary": "本品成交金额、访客数领先。",
     "weakness_summary": "本品成交转化率、成交客单价落后，需要优先优化。",
-    "generated_at": "2026-07-10T10:03:51"
+    "generated_at": "2026-07-11T16:46:20"
   },
   "source_files": [
     {
@@ -77,7 +77,7 @@
       "metric_id": "gmv",
       "metric_label": "成交金额",
       "actual_value": 119037.0,
-      "range_text": "￥10万 ~ ￥25万",
+      "range_text": "￥10.00万 ~ ￥25.00万",
       "range_low": 100000.0,
       "range_high": 250000.0,
       "position_p": 0.12691333333333332,
@@ -92,7 +92,7 @@
       "metric_id": "sold_units",
       "metric_label": "成交商品件数",
       "actual_value": 2318.0,
-      "range_text": "2,000 ~ 4,000",
+      "range_text": "2000.00 ~ 4000.00",
       "range_low": 2000.0,
       "range_high": 4000.0,
       "position_p": 0.159,
@@ -107,7 +107,7 @@
       "metric_id": "orders",
       "metric_label": "成交单量",
       "actual_value": 1947.0,
-      "range_text": "1,000 ~ 2,000",
+      "range_text": "1000.00 ~ 2000.00",
       "range_low": 1000.0,
       "range_high": 2000.0,
       "position_p": 0.947,
@@ -122,7 +122,7 @@
       "metric_id": "views",
       "metric_label": "浏览量",
       "actual_value": 60192.0,
-      "range_text": "6万 ~ 8万",
+      "range_text": "6.00万 ~ 8.00万",
       "range_low": 60000.0,
       "range_high": 80000.0,
       "position_p": 0.0096,
@@ -137,7 +137,7 @@
       "metric_id": "visitors",
       "metric_label": "访客数",
       "actual_value": 16753.0,
-      "range_text": "1万 ~ 2万",
+      "range_text": "1.00万 ~ 2.00万",
       "range_low": 10000.0,
       "range_high": 20000.0,
       "position_p": 0.6753,
@@ -152,7 +152,7 @@
       "metric_id": "cart_users",
       "metric_label": "加购人数",
       "actual_value": 2478.0,
-      "range_text": "2,000 ~ 4,000",
+      "range_text": "2000.00 ~ 4000.00",
       "range_low": 2000.0,
       "range_high": 4000.0,
       "position_p": 0.239,
@@ -167,7 +167,7 @@
       "metric_id": "conversion_rate",
       "metric_label": "成交转化率",
       "actual_value": 0.1106,
-      "range_text": "10% ~ 15%",
+      "range_text": "10.00% ~ 15.00%",
       "range_low": 0.1,
       "range_high": 0.15,
       "position_p": 0.21200000000000002,
@@ -182,7 +182,7 @@
       "metric_id": "customer_price",
       "metric_label": "成交客单价",
       "actual_value": 64.24,
-      "range_text": "￥50 ~ ￥100",
+      "range_text": "￥50.00 ~ ￥100.00",
       "range_low": 50.0,
       "range_high": 100.0,
       "position_p": 0.2847999999999999,
@@ -198,7 +198,7 @@
     {
       "metric_id": "gmv",
       "metric_label": "成交金额",
-      "range_text": "￥6万 ~ ￥8万",
+      "range_text": "￥6.00万 ~ ￥8.00万",
       "range_low": 60000.0,
       "range_high": 80000.0,
       "median_candidate": 70000.0,
@@ -218,7 +218,7 @@
     {
       "metric_id": "sold_units",
       "metric_label": "成交商品件数",
-      "range_text": "600 ~ 800",
+      "range_text": "600.00 ~ 800.00",
       "range_low": 600.0,
       "range_high": 800.0,
       "median_candidate": 700.0,
@@ -238,7 +238,7 @@
     {
       "metric_id": "orders",
       "metric_label": "成交单量",
-      "range_text": "600 ~ 800",
+      "range_text": "600.00 ~ 800.00",
       "range_low": 600.0,
       "range_high": 800.0,
       "median_candidate": 700.0,
@@ -258,7 +258,7 @@
     {
       "metric_id": "views",
       "metric_label": "浏览量",
-      "range_text": "2万 ~ 4万",
+      "range_text": "2.00万 ~ 4.00万",
       "range_low": 20000.0,
       "range_high": 40000.0,
       "median_candidate": 30000.0,
@@ -278,7 +278,7 @@
     {
       "metric_id": "visitors",
       "metric_label": "访客数",
-      "range_text": "2,000 ~ 4,000",
+      "range_text": "2000.00 ~ 4000.00",
       "range_low": 2000.0,
       "range_high": 4000.0,
       "median_candidate": 3000.0,
@@ -298,7 +298,7 @@
     {
       "metric_id": "cart_users",
       "metric_label": "加购人数",
-      "range_text": "1,000 ~ 2,000",
+      "range_text": "1000.00 ~ 2000.00",
       "range_low": 1000.0,
       "range_high": 2000.0,
       "median_candidate": 1500.0,
@@ -318,7 +318,7 @@
     {
       "metric_id": "conversion_rate",
       "metric_label": "成交转化率",
-      "range_text": "15% ~ 20%",
+      "range_text": "15.00% ~ 20.00%",
       "range_low": 0.15,
       "range_high": 0.2,
       "median_candidate": 0.175,
@@ -338,7 +338,7 @@
     {
       "metric_id": "customer_price",
       "metric_label": "成交客单价",
-      "range_text": "￥100 ~ ￥200",
+      "range_text": "￥100.00 ~ ￥200.00",
       "range_low": 100.0,
       "range_high": 200.0,
       "median_candidate": 150.0,
@@ -363,9 +363,9 @@
       "unit": "",
       "self_value": 119037.0,
       "competitor_value": 69135.90513279999,
-      "gap_abs_text": "49,901",
+      "gap_abs_text": "49901.09",
       "ratio_text": "本品 1.72x",
-      "gap_text": "本品领先 49,901 | 本品 1.72x",
+      "gap_text": "本品领先 49901.09 | 本品 1.72x",
       "status": "advantage",
       "priority": "低"
     },
@@ -375,9 +375,9 @@
       "unit": "",
       "self_value": 16753.0,
       "competitor_value": 3350.6,
-      "gap_abs_text": "13,402",
+      "gap_abs_text": "13402.40",
       "ratio_text": "本品 5.00x",
-      "gap_text": "本品领先 13,402 | 本品 5.00x",
+      "gap_text": "本品领先 13402.40 | 本品 5.00x",
       "status": "advantage",
       "priority": "低"
     },
@@ -9199,51 +9199,28 @@
           "self_value": 15000.0,
           "competitor_value": 3000.0,
           "unit": "",
-          "gap_text": "本品领先 12,000 | 本品 5.00x",
+          "gap_text": "本品领先 12000.00 | 本品 5.00x",
           "status": "advantage",
           "action": "优化价格权益、主图卖点、评价和促销承接"
         },
         {
-          "label": "站内场域 > 搜索",
-          "self_value": 15000.0,
-          "competitor_value": 3000.0,
+          "label": "站内场域 > 频道 > PLUS会员频道",
+          "self_value": 2.5,
+          "competitor_value": 7.5,
           "unit": "",
-          "gap_text": "本品领先 12,000 | 本品 5.00x",
-          "status": "advantage",
-          "action": "优化价格权益、主图卖点、评价和促销承接"
-        },
-        {
-          "label": "站内场域 > 频道",
-          "self_value": 1500.0,
-          "competitor_value": 300.0,
-          "unit": "",
-          "gap_text": "本品领先 1,200 | 本品 5.00x",
-          "status": "advantage",
-          "action": "优化价格权益、主图卖点、评价和促销承接"
-        },
-        {
-          "label": "站内场域 > 推荐",
-          "self_value": 1500.0,
-          "competitor_value": 500.0,
-          "unit": "",
-          "gap_text": "本品领先 1,000 | 本品 3.00x",
-          "status": "advantage",
-          "action": "优化价格权益、主图卖点、评价和促销承接"
-        },
-        {
-          "label": "站内场域 > 推荐 > 核心推荐",
-          "self_value": 1500.0,
-          "competitor_value": 500.0,
-          "unit": "",
-          "gap_text": "本品领先 1,000 | 本品 3.00x",
-          "status": "advantage",
-          "action": "优化价格权益、主图卖点、评价和促销承接"
+          "gap_text": "本品落后 5.00 | 竞品 3.00x",
+          "status": "warning",
+          "action": "补强渠道入口、资源位和投放承接"
         }
       ],
       "columns": [
         {
           "key": "path",
           "label": "渠道路径"
+        },
+        {
+          "key": "judgement",
+          "label": "判断"
         },
         {
           "key": "self_visitors",
@@ -9266,6 +9243,10 @@
           "label": "竞品成交金额"
         },
         {
+          "key": "gmv_gap",
+          "label": "成交金额差距"
+        },
+        {
           "key": "self_conversion_rate_pct",
           "label": "本品转化率",
           "unit": "%"
@@ -9279,10 +9260,6 @@
           "key": "conversion_gap_pct",
           "label": "转化差距",
           "unit": "pct"
-        },
-        {
-          "key": "judgement",
-          "label": "判断"
         }
       ],
       "rows": [
@@ -11413,7 +11390,7 @@
           "self_value": 1500.0,
           "competitor_value": 300.0,
           "unit": "",
-          "gap_text": "本品领先 | 访客差距 1,200 | 成交差距 8,000",
+          "gap_text": "本品领先 | 访客差距 1200.00 | 成交差距 8000.00",
           "status": "advantage",
           "action": "补充搜索词并检查页面承接"
         },
@@ -11422,34 +11399,7 @@
           "self_value": 30.0,
           "competitor_value": 300.0,
           "unit": "",
-          "gap_text": "访客落后 | 访客差距 -270 | 成交差距 -6,900",
-          "status": "warning",
-          "action": "补充搜索词并检查页面承接"
-        },
-        {
-          "label": "kk树儿童防晒帽",
-          "self_value": 700.0,
-          "competitor_value": null,
-          "unit": "",
-          "gap_text": "保持优势 | 访客差距 700 | 成交差距 5,000",
-          "status": "advantage",
-          "action": "保持优势词覆盖"
-        },
-        {
-          "label": "kk树防晒帽",
-          "self_value": 300.0,
-          "competitor_value": 2.5,
-          "unit": "",
-          "gap_text": "本品领先 | 访客差距 298 | 成交差距 3,000",
-          "status": "advantage",
-          "action": "补充搜索词并检查页面承接"
-        },
-        {
-          "label": "heybetter京东自营旗舰店",
-          "self_value": null,
-          "competitor_value": 30.0,
-          "unit": "",
-          "gap_text": "补词机会 | 访客差距 -30 | 成交差距 -1,500",
+          "gap_text": "访客落后 | 访客差距 -270.00 | 成交差距 -6900.00",
           "status": "warning",
           "action": "补充搜索词并检查页面承接"
         }
@@ -11458,6 +11408,10 @@
         {
           "key": "keyword",
           "label": "关键词"
+        },
+        {
+          "key": "opportunity",
+          "label": "机会判断"
         },
         {
           "key": "coverage_relation",
@@ -11486,10 +11440,6 @@
         {
           "key": "gmv_gap",
           "label": "成交差距"
-        },
-        {
-          "key": "opportunity",
-          "label": "机会判断"
         }
       ],
       "rows": [
@@ -14815,15 +14765,6 @@
       "headline": "按性别、年龄、地区、省份和城市维度比较成交客户结构",
       "highlights": [
         {
-          "label": "省份：北京",
-          "self_value": 13.03,
-          "competitor_value": 27.08,
-          "unit": "%",
-          "gap_text": "本品落后 | 差距 14.05pct",
-          "status": "warning",
-          "action": "结合该画像调整内容表达与素材占比"
-        },
-        {
           "label": "年龄：26-35岁",
           "self_value": 39.86,
           "competitor_value": 33.84,
@@ -14833,29 +14774,11 @@
           "action": "结合该画像调整内容表达与素材占比"
         },
         {
-          "label": "城市：朝阳区",
-          "self_value": 3.2199999999999998,
-          "competitor_value": 7.829999999999999,
+          "label": "省份：北京",
+          "self_value": 13.03,
+          "competitor_value": 27.08,
           "unit": "%",
-          "gap_text": "本品落后 | 差距 4.61pct",
-          "status": "warning",
-          "action": "结合该画像调整内容表达与素材占比"
-        },
-        {
-          "label": "省份：上海",
-          "self_value": 2.96,
-          "competitor_value": 7.26,
-          "unit": "%",
-          "gap_text": "本品落后 | 差距 4.30pct",
-          "status": "warning",
-          "action": "结合该画像调整内容表达与素材占比"
-        },
-        {
-          "label": "年龄：36-45岁",
-          "self_value": 55.169999999999995,
-          "competitor_value": 58.379999999999995,
-          "unit": "%",
-          "gap_text": "本品落后 | 差距 3.21pct",
+          "gap_text": "本品落后 | 差距 14.05pct",
           "status": "warning",
           "action": "结合该画像调整内容表达与素材占比"
         }
@@ -14866,6 +14789,10 @@
         {
           "key": "name",
           "label": "画像项"
+        },
+        {
+          "key": "judgement",
+          "label": "判断"
         },
         {
           "key": "self_rate",
@@ -14881,10 +14808,6 @@
           "key": "gap_rate",
           "label": "占比差距",
           "unit": "pct"
-        },
-        {
-          "key": "judgement",
-          "label": "判断"
         }
       ],
       "rows": [
@@ -18287,16 +18210,16 @@
   "diagnosis": [
     {
       "title": "优势：成交金额",
-      "text": "本品领先 49,901 | 本品 1.72x",
-      "evidence": "本品领先 49,901 | 本品 1.72x",
+      "text": "本品领先 49901.09 | 本品 1.72x",
+      "evidence": "本品领先 49901.09 | 本品 1.72x",
       "recommendation": "拆解领先或落后的流量、转化和客单贡献，按周复盘成交金额。",
       "status": "advantage",
       "source": "core_metrics.gmv"
     },
     {
       "title": "优势：访客数",
-      "text": "本品领先 13,402 | 本品 5.00x",
-      "evidence": "本品领先 13,402 | 本品 5.00x",
+      "text": "本品领先 13402.40 | 本品 5.00x",
+      "evidence": "本品领先 13402.40 | 本品 5.00x",
       "recommendation": "保持优势渠道，补强落后渠道入口并检查资源位承接。",
       "status": "advantage",
       "source": "core_metrics.visitors"
@@ -18322,7 +18245,7 @@
     {
       "module": "核心指标",
       "opportunity": "成交金额保持",
-      "gap_basis": "本品领先 49,901 | 本品 1.72x",
+      "gap_basis": "本品领先 49901.09 | 本品 1.72x",
       "suggested_action": "拆解领先或落后的流量、转化和客单贡献，按周复盘成交金额。",
       "priority": "低",
       "review_metric": "成交金额",
@@ -18331,7 +18254,7 @@
     {
       "module": "核心指标",
       "opportunity": "访客数保持",
-      "gap_basis": "本品领先 13,402 | 本品 5.00x",
+      "gap_basis": "本品领先 13402.40 | 本品 5.00x",
       "suggested_action": "保持优势渠道，补强落后渠道入口并检查资源位承接。",
       "priority": "低",
       "review_metric": "访客数",

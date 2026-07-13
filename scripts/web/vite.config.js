@@ -90,8 +90,7 @@ export default defineConfig({
     chunkSizeWarningLimit: 600,
     rollupOptions: {
       input: {
-        main: resolve(webRoot, "index.html"),
-        selection: resolve(webRoot, "selection-playground.html")
+        main: resolve(webRoot, "index.html")
       },
       output: {
         manualChunks: splitVendorChunk

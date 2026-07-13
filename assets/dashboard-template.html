@@ -247,11 +247,11 @@
     }
 
     .self {
-      color: var(--teal);
+      color: var(--text);
     }
 
     .competitor {
-      color: var(--amber);
+      color: var(--text);
     }
 
     .sub {
@@ -351,16 +351,16 @@
 
     .insight-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 12px;
-      margin-bottom: 18px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 12px;
     }
 
     .insight-card {
       border: 1px solid var(--line);
       border-radius: 8px;
       background: #fbf7ef;
-      padding: 12px 14px;
+      padding: 7px 10px 8px;
     }
 
     .insight-card.warning {
@@ -372,8 +372,9 @@
     }
 
     .insight-card h4 {
-      margin: 0 0 8px;
-      font-size: 15px;
+      margin: 0;
+      font-size: 13px;
+      line-height: 1.35;
       color: var(--amber);
     }
 
@@ -385,6 +386,44 @@
       margin: 0;
       color: #46515c;
       font-size: 13px;
+    }
+
+    .insight-card .insight-type {
+      color: var(--amber);
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+    }
+
+    .insight-card.warning .insight-type {
+      color: var(--teal);
+    }
+
+    .insight-card-label {
+      min-width: 0;
+    }
+
+    .insight-compare {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 5px;
+      color: var(--amber);
+      font-size: 12px;
+      font-weight: 900;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .insight-compare.warning {
+      color: var(--teal);
+    }
+
+    .insight-compare-divider {
+      width: 1px;
+      height: 12px;
+      background: currentColor;
+      opacity: 0.4;
     }
 
     .compare-row {
@@ -464,16 +503,6 @@
       font-weight: 900;
     }
 
-    .data-filter {
-      width: min(320px, 100%);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: #fffdf8;
-      color: var(--text);
-      padding: 8px 10px;
-      font-size: 13px;
-    }
-
     .table-wrap {
       max-height: 360px;
       overflow: auto;
@@ -507,6 +536,190 @@
       font-weight: 900;
     }
 
+    .sort-button {
+      appearance: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      width: auto;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      font-size: inherit;
+      font-weight: inherit;
+      text-align: left;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    .sort-button:focus-visible {
+      outline: none;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    .sort-button:hover,
+    .sort-button.active {
+      color: var(--text);
+    }
+
+    .sort-arrow {
+      color: var(--teal);
+      font-size: 12px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .data-table th:first-child,
+    .data-table td:first-child {
+      position: sticky;
+      left: 0;
+      min-width: 176px;
+      background: #fffdf8;
+      box-shadow: 6px 0 10px -8px rgba(31, 41, 51, 0.28);
+    }
+
+    .data-table th:first-child {
+      z-index: 3;
+      background: #f7f1e8;
+      box-shadow: 6px 0 10px -8px rgba(31, 41, 51, 0.34);
+    }
+
+    .data-table td:first-child {
+      z-index: 1;
+    }
+
+    .data-table th:first-child::after,
+    .data-table td:first-child::after {
+      position: absolute;
+      top: 0;
+      right: -6px;
+      bottom: 0;
+      width: 6px;
+      background: linear-gradient(90deg, rgba(31, 41, 51, 0.14), rgba(31, 41, 51, 0));
+      content: "";
+      pointer-events: none;
+    }
+
+    .data-table th:first-child::after {
+      background: linear-gradient(90deg, rgba(31, 41, 51, 0.18), rgba(31, 41, 51, 0));
+    }
+
+    .data-table-keywords th:first-child,
+    .data-table-keywords td:first-child {
+      width: 144px;
+      min-width: 144px;
+      max-width: 144px;
+    }
+
+    .data-table-customer_profile th:first-child,
+    .data-table-customer_profile td:first-child {
+      width: 124px;
+      min-width: 124px;
+      max-width: 124px;
+    }
+
+    .frozen-cell-tip {
+      position: relative;
+      display: block;
+      min-width: 0;
+      outline: none;
+    }
+
+    .frozen-cell-label {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .frozen-cell-tip::before,
+    .frozen-cell-tip::after {
+      position: absolute;
+      top: 50%;
+      z-index: 8;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 120ms ease, visibility 120ms ease;
+    }
+
+    .frozen-cell-tip::before {
+      left: calc(100% + 5px);
+      border-top: 6px solid transparent;
+      border-right: 7px solid #27313a;
+      border-bottom: 6px solid transparent;
+      content: "";
+      transform: translateY(-50%);
+    }
+
+    .frozen-cell-tip::after {
+      left: calc(100% + 12px);
+      width: max-content;
+      max-width: 280px;
+      padding: 7px 9px;
+      border-radius: 6px;
+      background: #27313a;
+      box-shadow: 0 8px 22px rgba(31, 41, 51, 0.2);
+      color: #fff;
+      content: attr(data-tooltip);
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 1.45;
+      white-space: normal;
+      transform: translateY(-50%);
+    }
+
+    .data-table td:first-child:has(.frozen-cell-tip:hover),
+    .data-table td:first-child:has(.frozen-cell-tip:focus) {
+      z-index: 6;
+    }
+
+    .frozen-cell-tip:hover::before,
+    .frozen-cell-tip:hover::after,
+    .frozen-cell-tip:focus::before,
+    .frozen-cell-tip:focus::after,
+    .frozen-cell-tip.show-tooltip::before,
+    .frozen-cell-tip.show-tooltip::after {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .tree-cell {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding-left: calc(var(--tree-depth) * 20px);
+    }
+
+    .tree-toggle,
+    .tree-toggle-placeholder {
+      width: 15px;
+      height: 15px;
+      flex: 0 0 15px;
+    }
+
+    .tree-toggle {
+      display: inline-grid;
+      padding: 0;
+      place-items: center;
+      border: 1px solid #9aa1a8;
+      border-radius: 3px;
+      background: #fff;
+      color: #5f6872;
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .tree-label {
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
     .cell-good {
       color: var(--amber);
       font-weight: 900;
@@ -538,13 +751,13 @@
 
     .diagnosis-list {
       display: grid;
-      gap: 12px;
-      margin-top: 18px;
+      gap: 8px;
+      margin-top: 12px;
     }
 
     .diagnosis-card {
       box-shadow: none;
-      padding: 14px 16px;
+      padding: 10px 12px;
       background: #efe8dd;
     }
 
@@ -552,14 +765,19 @@
       background: var(--soft-amber);
     }
 
+    .diagnosis-card.warning {
+      background: var(--soft-teal);
+    }
+
     .diagnosis-card h3 {
-      margin: 0 0 5px;
-      color: var(--amber);
-      font-size: 17px;
+      margin: 2px 0 0;
+      color: var(--text);
+      font-size: 13px;
+      line-height: 1.45;
     }
 
     .diagnosis-card.warning h3 {
-      color: var(--teal);
+      color: var(--text);
     }
 
     .diagnosis-card p {
@@ -568,30 +786,21 @@
       font-size: 13px;
     }
 
-    .diagnosis-evidence {
-      font-weight: 800;
-    }
-
-    .diagnosis-advice {
-      margin-top: 10px;
-      padding-top: 10px;
-      border-top: 1px solid rgba(27, 31, 42, 0.1);
-    }
-
-    .diagnosis-advice-label {
-      display: block;
-      margin-bottom: 4px;
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 900;
-    }
-
-    .diagnosis-card.advantage .diagnosis-advice-label {
+    .diagnosis-type {
       color: var(--amber);
+      font-size: 11px !important;
+      font-weight: 900;
+      letter-spacing: 0.08em;
     }
 
-    .diagnosis-card.warning .diagnosis-advice-label {
+    .diagnosis-card.warning .diagnosis-type {
       color: var(--teal);
+    }
+
+    .diagnosis-context {
+      margin-top: 3px !important;
+      color: var(--muted);
+      font-size: 11px !important;
     }
 
     .footnote {
@@ -699,7 +908,7 @@
 
       <aside class="panel">
         <h2>AI核心判断与建议</h2>
-        <p class="note">按优势、短板和动作优先级归纳。</p>
+        <p class="note">覆盖三类差距来源，给出 5 条优先动作</p>
         <div class="diagnosis-list" id="diagnosis"></div>
       </aside>
     </section>
@@ -712,7 +921,11 @@
     const state = {
       data: null,
       activeTab: 0,
-      dimensions: {}
+      dimensions: {},
+      sorts: {},
+      expandedTrafficPaths: new Set(),
+      trafficTreeKey: "",
+      renderedTableKey: ""
     };
 
     /**
@@ -737,10 +950,43 @@
      */
     function formatValue(value, unit = "") {
       if (typeof value === "number") {
-        const text = Number.isInteger(value) ? value.toLocaleString("zh-CN") : value.toFixed(2);
-        return `${text}${unit}`;
+        return `${value.toFixed(2)}${unit}`;
       }
       return `${value ?? "-"}${unit}`;
+    }
+
+    /**
+     * 功能说明：计算重点卡的带方向差值。
+     * 参数 item：包含本品值、竞品值和单位的重点数据。
+     * 返回值：带正负方向和展示单位的差值文本。
+     */
+    function formatHighlightGap(item) {
+      const selfValue = typeof item.self_value === "number" ? item.self_value : 0;
+      const competitorValue = typeof item.competitor_value === "number" ? item.competitor_value : 0;
+      const gap = selfValue - competitorValue;
+      const sign = gap > 0 ? "+" : "";
+      const unit = item.unit === "%" ? "pct" : (item.unit || "");
+      return `${sign}${gap.toFixed(2)}${unit}`;
+    }
+
+    /**
+     * 功能说明：计算重点卡的强弱倍率或独有状态。
+     * 参数 item：包含本品值和竞品值的重点数据。
+     * 返回值：倍率、独有状态或无可比标识。
+     */
+    function formatHighlightRatio(item) {
+      const selfValue = typeof item.self_value === "number" ? item.self_value : 0;
+      const competitorValue = typeof item.competitor_value === "number" ? item.competitor_value : 0;
+      if (selfValue > 0 && competitorValue > 0) {
+        return `${(Math.max(selfValue, competitorValue) / Math.min(selfValue, competitorValue)).toFixed(2)}x`;
+      }
+      if (selfValue > 0) {
+        return "本品独有";
+      }
+      if (competitorValue > 0) {
+        return "竞品独有";
+      }
+      return "-";
     }
 
     /**
@@ -752,7 +998,7 @@
       if (item.gap_abs_text == null || item.gap_abs_text === "") {
         return "-";
       }
-      const value = String(item.gap_abs_text).replace(/^[+-]/, "");
+      const value = String(item.gap_abs_text).replaceAll(",", "").replace(/^[+-]/, "");
       const sign = item.status === "warning" ? "-" : "+";
       const unit = item.id === "conversion_rate" ? "pct" : "";
       return `${sign}${value}${unit}`;
@@ -810,6 +1056,133 @@
     }
 
     /**
+     * 功能说明：比较两行在指定列上的排序先后，并把空值固定放在末尾。
+     * 参数 leftRow：左侧数据行。
+     * 参数 rightRow：右侧数据行。
+     * 参数 column：当前排序列定义。
+     * 参数 direction：排序方向，desc 为降序，asc 为升序。
+     * 返回值：适用于 Array.sort 的比较结果。
+     */
+    function compareRows(leftRow, rightRow, column, direction) {
+      const leftValue = leftRow[column.key];
+      const rightValue = rightRow[column.key];
+      const leftEmpty = leftValue == null || leftValue === "" || leftValue === "-";
+      const rightEmpty = rightValue == null || rightValue === "" || rightValue === "-";
+      if (leftEmpty || rightEmpty) {
+        return leftEmpty === rightEmpty ? 0 : leftEmpty ? 1 : -1;
+      }
+      let result;
+      if (typeof leftValue === "number" && typeof rightValue === "number") {
+        result = leftValue - rightValue;
+      } else {
+        result = String(leftValue).localeCompare(String(rightValue), "zh-CN", { numeric: true, sensitivity: "base" });
+      }
+      return direction === "desc" ? -result : result;
+    }
+
+    /**
+     * 功能说明：按当前列稳定排序普通表格行。
+     * 参数 rows：待排序的数据行。
+     * 参数 column：当前排序列定义；为空时保持原始顺序。
+     * 参数 direction：排序方向。
+     * 返回值：排序后的新数组。
+     */
+    function sortRows(rows, column, direction) {
+      if (!column || !direction) {
+        return rows;
+      }
+      return rows
+        .map((row, index) => ({ row, index }))
+        .sort((left, right) => compareRows(left.row, right.row, column, direction) || left.index - right.index)
+        .map((item) => item.row);
+    }
+
+    /**
+     * 功能说明：渲染带省略展示和完整信息 Tooltip 的冻结文本单元格。
+     * 参数 row：当前表格行。
+     * 参数 column：冻结首列定义。
+     * 返回值：冻结列使用的 HTML 字符串。
+     */
+    function renderFrozenTextCell(row, column) {
+      const text = formatValue(row[column.key], column.unit || "");
+      return `<span class="frozen-cell-tip" tabindex="0" data-tooltip="${text}"><span class="frozen-cell-label">${text}</span></span>`;
+    }
+
+    /**
+     * 功能说明：把流量来源行整理为可展开树，并按展开状态计算当前可见行。
+     * 参数 rows：流量来源数据行。
+     * 参数 sortColumn：当前排序列定义；为空时保持原始同级顺序。
+     * 参数 sortDirection：当前排序方向。
+     * 返回值：树形行和节点元信息。
+     */
+    function buildTrafficTree(rows, sortColumn, sortDirection) {
+      const nodes = rows.map((row, index) => {
+        const levels = [row.level_1, row.level_2, row.level_3].filter((value) => value && value !== "-");
+        const key = levels.join(" > ");
+        return {
+          row,
+          index,
+          key,
+          label: levels.at(-1) || row.path || "-",
+          depth: Math.max(levels.length - 1, 0),
+          ancestors: levels.slice(0, -1).map((_, levelIndex) => levels.slice(0, levelIndex + 1).join(" > ")),
+          parentKey: levels.length > 1 ? levels.slice(0, -1).join(" > ") : ""
+        };
+      });
+      const parentKeys = new Set(nodes.flatMap((node) => node.ancestors));
+      const treeKey = `${state.data?.meta?.period_key || "-"}:${nodes.map((node) => node.key).join("|")}`;
+      if (state.trafficTreeKey !== treeKey) {
+        state.trafficTreeKey = treeKey;
+        state.expandedTrafficPaths = new Set(
+          nodes.filter((node) => node.depth === 0 && parentKeys.has(node.key)).map((node) => node.key)
+        );
+      }
+      const childrenByParent = new Map();
+      nodes.forEach((node) => {
+        const siblings = childrenByParent.get(node.parentKey) || [];
+        siblings.push(node);
+        childrenByParent.set(node.parentKey, siblings);
+      });
+      if (sortColumn && sortDirection) {
+        childrenByParent.forEach((siblings) => {
+          siblings.sort((left, right) =>
+            compareRows(left.row, right.row, sortColumn, sortDirection) || left.index - right.index
+          );
+        });
+      }
+      const visibleNodes = [];
+      const appendChildren = (parentKey) => {
+        (childrenByParent.get(parentKey) || []).forEach((node) => {
+          visibleNodes.push(node);
+          if (state.expandedTrafficPaths.has(node.key)) {
+            appendChildren(node.key);
+          }
+        });
+      };
+      appendChildren("");
+      return {
+        rows: visibleNodes.map((node) => node.row),
+        metaByKey: new Map(nodes.map((node) => [node.key, { ...node, hasChildren: parentKeys.has(node.key) }]))
+      };
+    }
+
+    /**
+     * 功能说明：渲染树形渠道首列。
+     * 参数 row：渠道数据行。
+     * 参数 tree：树形渲染数据。
+     * 返回值：带层级缩进和开关的 HTML。
+     */
+    function renderTrafficTreeCell(row, tree) {
+      const key = [row.level_1, row.level_2, row.level_3].filter((value) => value && value !== "-").join(" > ");
+      const meta = tree.metaByKey.get(key) || { key, label: row.path || "-", depth: 0, hasChildren: false };
+      const expanded = state.expandedTrafficPaths.has(meta.key);
+      const control = meta.hasChildren
+        ? `<button class="tree-toggle" type="button" data-traffic-tree-key="${meta.key}" aria-expanded="${expanded}" aria-label="${expanded ? "收起" : "展开"}${meta.label}">${expanded ? "−" : "+"}</button>`
+        : '<span class="tree-toggle-placeholder" aria-hidden="true"></span>';
+      return `<span class="tree-cell" style="--tree-depth:${meta.depth}">${control}<span class="tree-label">${meta.label}</span></span>`;
+    }
+
+    /**
      * 功能说明：计算对比条的相对宽度。
      * 参数 value：当前项数值。
      * 参数 max：同组最大数值。
@@ -833,7 +1206,6 @@
     function renderDashboard(data) {
       console.info("开始渲染看板", data?.meta);
       state.data = data;
-      state.filter = "";
       state.dimensions = {};
       document.querySelector("#title").textContent = data.meta?.title || "竞品准真实值看板";
       document.querySelector("#meta").textContent = [
@@ -883,6 +1255,13 @@
      * 返回值：无返回值，直接更新 DOM。
      */
     function renderTabs() {
+      const previousTableWrap = document.querySelector("#tab-body .table-wrap");
+      const previousTableScroll = {
+        left: previousTableWrap?.scrollLeft || 0,
+        top: previousTableWrap?.scrollTop || 0
+      };
+      const previousTableKey = state.renderedTableKey;
+      const previousPageScroll = { left: window.scrollX, top: window.scrollY };
       const tabs = state.data?.tabs || [];
       const nav = document.querySelector("#tabs");
       nav.innerHTML = tabs.map((tab, index) => `
@@ -894,13 +1273,13 @@
       nav.querySelectorAll("[data-tab-index]").forEach((button) => {
         button.addEventListener("click", () => {
           state.activeTab = Number(button.dataset.tabIndex);
-          state.filter = "";
           console.info("切换分析 Tab", state.activeTab);
           renderTabs();
         });
       });
 
       const current = tabs[state.activeTab] || tabs[0] || {};
+      const currentTableKey = `${state.data?.meta?.period_key || "-"}:${current.id || "-"}`;
       const highlights = current.highlights || current.items || [];
       const max = Math.max(0, ...highlights.flatMap((item) => [
         typeof item.self_value === "number" ? item.self_value : 0,
@@ -908,29 +1287,39 @@
       ]));
       const rows = current.rows || [];
       const columns = current.columns || [];
+      const currentSort = state.sorts[current.id] || null;
+      const sortColumn = currentSort ? columns.find((column) => column.key === currentSort.key) : null;
       const dimensionField = current.dimension_field;
       const dimensionOptions = dimensionField
         ? [...new Set(rows.map((row) => row[dimensionField]).filter(Boolean))]
         : [];
       const activeDimension = state.dimensions?.[current.id] || dimensionOptions[0] || "";
-      const query = (state.filter || "").trim().toLowerCase();
       const dimensionRows = activeDimension
         ? rows.filter((row) => row[dimensionField] === activeDimension)
         : rows;
-      const filteredRows = query
-        ? dimensionRows.filter((row) => Object.values(row).some((value) => String(value ?? "").toLowerCase().includes(query)))
-        : dimensionRows;
+      const trafficTree = current.id === "traffic"
+        ? buildTrafficTree(dimensionRows, sortColumn, currentSort?.direction)
+        : null;
+      const displayRows = trafficTree
+        ? trafficTree.rows
+        : sortRows(dimensionRows, sortColumn, currentSort?.direction);
 
       document.querySelector("#tab-body").innerHTML = `
         <h3>${current.headline || "-"}</h3>
         <section class="tab-section">
-          <p class="tab-section-title">AI 建议重点</p>
+          <p class="tab-section-title">优势与劣势</p>
           <div class="insight-grid">
             ${highlights.map((item) => `
               <article class="insight-card ${item.status === "warning" ? "warning" : "advantage"}">
-                <h4>${item.label || "-"}</h4>
-                <p>${item.gap_text || "-"}</p>
-                ${item.action ? `<p>${item.action}</p>` : ""}
+                <div class="insight-card-label">
+                  <p class="insight-type">${item.status === "warning" ? "劣势" : "优势"}</p>
+                  <h4>${item.label || "-"}</h4>
+                </div>
+                <div class="insight-compare ${item.status === "warning" ? "warning" : "advantage"}">
+                  <span>${formatHighlightGap(item)}</span>
+                  <span class="insight-compare-divider" aria-hidden="true"></span>
+                  <span>${formatHighlightRatio(item)}</span>
+                </div>
               </article>
             `).join("")}
           </div>
@@ -938,7 +1327,6 @@
         <section class="tab-section">
           <div class="table-tools">
             <p class="tab-section-title">完整数据对比</p>
-            <input class="data-filter" id="data-filter" type="search" placeholder="筛选当前表格" value="${state.filter || ""}">
           </div>
           ${dimensionOptions.length ? `
             <div class="dimension-tabs">
@@ -951,14 +1339,28 @@
           ` : ""}
           ${columns.length ? `
             <div class="table-wrap">
-              <table class="data-table">
+              <table class="data-table data-table-${current.id || "default"}">
                 <thead>
-                  <tr>${columns.map((column) => `<th>${column.label}</th>`).join("")}</tr>
+                  <tr>${columns.map((column) => {
+                    const active = currentSort?.key === column.key;
+                    const direction = active ? currentSort.direction : "";
+                    const ariaSort = direction === "desc" ? "descending" : direction === "asc" ? "ascending" : "none";
+                    return `<th aria-sort="${ariaSort}">
+                      <button class="sort-button ${active ? "active" : ""}" type="button" data-sort-key="${column.key}">
+                        <span>${column.label}</span>
+                        ${active ? `<span class="sort-arrow" aria-hidden="true">${direction === "desc" ? "↓" : "↑"}</span>` : ""}
+                      </button>
+                    </th>`;
+                  }).join("")}</tr>
                 </thead>
                 <tbody>
-                  ${filteredRows.map((row) => `
+                  ${displayRows.map((row) => `
                     <tr>
-                      ${columns.map((column) => `<td>${renderCell(row, column)}</td>`).join("")}
+                      ${columns.map((column, columnIndex) => `<td>${trafficTree && column.key === "path"
+                        ? renderTrafficTreeCell(row, trafficTree)
+                        : columnIndex === 0 && ["keywords", "customer_profile"].includes(current.id)
+                          ? renderFrozenTextCell(row, column)
+                          : renderCell(row, column)}</td>`).join("")}
                     </tr>
                   `).join("")}
                 </tbody>
@@ -989,23 +1391,55 @@
           ${(current.notes || []).map((note) => `<li>${note}</li>`).join("")}
         </ul>
       `;
-
-      const filter = document.querySelector("#data-filter");
-      if (filter) {
-        filter.addEventListener("input", (event) => {
-          state.filter = event.target.value;
-          renderTabs();
-          document.querySelector("#data-filter")?.focus();
-        });
+      state.renderedTableKey = currentTableKey;
+      if (previousTableKey === currentTableKey) {
+        const currentTableWrap = document.querySelector("#tab-body .table-wrap");
+        if (currentTableWrap) {
+          currentTableWrap.scrollLeft = previousTableScroll.left;
+          currentTableWrap.scrollTop = previousTableScroll.top;
+        }
+        window.scrollTo(previousPageScroll.left, previousPageScroll.top);
       }
 
       document.querySelectorAll("[data-dimension]").forEach((button) => {
         button.addEventListener("click", () => {
           state.dimensions = state.dimensions || {};
           state.dimensions[current.id] = button.dataset.dimension;
-          state.filter = "";
           renderTabs();
         });
+      });
+      document.querySelectorAll("[data-sort-key]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const key = button.dataset.sortKey;
+          const previous = state.sorts[current.id];
+          if (!previous || previous.key !== key) {
+            state.sorts[current.id] = { key, direction: "desc" };
+          } else if (previous.direction === "desc") {
+            state.sorts[current.id] = { key, direction: "asc" };
+          } else {
+            delete state.sorts[current.id];
+          }
+          renderTabs();
+          document.querySelector(`[data-sort-key="${CSS.escape(key)}"]`)?.focus({ preventScroll: true });
+        });
+      });
+      document.querySelectorAll("[data-traffic-tree-key]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const key = button.dataset.trafficTreeKey;
+          if (state.expandedTrafficPaths.has(key)) {
+            state.expandedTrafficPaths.delete(key);
+          } else {
+            state.expandedTrafficPaths.add(key);
+          }
+          renderTabs();
+          const restoredToggle = [...document.querySelectorAll("[data-traffic-tree-key]")]
+            .find((item) => item.dataset.trafficTreeKey === key);
+          restoredToggle?.focus({ preventScroll: true });
+        });
+      });
+      document.querySelectorAll(".frozen-cell-tip").forEach((tip) => {
+        tip.addEventListener("click", () => tip.classList.toggle("show-tooltip"));
+        tip.addEventListener("blur", () => tip.classList.remove("show-tooltip"));
       });
     }
 
@@ -1015,18 +1449,27 @@
      */
     function renderDiagnosis() {
       const target = document.querySelector("#diagnosis");
-      target.innerHTML = (state.data?.diagnosis || []).map((item) => `
+      const tabs = state.data?.tabs || [];
+      const primarySuggestions = [];
+      const secondarySuggestions = [];
+      tabs.forEach((tab) => {
+        const highlights = [...(tab.highlights || [])].sort((left, right) =>
+          Number(right.status === "warning") - Number(left.status === "warning")
+        );
+        const suggestions = highlights.map((item) => ({ ...item, sourceLabel: tab.label || "差距来源" }));
+        if (suggestions[0]) {
+          primarySuggestions.push(suggestions[0]);
+        }
+        secondarySuggestions.push(...suggestions.slice(1));
+      });
+      const suggestions = [...primarySuggestions, ...secondarySuggestions].slice(0, 5);
+      target.innerHTML = suggestions.map((item) => `
         <section class="diagnosis-card ${item.status === "warning" ? "warning" : "advantage"}">
-          <h3>${item.title || "-"}</h3>
-          <p class="diagnosis-evidence">${item.evidence || item.text || "-"}</p>
-          ${item.recommendation ? `
-            <div class="diagnosis-advice">
-              <span class="diagnosis-advice-label">建议</span>
-              <p>${item.recommendation}</p>
-            </div>
-          ` : ""}
+          <p class="diagnosis-type">${item.sourceLabel} · ${item.status === "warning" ? "劣势" : "优势"}</p>
+          <h3>${item.action || "持续跟踪当前差距并验证优化效果"}</h3>
+          <p class="diagnosis-context">关注：${item.label || "-"}</p>
         </section>
-      `).join("");
+      `).join("") || '<p class="empty-inline">当前周期暂无行动建议</p>';
     }
 
     /**

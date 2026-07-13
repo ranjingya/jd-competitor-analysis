@@ -366,12 +366,26 @@ def read_rows(source: dict[str, Any]) -> list[dict[str, Any]]:
     return rows
 
 
-def format_number(value: float | None, digits: int = 0) -> str:
+def format_number(value: float | None, digits: int = 2) -> str:
     """格式化数量或金额差距。"""
 
     if value is None:
         return "-"
-    return f"{value:,.{digits}f}" if digits else f"{value:,.0f}"
+    return f"{value:.{digits}f}"
+
+
+def format_interval_text(raw: str) -> str:
+    """把区间文案中的数字统一为两位小数，并移除千位分隔符。"""
+
+    def replace_number(match: re.Match[str]) -> str:
+        number = float(match.group("number").replace(",", ""))
+        return f"{format_number(number)}{match.group('scale')}"
+
+    return re.sub(
+        r"(?P<number>\d[\d,]*(?:\.\d+)?)(?P<scale>万?)",
+        replace_number,
+        raw,
+    )
 
 
 def ratio_label(self_value: float | None, competitor_value: float | None) -> str:
@@ -393,8 +407,7 @@ def gap_text(label: str, self_value: float | None, competitor_value: float | Non
     if label == "成交转化率":
         gap = f"{abs(self_value - competitor_value) * 100:.2f}pct"
     else:
-        digits = 2 if label == "成交客单价" else 0
-        gap = format_number(abs(self_value - competitor_value), digits)
+        gap = format_number(abs(self_value - competitor_value))
     return f"本品{direction} {gap} | {ratio_label(self_value, competitor_value)}"
 
 
@@ -439,7 +452,7 @@ def analyze_core(
                 "metric_id": metric.id,
                 "metric_label": metric.label,
                 "actual_value": actual,
-                "range_text": self_interval.raw,
+                "range_text": format_interval_text(self_interval.raw),
                 "range_low": self_interval.low,
                 "range_high": self_interval.high,
                 "position_p": position,
@@ -519,7 +532,7 @@ def analyze_core(
             {
                 "metric_id": metric.id,
                 "metric_label": metric.label,
-                "range_text": interval.raw,
+                "range_text": format_interval_text(interval.raw),
                 "range_low": interval.low,
                 "range_high": interval.high,
                 "median_candidate": interval.mid,
@@ -558,7 +571,7 @@ def analyze_core(
                     "unit": metric.unit,
                     "self_value": card_self,
                     "competitor_value": card_competitor,
-                    "gap_abs_text": format_number(abs((self_value or 0) - (value or 0)) * (100 if metric.unit == "%" else 1), 2 if metric.id in {"conversion_rate", "customer_price"} else 0),
+                    "gap_abs_text": format_number(abs((self_value or 0) - (value or 0)) * (100 if metric.unit == "%" else 1)),
                     "ratio_text": ratio_label(self_value, value),
                     "gap_text": gap_text(metric.label, self_value, value),
                     "status": status,
@@ -766,19 +779,44 @@ def analyze_promotion(rows: list[dict[str, Any]], competitor_prefix: str, compet
 def build_tabs(traffic: list[dict[str, Any]], keywords: dict[str, Any], profile: dict[str, Any]) -> list[dict[str, Any]]:
     """生成 HTML 直接消费的三个差距来源 Tab。"""
 
+    def select_balanced_highlights(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """优先各选一项优势和劣势，缺少任一类型时按原顺序补足两项。"""
+
+        selected: list[dict[str, Any]] = []
+        for status in ("advantage", "warning"):
+            match = next((item for item in items if item["status"] == status), None)
+            if match is not None:
+                selected.append(match)
+        for item in items:
+            if len(selected) >= 2:
+                break
+            if item not in selected:
+                selected.append(item)
+        return selected
+
+    def traffic_highlight_gap(item: dict[str, Any]) -> str:
+        """生成人员可直接理解的渠道访客差距摘要。"""
+
+        if item["self_visitors"] is None and item["competitor_visitors"] is not None:
+            return f"竞品独有 | 竞品访客 {format_number(item['competitor_visitors'])}"
+        if item["competitor_visitors"] is None and item["self_visitors"] is not None:
+            return f"本品独有 | 本品访客 {format_number(item['self_visitors'])}"
+        return gap_text("访客数", item["self_visitors"], item["competitor_visitors"])
+
     traffic_sorted = sorted(traffic, key=lambda item: abs(item["visitor_gap"]), reverse=True)
-    traffic_highlights = [
+    traffic_highlight_candidates = [
         {
             "label": item["path"],
             "self_value": item["self_visitors"],
             "competitor_value": item["competitor_visitors"],
             "unit": "",
-            "gap_text": gap_text("访客数", item["self_visitors"], item["competitor_visitors"]),
+            "gap_text": traffic_highlight_gap(item),
             "status": "advantage" if item["visitor_gap"] >= 0 else "warning",
             "action": item["suggested_action"],
         }
-        for item in traffic_sorted[:5]
+        for item in traffic_sorted
     ]
+    traffic_highlights = select_balanced_highlights(traffic_highlight_candidates)
     traffic_rows = [
         {
             **item,
@@ -789,7 +827,7 @@ def build_tabs(traffic: list[dict[str, Any]], keywords: dict[str, Any], profile:
     ]
 
     keyword_rows = keywords["rows"]
-    keyword_highlights = [
+    keyword_highlight_candidates = [
         {
             "label": item["keyword"],
             "self_value": item["self_visitors"],
@@ -799,13 +837,14 @@ def build_tabs(traffic: list[dict[str, Any]], keywords: dict[str, Any], profile:
             "status": "warning" if item["opportunity"] in {"补词机会", "访客落后", "成交落后"} else "advantage",
             "action": "补充搜索词并检查页面承接" if item["opportunity"] != "保持优势" else "保持优势词覆盖",
         }
-        for item in keyword_rows[:5]
+        for item in keyword_rows
     ]
+    keyword_highlights = select_balanced_highlights(keyword_highlight_candidates)
 
     profile_rows = [item for dimension in profile["dimensions"] for item in dimension["items"]]
     comparable_profile = [item for item in profile_rows if item["gap_rate"] is not None]
     comparable_profile.sort(key=lambda item: abs(item["gap_rate"]), reverse=True)
-    profile_highlights = [
+    profile_highlight_candidates = [
         {
             "label": f"{item['dimension']}：{item['name']}",
             "self_value": item["self_rate"],
@@ -815,8 +854,9 @@ def build_tabs(traffic: list[dict[str, Any]], keywords: dict[str, Any], profile:
             "status": "warning" if item["judgement"] == "本品落后" else "advantage",
             "action": "结合该画像调整内容表达与素材占比",
         }
-        for item in comparable_profile[:5]
+        for item in comparable_profile
     ]
+    profile_highlights = select_balanced_highlights(profile_highlight_candidates)
 
     return [
         {
@@ -826,15 +866,16 @@ def build_tabs(traffic: list[dict[str, Any]], keywords: dict[str, Any], profile:
             "highlights": traffic_highlights,
             "columns": [
                 {"key": "path", "label": "渠道路径"},
+                {"key": "judgement", "label": "判断"},
                 {"key": "self_visitors", "label": "本品访客"},
                 {"key": "competitor_visitors", "label": "竞品访客"},
                 {"key": "visitor_gap", "label": "访客差距"},
                 {"key": "self_gmv", "label": "本品成交金额"},
                 {"key": "competitor_gmv", "label": "竞品成交金额"},
+                {"key": "gmv_gap", "label": "成交金额差距"},
                 {"key": "self_conversion_rate_pct", "label": "本品转化率", "unit": "%"},
                 {"key": "competitor_conversion_rate_pct", "label": "竞品转化率", "unit": "%"},
                 {"key": "conversion_gap_pct", "label": "转化差距", "unit": "pct"},
-                {"key": "judgement", "label": "判断"},
             ],
             "rows": traffic_rows,
             "notes": ["渠道值按原始区间估算，核心指标另受顶层渠道约束。"],
@@ -846,6 +887,7 @@ def build_tabs(traffic: list[dict[str, Any]], keywords: dict[str, Any], profile:
             "highlights": keyword_highlights,
             "columns": [
                 {"key": "keyword", "label": "关键词"},
+                {"key": "opportunity", "label": "机会判断"},
                 {"key": "coverage_relation", "label": "覆盖关系"},
                 {"key": "self_visitors", "label": "本品访客"},
                 {"key": "competitor_visitors", "label": "竞品访客"},
@@ -853,7 +895,6 @@ def build_tabs(traffic: list[dict[str, Any]], keywords: dict[str, Any], profile:
                 {"key": "self_gmv", "label": "本品成交金额"},
                 {"key": "competitor_gmv", "label": "竞品成交金额"},
                 {"key": "gmv_gap", "label": "成交差距"},
-                {"key": "opportunity", "label": "机会判断"},
             ],
             "rows": keyword_rows,
             "notes": keywords["notes"],
@@ -867,10 +908,10 @@ def build_tabs(traffic: list[dict[str, Any]], keywords: dict[str, Any], profile:
             "dimension_label": "画像维度",
             "columns": [
                 {"key": "name", "label": "画像项"},
+                {"key": "judgement", "label": "判断"},
                 {"key": "self_rate", "label": "本品占比", "unit": "%"},
                 {"key": "competitor_rate", "label": "竞品占比", "unit": "%"},
                 {"key": "gap_rate", "label": "占比差距", "unit": "pct"},
-                {"key": "judgement", "label": "判断"},
             ],
             "rows": profile_rows,
             "notes": profile["notes"],

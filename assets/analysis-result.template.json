@@ -60,6 +60,10 @@
           "label": "渠道路径"
         },
         {
+          "key": "judgement",
+          "label": "判断"
+        },
+        {
           "key": "self_visitors",
           "label": "本品访客"
         },
@@ -80,6 +84,10 @@
           "label": "竞品成交金额"
         },
         {
+          "key": "gmv_gap",
+          "label": "成交金额差距"
+        },
+        {
           "key": "self_conversion_rate_pct",
           "label": "本品转化率",
           "unit": "%"
@@ -93,10 +101,6 @@
           "key": "conversion_gap_pct",
           "label": "转化差距",
           "unit": "pct"
-        },
-        {
-          "key": "judgement",
-          "label": "判断"
         }
       ],
       "rows": [],
@@ -113,6 +117,10 @@
         {
           "key": "keyword",
           "label": "关键词"
+        },
+        {
+          "key": "opportunity",
+          "label": "机会判断"
         },
         {
           "key": "coverage_relation",
@@ -141,10 +149,6 @@
         {
           "key": "gmv_gap",
           "label": "成交差距"
-        },
-        {
-          "key": "opportunity",
-          "label": "机会判断"
         }
       ],
       "rows": [],
@@ -163,6 +167,10 @@
           "label": "画像项"
         },
         {
+          "key": "judgement",
+          "label": "判断"
+        },
+        {
           "key": "self_rate",
           "label": "本品占比",
           "unit": "%"
@@ -176,10 +184,6 @@
           "key": "gap_rate",
           "label": "占比差距",
           "unit": "pct"
-        },
-        {
-          "key": "judgement",
-          "label": "判断"
         }
       ],
       "rows": [],
