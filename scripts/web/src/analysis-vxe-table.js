@@ -193,7 +193,7 @@ export function mountAnalysisVxeTable(target, config) {
           field: column.key,
           title: column.label,
           minWidth: columnWidth(column, columnIndex, tableId),
-          fixed: columnIndex < 2 ? "left" : undefined,
+          fixed: columnIndex === 0 ? "left" : undefined,
           sortable: true,
           treeNode: isTree && columnIndex === 0,
           showOverflow: "title",
