@@ -1,12 +1,12 @@
-"""把 Skill 生成的 AI 建议安全写入分析结果。"""
+"""校验并写入 Skill 生成的结构化 AI 建议。"""
 
 from __future__ import annotations
 
-import argparse
-import json
 import logging
 from pathlib import Path
 from typing import Any
+
+from .contracts import read_json, validate_contract, write_json
 
 
 LOGGER = logging.getLogger(__name__)
@@ -21,18 +21,6 @@ REQUIRED_FIELDS = {
     "actions",
     "validation",
 }
-
-
-def read_json(path: Path) -> Any:
-    """读取 UTF-8 JSON。
-
-    功能说明：读取并解析指定 JSON 文件，在日志中记录输入位置。
-    参数 path：需要读取的 JSON 文件路径。
-    返回值：解析后的 Python 对象。
-    """
-
-    LOGGER.info("读取 JSON：%s", path)
-    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def validate_recommendations(items: Any) -> list[dict[str, Any]]:
@@ -75,46 +63,13 @@ def apply_recommendations(analysis_path: Path, recommendations_path: Path) -> No
     返回值：无；成功后原子覆盖分析结果文件。
     """
 
+    LOGGER.info("开始写入 AI 建议：%s", analysis_path)
     analysis = read_json(analysis_path)
     payload = read_json(recommendations_path)
     expected_period = analysis.get("meta", {}).get("period_key")
     if payload.get("period_key") != expected_period:
-        raise ValueError(
-            f"建议周期与分析结果不一致：{payload.get('period_key')} != {expected_period}"
-        )
+        raise ValueError(f"建议周期与分析结果不一致：{payload.get('period_key')} != {expected_period}")
     analysis["ai_recommendations"] = validate_recommendations(payload.get("ai_recommendations"))
-    temp_path = analysis_path.with_suffix(f"{analysis_path.suffix}.tmp")
-    temp_path.write_text(json.dumps(analysis, ensure_ascii=False, indent=2), encoding="utf-8")
-    temp_path.replace(analysis_path)
-    LOGGER.info("AI 建议已写入：%s", analysis_path)
-
-
-def parse_args() -> argparse.Namespace:
-    """解析命令行参数。
-
-    功能说明：读取分析结果路径和 AI 建议输入路径。
-    返回值：包含 `analysis` 与 `recommendations` 路径的参数对象。
-    """
-
-    parser = argparse.ArgumentParser(description="把 Skill 生成的 AI 建议写入 analysis_result.json")
-    parser.add_argument("--analysis", type=Path, required=True, help="analysis_result.json 路径")
-    parser.add_argument("--recommendations", type=Path, required=True, help="AI 建议输入 JSON 路径")
-    return parser.parse_args()
-
-
-def main() -> None:
-    """执行 AI 建议写入流程。
-
-    功能说明：初始化日志、解析参数、校验输入并更新正式分析结果。
-    返回值：无。
-    """
-
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
-    args = parse_args()
-    LOGGER.info("开始写入 AI 建议")
-    apply_recommendations(args.analysis, args.recommendations)
-    LOGGER.info("AI 建议写入完成")
-
-
-if __name__ == "__main__":
-    main()
+    validate_contract(analysis)
+    write_json(analysis_path, analysis)
+    LOGGER.info("AI 建议写入完成：%s", analysis_path)
