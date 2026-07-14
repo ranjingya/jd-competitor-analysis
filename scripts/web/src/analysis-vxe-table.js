@@ -1,5 +1,8 @@
-import { createApp, h, nextTick, onBeforeUnmount, ref } from "vue";
-import VxeUITable, { VxeColumn, VxeTable } from "vxe-table";
+import { createApp, h, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
+import VxeButton from "vxe-pc-ui/es/button";
+import VxeNumberInput from "vxe-pc-ui/es/number-input";
+import VxeRadioGroup from "vxe-pc-ui/es/radio-group";
+import VxeUITable, { VxeColumn, VxeTable, VxeToolbar } from "vxe-table";
 import "vxe-pc-ui/lib/style.css";
 import "vxe-table/lib/style.css";
 import "./analysis-vxe-table.css";
@@ -138,6 +141,7 @@ export function mountAnalysisVxeTable(target, config) {
     setup() {
       const shellRef = ref();
       const tableRef = ref();
+      const toolbarRef = ref();
       const isExpanded = ref(false);
       const tableHeight = ref(normalTableHeight);
 
@@ -179,8 +183,55 @@ export function mountAnalysisVxeTable(target, config) {
           syncExpandedState(false);
         }
       };
+
+      /**
+       * 功能说明：接管表格区域的滚轮事件，只滚动 VXE 主体并阻止滚动链传递到页面。
+       * 参数 event：表格区域触发的原生滚轮事件。
+       * 返回值：无。
+       */
+      const handleTableWheel = (event) => {
+        if (event.ctrlKey || event.metaKey) {
+          return;
+        }
+        const scrollBody = event.currentTarget.querySelector(
+          ".vxe-table--main-wrapper .vxe-table--body-inner-wrapper"
+        );
+        if (!scrollBody) {
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        }
+        const unit = event.deltaMode === 1
+          ? 36
+          : event.deltaMode === 2
+            ? scrollBody.clientHeight
+            : 1;
+        const deltaY = event.deltaY * unit;
+        const deltaX = event.deltaX * unit;
+        if (event.shiftKey && Math.abs(deltaX) < Math.abs(deltaY)) {
+          scrollBody.scrollLeft += deltaY;
+        } else if (Math.abs(deltaY) >= Math.abs(deltaX)) {
+          scrollBody.scrollTop += deltaY;
+        } else {
+          scrollBody.scrollLeft += deltaX;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+      };
+
+      /**
+       * 功能说明：连接 VXE 工具栏与当前表格，使列设置入口能够读取并修改列状态。
+       * 参数：无。
+       * 返回值：Promise；工具栏和表格完成连接后结束。
+       */
+      const connectColumnToolbar = async () => {
+        await nextTick();
+        tableRef.value?.connectToolbar?.(toolbarRef.value);
+      };
+
       document.addEventListener("keydown", handleKeydown);
       window.addEventListener("resize", handleResize);
+      onMounted(connectColumnToolbar);
 
       onBeforeUnmount(() => {
         document.removeEventListener("keydown", handleKeydown);
@@ -226,17 +277,30 @@ export function mountAnalysisVxeTable(target, config) {
         }, [
           h("header", { class: "analysis-vxe-toolbar" }, [
             h("p", { class: "section-title" }, "完整数据对比"),
-            h("button", {
-              class: "analysis-expand-button",
-              type: "button",
-              title: isExpanded.value ? "关闭放大窗口" : "放大查看",
-              "aria-label": isExpanded.value ? "关闭完整数据对比放大窗口" : "放大查看完整数据对比",
-              onClick: toggleExpanded
-            }, [expandIcon(isExpanded.value)])
+            h("div", { class: "analysis-vxe-actions" }, [
+              h(VxeToolbar, {
+                ref: toolbarRef,
+                custom: true,
+                perfect: false,
+                size: "mini",
+                className: "analysis-column-toolbar"
+              }),
+              h("button", {
+                class: "analysis-expand-button",
+                type: "button",
+                title: isExpanded.value ? "关闭放大窗口" : "放大查看",
+                "aria-label": isExpanded.value ? "关闭完整数据对比放大窗口" : "放大查看完整数据对比",
+                onClick: toggleExpanded
+              }, [expandIcon(isExpanded.value)])
+            ])
           ]),
-          h("div", { class: "analysis-vxe-stage" }, [
+          h("div", {
+            class: "analysis-vxe-stage",
+            onWheelCapture: handleTableWheel
+          }, [
             h(VxeTable, {
             ref: tableRef,
+            id: `analysis-vxe-${tableId}`,
             data,
             height: tableHeight.value,
             size: "small",
@@ -248,6 +312,25 @@ export function mountAnalysisVxeTable(target, config) {
             emptyText: "没有符合条件的数据",
             rowConfig: { keyField: "id", isHover: true },
             columnConfig: { resizable: true },
+            customConfig: {
+              mode: "simple",
+              trigger: "click",
+              immediate: true,
+              storage: true,
+              allowVisible: true,
+              allowFixed: true,
+              allowSort: true,
+              allowResizable: true,
+              allowAlign: false,
+              showSortDragButton: true,
+              showFooter: true,
+              placement: "top-right",
+              popupOptions: {
+                minWidth: 360,
+                maxHeight: 420,
+                transfer: false
+              }
+            },
             treeConfig: isTree ? {
               transform: true,
               rowField: "id",
@@ -280,6 +363,9 @@ export function mountAnalysisVxeTable(target, config) {
   };
 
   const app = createApp(AnalysisTable);
+  app.use(VxeButton);
+  app.use(VxeNumberInput);
+  app.use(VxeRadioGroup);
   app.use(VxeUITable);
   app.mount(target);
   mountedTable = {

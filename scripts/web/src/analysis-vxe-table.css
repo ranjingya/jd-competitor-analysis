@@ -20,6 +20,39 @@
   min-width: 0;
 }
 
+.analysis-vxe-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.analysis-column-toolbar.vxe-toolbar {
+  width: auto;
+  min-height: 30px;
+  padding: 0;
+  background: transparent;
+}
+
+.analysis-column-toolbar .vxe-tools--operate {
+  display: inline-flex;
+  align-items: center;
+}
+
+.analysis-column-toolbar .vxe-button {
+  width: 30px;
+  height: 30px;
+  border-color: #ded6c8;
+  background: transparent;
+  color: #667085;
+}
+
+.analysis-column-toolbar .vxe-button:hover,
+.analysis-column-toolbar .vxe-button:focus-visible {
+  border-color: #0f7b73;
+  background: #edf7f4;
+  color: #0f7b73;
+}
+
 .analysis-expand-button {
   display: inline-grid;
   width: 30px;
@@ -46,9 +79,16 @@
 .analysis-vxe-stage {
   --vxe-ui-table-cell-padding-small: 12px;
   overflow: hidden;
+  overscroll-behavior: none;
   border: 1px solid #ded6c8;
   border-radius: 7px;
   background: #fff;
+}
+
+.analysis-vxe-stage .vxe-table--body-inner-wrapper,
+.analysis-vxe-stage .fixed-left--wrapper,
+.analysis-vxe-stage .fixed-right--wrapper {
+  overscroll-behavior: none;
 }
 
 .analysis-vxe-stage [class*="vxe-"] {
