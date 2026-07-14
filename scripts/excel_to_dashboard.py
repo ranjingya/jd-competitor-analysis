@@ -1278,10 +1278,9 @@ def run_batch(args: argparse.Namespace) -> None:
         raise ValueError("start_date 不能晚于 end_date")
     input_root = Path(args.input_root).resolve()
     output_root = Path(args.output_root).resolve()
-    generated_at = datetime.now().isoformat(timespec="seconds")
     report_index: dict[str, Any] = {
         "schema_version": "1.0",
-        "updated_at": generated_at,
+        "updated_at": None,
         "meta": {
             "title": args.title,
             "self_spu": args.self_spu,
@@ -1321,6 +1320,7 @@ def run_batch(args: argparse.Namespace) -> None:
             )
             logger.info("周期处理完成：%s", period_meta["period_key"])
 
+    report_index["updated_at"] = datetime.now().isoformat(timespec="seconds")
     write_json(output_root / "report-index.json", report_index)
     counts = {key: len(value) for key, value in report_index["reports"].items()}
     logger.info("批量分析完成：%s", counts)
