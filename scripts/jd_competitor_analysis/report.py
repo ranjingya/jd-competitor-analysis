@@ -10,19 +10,21 @@ from .sources import clean_identifier, clean_text
 
 
 def format_number(value: float | None, digits: int = 2) -> str:
-    """把数值格式化为紧凑网页文本。"""
+    """把数量或金额差距格式化为固定小数文本。"""
 
     if value is None:
         return "-"
-    return f"{value:,.{digits}f}".rstrip("0").rstrip(".")
+    return f"{value:.{digits}f}"
 
 
 def ratio_label(self_value: float | None, competitor_value: float | None) -> str:
-    """生成本品与竞品倍率文本。"""
+    """生成领先方倍率文本。"""
 
-    if self_value is None or competitor_value in {None, 0}:
-        return "倍率 -"
-    return f"本品为竞品 {self_value / competitor_value:.2f} 倍"
+    if self_value is None or competitor_value is None or min(self_value, competitor_value) <= 0:
+        return "无可比倍率"
+    if self_value >= competitor_value:
+        return f"本品 {self_value / competitor_value:.2f}x"
+    return f"竞品 {competitor_value / self_value:.2f}x"
 
 
 def gap_text(label: str, self_value: float | None, competitor_value: float | None) -> str:

@@ -197,6 +197,110 @@ def _top_customer_interval(traffic_rows: list[dict[str, Any]], competitor_prefix
     return ParsedRange(None, None, None, None, False, True)
 
 
+def _interval_bounds(interval: ParsedRange) -> tuple[float, float] | None:
+    """提取完整区间上下界。"""
+
+    if interval.low is None or interval.high is None:
+        return None
+    return interval.low, interval.high
+
+
+def _intersect_bounds(*bounds: tuple[float, float] | None) -> tuple[float, float] | None:
+    """计算多个数值区间的交集。"""
+
+    available = [item for item in bounds if item is not None]
+    if not available:
+        return None
+    low = max(item[0] for item in available)
+    high = min(item[1] for item in available)
+    return (low, high) if low <= high else None
+
+
+def _clamp_bounds(value: float, bounds: tuple[float, float]) -> float:
+    """把数值限制在普通上下界元组内。"""
+
+    return max(bounds[0], min(bounds[1], value))
+
+
+def _product_bounds(left: ParsedRange, right: ParsedRange) -> tuple[float, float] | None:
+    """计算两个非负区间的乘积边界。"""
+
+    left_bounds = _interval_bounds(left)
+    right_bounds = _interval_bounds(right)
+    if left_bounds is None or right_bounds is None or left_bounds[0] < 0 or right_bounds[0] < 0:
+        return None
+    return left_bounds[0] * right_bounds[0], left_bounds[1] * right_bounds[1]
+
+
+def _realize_product(
+    target: float,
+    left_candidate: float,
+    left_interval: ParsedRange,
+    right_interval: ParsedRange,
+) -> tuple[float, float] | None:
+    """在两个区间内实现指定乘积。
+
+    功能说明：优先保持左侧候选接近原值，在可行左值区间内投影后反算右值。
+    参数 target：需要实现的目标乘积。
+    参数 left_candidate：左侧指标的首选候选值。
+    参数 left_interval：左侧指标区间。
+    参数 right_interval：右侧指标区间。
+    返回值：满足区间与乘积的左右值；不存在可行解时返回空值。
+    """
+
+    left_bounds = _interval_bounds(left_interval)
+    right_bounds = _interval_bounds(right_interval)
+    if left_bounds is None or right_bounds is None or target < 0 or right_bounds[1] <= 0:
+        return None
+    feasible_left_low = max(left_bounds[0], target / right_bounds[1])
+    feasible_left_high = left_bounds[1]
+    if right_bounds[0] > 0:
+        feasible_left_high = min(feasible_left_high, target / right_bounds[0])
+    if feasible_left_low > feasible_left_high:
+        return None
+    left = _clamp_bounds(left_candidate, (feasible_left_low, feasible_left_high))
+    if left == 0:
+        return (0.0, 0.0) if target == 0 and in_range(0.0, right_interval) else None
+    right = target / left
+    return (left, right) if in_range(right, right_interval) else None
+
+
+def _optimize_gmv_price(
+    buyers: float,
+    gmv_candidate: float,
+    price_candidate: float,
+    gmv_interval: ParsedRange,
+    price_interval: ParsedRange,
+) -> tuple[float, float] | None:
+    """求成交金额与客单价的最小标准化偏差解。
+
+    功能说明：在 `成交金额 = 成交人数 × 客单价` 和两侧原始区间内，同时尽量接近两个 P 候选。
+    参数 buyers：已确定的竞品成交人数。
+    参数 gmv_candidate：成交金额首选候选值。
+    参数 price_candidate：客单价首选候选值。
+    参数 gmv_interval：竞品成交金额区间。
+    参数 price_interval：竞品客单价区间。
+    返回值：满足公式与区间的成交金额、客单价；不存在可行解时返回空值。
+    """
+
+    gmv_bounds = _interval_bounds(gmv_interval)
+    price_bounds = _interval_bounds(price_interval)
+    if buyers <= 0 or gmv_bounds is None or price_bounds is None:
+        return None
+    feasible_price = _intersect_bounds(
+        price_bounds,
+        (gmv_bounds[0] / buyers, gmv_bounds[1] / buyers),
+    )
+    if feasible_price is None:
+        return None
+    gmv_width = max(gmv_bounds[1] - gmv_bounds[0], 1e-9)
+    price_width = max(price_bounds[1] - price_bounds[0], 1e-9)
+    denominator = buyers * buyers / (gmv_width * gmv_width) + 1 / (price_width * price_width)
+    numerator = buyers * gmv_candidate / (gmv_width * gmv_width) + price_candidate / (price_width * price_width)
+    price = _clamp_bounds(numerator / denominator, feasible_price)
+    return buyers * price, price
+
+
 def _solve_constraints(
     candidates: dict[str, float | None],
     ranges: dict[str, ParsedRange],
@@ -218,44 +322,56 @@ def _solve_constraints(
     conflicts: list[str] = []
     customer_interval = _top_customer_interval(traffic_rows, competitor_prefix)
 
-    visitors = final.get("visitors")
-    conversion = final.get("conversion_rate")
+    visitors = candidates.get("visitors")
+    conversion = candidates.get("conversion_rate")
+    price = candidates.get("customer_price")
+    gmv_candidate = candidates.get("gmv")
+    required_values = (visitors, conversion, price, gmv_candidate)
     buyers = visitors * conversion if visitors is not None and conversion is not None else None
-    if buyers is not None and not customer_interval.missing:
-        target_buyers = clamp(buyers, customer_interval)
-        if target_buyers != buyers and visitors:
-            adjusted_rate = target_buyers / visitors
-            if in_range(adjusted_rate, ranges["conversion_rate"]):
-                final["conversion_rate"] = adjusted_rate
-                conversion = adjusted_rate
-                adjustments["conversion_rate"].append("按顶层成交客户数区间校正")
-            elif conversion:
-                adjusted_visitors = target_buyers / conversion
-                if in_range(adjusted_visitors, ranges["visitors"]):
-                    final["visitors"] = adjusted_visitors
-                    visitors = adjusted_visitors
-                    adjustments["visitors"].append("按顶层成交客户数区间校正")
-                else:
-                    conflicts.append("访客数与成交转化率无法同时满足顶层成交客户数区间")
-        buyers = visitors * conversion if visitors is not None and conversion is not None else buyers
+    buyer_bounds = _product_bounds(ranges["visitors"], ranges["conversion_rate"])
+    customer_bounds = None if customer_interval.missing else _interval_bounds(customer_interval)
+    gmv_bounds = _interval_bounds(ranges["gmv"])
+    price_bounds = _interval_bounds(ranges["customer_price"])
+    gmv_buyer_bounds = None
+    if gmv_bounds is not None and price_bounds is not None and price_bounds[0] > 0 and price_bounds[1] > 0:
+        gmv_buyer_bounds = (gmv_bounds[0] / price_bounds[1], gmv_bounds[1] / price_bounds[0])
+    feasible_buyers = _intersect_bounds(buyer_bounds, customer_bounds, gmv_buyer_bounds)
 
-    price = final.get("customer_price")
-    formula_gmv = buyers * price if buyers is not None and price is not None else None
-    if formula_gmv is not None:
-        target_gmv = clamp(formula_gmv, ranges["gmv"])
-        if buyers:
-            adjusted_price = target_gmv / buyers
-            if in_range(adjusted_price, ranges["customer_price"]):
-                if not _nearly_equal(price, adjusted_price):
-                    adjustments["customer_price"].append("按成交金额公式校正")
-                final["customer_price"] = adjusted_price
-                price = adjusted_price
-        final["gmv"] = target_gmv
-        if not _nearly_equal(candidates.get("gmv"), target_gmv):
-            adjustments["gmv"].append("按成交公式校正并限制在原始区间")
-        formula_gmv = buyers * price if buyers is not None and price is not None else None
-        if _nearly_equal(formula_gmv, final["gmv"]) is False:
-            conflicts.append("成交金额、成交人数与客单价区间无法完全自洽")
+    if all(value is not None for value in required_values) and buyers is not None and feasible_buyers is not None:
+        target_buyers = _clamp_bounds(buyers, feasible_buyers)
+        realized = _realize_product(
+            target_buyers,
+            visitors,
+            ranges["visitors"],
+            ranges["conversion_rate"],
+        )
+        if realized is not None and gmv_bounds is not None and price_bounds is not None:
+            final["visitors"], final["conversion_rate"] = realized
+            buyers = target_buyers
+            optimized = _optimize_gmv_price(
+                buyers,
+                gmv_candidate,
+                price,
+                ranges["gmv"],
+                ranges["customer_price"],
+            )
+            if optimized is not None:
+                final["gmv"], final["customer_price"] = optimized
+                reasons = {
+                    "visitors": "按成交人数与成交金额共同可行域校正",
+                    "conversion_rate": "按成交人数与成交金额共同可行域校正",
+                    "gmv": "按成交公式共同可行域校正",
+                    "customer_price": "按成交公式共同可行域校正",
+                }
+                for metric_id in reasons:
+                    if _nearly_equal(candidates.get(metric_id), final.get(metric_id)) is False:
+                        adjustments[metric_id].append(reasons[metric_id])
+            else:
+                conflicts.append("成交金额与客单价区间不存在共同可行解")
+        else:
+            conflicts.append("访客数与成交转化率区间无法实现目标成交人数")
+    else:
+        conflicts.append("核心成交指标区间不存在共同可行解或关键候选缺失")
 
     orders = final.get("orders")
     sold_units = final.get("sold_units")

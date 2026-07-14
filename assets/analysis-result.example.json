@@ -224,8 +224,8 @@
       "historical_p_periods": [],
       "candidate_source": "same_period_p",
       "selected_candidate": 62538.26666666666,
-      "final_value": 69135.90513279999,
-      "basis": "同周期本品 P 候选；按成交公式校正并限制在原始区间",
+      "final_value": 63339.051883685686,
+      "basis": "同周期本品 P 候选；按成交公式共同可行域校正",
       "confidence": "medium",
       "checks": {
         "range_consistent": true,
@@ -233,7 +233,7 @@
         "gmv_formula_consistent": true,
         "units_orders_consistent": true,
         "adjustments": [
-          "按成交公式校正并限制在原始区间"
+          "按成交公式共同可行域校正"
         ],
         "conflicts": []
       }
@@ -403,15 +403,17 @@
       "historical_p_periods": [],
       "candidate_source": "same_period_p",
       "selected_candidate": 128.48,
-      "final_value": 128.48,
-      "basis": "同周期本品 P 候选",
-      "confidence": "high",
+      "final_value": 117.70730954320199,
+      "basis": "同周期本品 P 候选；按成交公式共同可行域校正",
+      "confidence": "medium",
       "checks": {
         "range_consistent": true,
         "traffic_consistent": null,
         "gmv_formula_consistent": true,
         "units_orders_consistent": true,
-        "adjustments": [],
+        "adjustments": [
+          "按成交公式共同可行域校正"
+        ],
         "conflicts": []
       }
     }
@@ -422,10 +424,10 @@
       "label": "成交金额",
       "unit": "",
       "self_value": 119037.0,
-      "competitor_value": 69135.90513279999,
-      "gap_abs_text": "49901.09",
-      "ratio_text": "本品 1.72x",
-      "gap_text": "本品领先 49901.09 | 本品 1.72x",
+      "competitor_value": 63339.051883685686,
+      "gap_abs_text": "55697.95",
+      "ratio_text": "本品 1.88x",
+      "gap_text": "本品领先 55697.95 | 本品 1.88x",
       "status": "advantage",
       "priority": "低"
     },
@@ -458,10 +460,10 @@
       "label": "成交客单价",
       "unit": "",
       "self_value": 64.24,
-      "competitor_value": 128.48,
-      "gap_abs_text": "64.24",
-      "ratio_text": "竞品 2.00x",
-      "gap_text": "本品落后 64.24 | 竞品 2.00x",
+      "competitor_value": 117.70730954320199,
+      "gap_abs_text": "53.47",
+      "ratio_text": "竞品 1.83x",
+      "gap_text": "本品落后 53.47 | 竞品 1.83x",
       "status": "warning",
       "priority": "高"
     }
@@ -471,10 +473,10 @@
       "metric_id": "gmv",
       "metric_label": "成交金额",
       "self_value": 119037.0,
-      "competitor_value": 69135.90513279999,
-      "gap": 49901.09486720001,
+      "competitor_value": 63339.051883685686,
+      "gap": 55697.948116314314,
       "gap_pct_point": null,
-      "ratio": 1.72178262179901,
+      "ratio": 1.8793618859119756,
       "judgement": "本品领先"
     },
     {
@@ -541,10 +543,10 @@
       "metric_id": "customer_price",
       "metric_label": "成交客单价",
       "self_value": 64.24,
-      "competitor_value": 128.48,
-      "gap": -64.24,
+      "competitor_value": 117.70730954320199,
+      "gap": -53.46730954320199,
       "gap_pct_point": null,
-      "ratio": 0.5,
+      "ratio": 0.5457604990658805,
       "judgement": "本品落后"
     }
   ],
@@ -2760,7 +2762,7 @@
       "self_visitor_rate": 0.5669133886468095,
       "competitor_visitor_rate": 0.6521220079985675,
       "self_gmv_rate": 0.5326075085897662,
-      "competitor_gmv_rate": 0.4802135726179854
+      "competitor_gmv_rate": 0.5241631981004023
     },
     "rows": [
       {
@@ -9506,7 +9508,7 @@
       "ad_clicks": 3000.0,
       "ad_order_gmv": 50000.0
     },
-    "attributed_gmv_rate": 0.7232132117740744,
+    "attributed_gmv_rate": 0.7894024067777143,
     "judgement": "竞品投放贡献较高",
     "notes": [
       "推广成交为广告归因口径，不与核心 SPU 成交金额强制对齐。"
