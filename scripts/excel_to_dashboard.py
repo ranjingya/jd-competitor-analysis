@@ -637,7 +637,7 @@ def analyze_traffic(rows: list[dict[str, Any]], competitor_prefix: str) -> list[
     功能说明：读取三级渠道区间数据，生成路径、两侧访客与成交估算、差距判断、转化效率及访客占比。
     参数 rows：流量来源工作表的标准化原始行。
     参数 competitor_prefix：源表中目标竞品字段使用的列名前缀。
-    返回值：包含层级结构、对比指标、占比和建议动作的渠道明细列表。
+    返回值：包含层级结构、对比指标、占比和差距判断的渠道明细列表。
     """
 
     result = []
@@ -661,12 +661,6 @@ def analyze_traffic(rows: list[dict[str, Any]], competitor_prefix: str) -> list[
             judgement = "本品落后"
         else:
             judgement = "结构分化"
-        if visitor_gap >= 0 and rate_gap < 0:
-            action = "优化价格权益、主图卖点、评价和促销承接"
-        elif visitor_gap < 0:
-            action = "补强渠道入口、资源位和投放承接"
-        else:
-            action = "保持渠道优势，沉淀可复用打法"
         result.append(
             {
                 "level_1": levels[0] or None,
@@ -687,7 +681,6 @@ def analyze_traffic(rows: list[dict[str, Any]], competitor_prefix: str) -> list[
                 "gmv_gap": gmv_gap,
                 "conversion_gap_pct": rate_gap,
                 "judgement": judgement,
-                "suggested_action": action,
                 "estimation_basis": "区间中位数；核心指标另受顶层渠道约束",
             }
         )
@@ -868,7 +861,6 @@ def build_tabs(traffic: list[dict[str, Any]], keywords: dict[str, Any], profile:
             "unit": "",
             "gap_text": traffic_highlight_gap(item),
             "status": "advantage" if item["visitor_gap"] >= 0 else "warning",
-            "action": item["suggested_action"],
         }
         for item in traffic_sorted
     ]
@@ -895,7 +887,6 @@ def build_tabs(traffic: list[dict[str, Any]], keywords: dict[str, Any], profile:
             "unit": "",
             "gap_text": f"{item['opportunity']} | 访客差距 {format_number(item['visitor_gap'])} | 成交差距 {format_number(item['gmv_gap'])}",
             "status": "warning" if item["opportunity"] in {"补词机会", "访客落后", "成交落后"} else "advantage",
-            "action": "补充搜索词并检查页面承接" if item["opportunity"] != "保持优势" else "保持优势词覆盖",
         }
         for item in keyword_rows
     ]
@@ -912,7 +903,6 @@ def build_tabs(traffic: list[dict[str, Any]], keywords: dict[str, Any], profile:
             "unit": "%",
             "gap_text": f"{item['judgement']} | 差距 {abs(item['gap_rate']):.2f}pct",
             "status": "warning" if item["judgement"] == "本品落后" else "advantage",
-            "action": "结合该画像调整内容表达与素材占比",
         }
         for item in comparable_profile
     ]
@@ -983,46 +973,8 @@ def build_tabs(traffic: list[dict[str, Any]], keywords: dict[str, Any], profile:
     ]
 
 
-def build_diagnosis(cards: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """把核心指标差距转换为证据、建议和行动跟踪。"""
-
-    recommendations = {
-        "gmv": "拆解领先或落后的流量、转化和客单贡献，按周复盘成交金额。",
-        "visitors": "保持优势渠道，补强落后渠道入口并检查资源位承接。",
-        "conversion_rate": "核查价格权益、详情页首屏、评价晒图和搜索词承接。",
-        "customer_price": "优化套装、满减和高客单 SKU 露出。",
-    }
-    diagnosis = []
-    actions = []
-    for card in cards:
-        title_prefix = "优势" if card["status"] == "advantage" else "短板"
-        recommendation = recommendations[card["id"]]
-        diagnosis.append(
-            {
-                "title": f"{title_prefix}：{card['label']}",
-                "text": card["gap_text"],
-                "evidence": card["gap_text"],
-                "recommendation": recommendation,
-                "status": card["status"],
-                "source": f"core_metrics.{card['id']}",
-            }
-        )
-        actions.append(
-            {
-                "module": "核心指标",
-                "opportunity": f"{card['label']}{'保持' if card['status'] == 'advantage' else '优化'}",
-                "gap_basis": card["gap_text"],
-                "suggested_action": recommendation,
-                "priority": card["priority"],
-                "review_metric": card["label"],
-                "status": "待推进",
-            }
-        )
-    return diagnosis, actions
-
-
 def empty_contract() -> dict[str, Any]:
-    """生成 HTML 可直接读取的空结构模板。"""
+    """生成符合最终分析契约的空结构模板。"""
 
     empty_keywords = {
         "summary": {"common_count": 0, "self_only_count": 0, "competitor_only_count": 0},
@@ -1059,14 +1011,12 @@ def empty_contract() -> dict[str, Any]:
         "promotion": {"available": False, "self": {}, "competitor": {}, "attributed_gmv_rate": None, "judgement": None, "notes": []},
         "tabs": build_tabs([], empty_keywords, empty_profile),
         "ai_recommendations": [],
-        "diagnosis": [],
-        "action_tracking": [],
         "risks": [],
     }
 
 
 def build_analysis_result(args: argparse.Namespace) -> tuple[dict[str, Any], dict[str, Any]]:
-    """从真实原始 Excel 生成当前 HTML 契约。
+    """从真实原始 Excel 生成标准化事实与分析结果。
 
     功能说明：发现六类源文件，完成核心估算、差距分析和页面字段组装。
     参数 args：命令行参数，包含输入目录、周期、粒度、SPU 和竞品前缀。
@@ -1102,7 +1052,6 @@ def build_analysis_result(args: argparse.Namespace) -> tuple[dict[str, Any], dic
     profile = analyze_profile(data_rows["customer_profile"], args.competitor_prefix, to_number(self_row.get("成交人数")), competitor_buyers)
     promotion = analyze_promotion(data_rows["promotion"], args.competitor_prefix, conversion_map.get("gmv"))
     tabs = build_tabs(traffic, keywords, profile)
-    diagnosis, actions = build_diagnosis(cards)
 
     keyword_rows = data_rows["keywords"]
     competitor_names = {
@@ -1180,15 +1129,13 @@ def build_analysis_result(args: argparse.Namespace) -> tuple[dict[str, Any], dic
         "promotion": promotion,
         "tabs": tabs,
         "ai_recommendations": [],
-        "diagnosis": diagnosis,
-        "action_tracking": actions,
         "risks": list(dict.fromkeys(risks)),
     }
     return result, normalized
 
 
 def validate_contract(data: dict[str, Any], allow_empty: bool = False) -> None:
-    """校验 JSON 是否满足当前 HTML 和审计契约。
+    """校验 JSON 是否满足最终分析和审计契约。
 
     功能说明：检查顶层模块、三个 Tab、指标卡和建议字段，失败时阻止写出。
     参数 data：待校验的分析结果字典。
@@ -1210,8 +1157,6 @@ def validate_contract(data: dict[str, Any], allow_empty: bool = False) -> None:
         "promotion",
         "tabs",
         "ai_recommendations",
-        "diagnosis",
-        "action_tracking",
         "risks",
     }
     missing = sorted(required_top - set(data))
@@ -1245,10 +1190,6 @@ def validate_contract(data: dict[str, Any], allow_empty: bool = False) -> None:
             for field in ("id", "label", "unit", "self_value", "competitor_value", "gap_text", "status"):
                 if field not in item:
                     raise ValueError(f"核心指标卡缺少字段：{field}")
-        for item in data["diagnosis"]:
-            for field in ("title", "evidence", "recommendation", "status", "source"):
-                if field not in item:
-                    raise ValueError(f"诊断建议缺少字段：{field}")
     logger.info("JSON 契约校验通过：allow_empty=%s", allow_empty)
 
 
