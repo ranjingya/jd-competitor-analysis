@@ -1203,22 +1203,10 @@ def write_json(path: Path, data: dict[str, Any]) -> None:
     logger.info("已写入 JSON：%s", path)
 
 
-def write_html(path: Path, template_path: Path, data: dict[str, Any]) -> None:
-    """把分析 JSON 内嵌到 HTML 模板并写入报告。"""
-
-    template = template_path.read_text(encoding="utf-8")
-    inline_data = json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
-    script = f"<script>window.__ANALYSIS_DATA__ = {inline_data};</script>\n"
-    html = template.replace("</head>", script + "</head>", 1)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(html, encoding="utf-8")
-    logger.info("已写入 HTML：%s", path)
-
-
 def parse_args() -> argparse.Namespace:
     """解析真实 Excel 到网页看板的命令行参数。"""
 
-    parser = argparse.ArgumentParser(description="读取京东真实原始 Excel，生成标准 analysis_result.json 和 HTML 看板。")
+    parser = argparse.ArgumentParser(description="读取京东真实原始 Excel，生成标准化事实、分析结果和报告索引。")
     parser.add_argument("--batch", action="store_true", help="扫描日、周、月目录并批量生成全部周期。")
     parser.add_argument("--input-root", help="批量模式的原始数据根目录，目录下包含天、周、月。")
     parser.add_argument("--input-dir", help="单周期模式的原始 Excel 目录。")
@@ -1234,13 +1222,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--end-date", help="批量模式的最晚周期日期，格式为 YYYY-MM-DD。")
     parser.add_argument("--output-json", help="单周期模式的 analysis_result.json 输出路径。")
     parser.add_argument("--output-normalized", help="可选的 normalized_data.json 输出路径。")
-    parser.add_argument("--output-html", help="可选的内置数据 HTML 输出路径。")
     parser.add_argument("--empty-template-output", help="可选的空结构 JSON 输出路径。")
-    parser.add_argument(
-        "--template",
-        default=str(Path(__file__).resolve().parents[1] / "assets" / "dashboard-template.html"),
-        help="HTML 模板路径。",
-    )
     parser.add_argument("--log-level", default="INFO", help="日志级别。")
     return parser.parse_args()
 
@@ -1248,7 +1230,7 @@ def parse_args() -> argparse.Namespace:
 def run_single(args: argparse.Namespace) -> None:
     """执行单周期分析。
 
-    功能说明：读取一个指定粒度和周期，生成分析结果、标准化数据及可选 HTML。
+    功能说明：读取一个指定粒度和周期，生成分析结果、标准化数据及可选空结构模板。
     参数 args：包含输入目录、周期、粒度、商品和输出路径的命令行参数。
     返回值：无；成功时写入调用方指定文件。
     """
@@ -1273,8 +1255,6 @@ def run_single(args: argparse.Namespace) -> None:
         empty = empty_contract()
         validate_contract(empty, allow_empty=True)
         write_json(Path(args.empty_template_output), empty)
-    if args.output_html:
-        write_html(Path(args.output_html), Path(args.template), result)
     logger.info("单周期看板数据生成完成")
 
 
