@@ -4,6 +4,15 @@
 
 网页看板由 Vite 提供本地访问入口。页面先读取轻量 `report-index.json`，再根据用户选择按需读取一份 `analysis_result.json`。网页不读取 Excel、`normalized_data.json`，也不执行准真实值估算。
 
+## 导航
+
+- [运行目录](#运行目录)
+- [启动前端](#启动前端)
+- [报告索引](#报告索引)
+- [加载流程](#加载流程)
+- [页面映射](#页面映射)
+- [展示约束](#展示约束)
+
 ## 运行目录
 
 Vite 源码位于 `scripts/web/`，运行产物位于 `scripts/output/`。以上路径均相对于 Skill 根目录，输出目录保持在版本控制之外。
@@ -81,28 +90,7 @@ Vite 中间件把该目录只读映射为 `/reports/`，只允许读取 `report-
 1. 首次读取 `/reports/report-index.json`，获取日、周、月三个报告条目数组。
 2. 根据当前粒度和周期条目的 `path`，读取对应的一份 `analysis_result.json`。
 
-`analysis_result.json` 的顶层结构：
-
-```text
-schema_version
-meta
-source_files
-self_validation
-competitor_core_conversions
-core_metrics
-comparison
-traffic_sources
-keywords
-customer_profile
-promotion
-tabs
-ai_recommendations
-diagnosis
-action_tracking
-risks
-```
-
-页面直接消费 `meta`、`core_metrics[]`、`tabs[]`、`ai_recommendations[]` 和 `risks[]`。其余字段保留给审计、明细复核和后续分析使用，完整约束见 [analysis-result.md](analysis-result.md)。浏览器不读取 `normalized_data.json`。
+页面直接消费 `meta`、`core_metrics[]`、`tabs[]`、`ai_recommendations[]` 和 `risks[]`。其余字段保留给审计、明细复核和后续分析使用，完整结构与约束以 [analysis-result.md](analysis-result.md) 为准。浏览器不读取 `normalized_data.json`。
 
 ## 加载流程
 
