@@ -73,6 +73,7 @@
 | `self_spu` | string | 本品 SPU。 |
 | `competitor_spu` | string | 竞品 SPU。 |
 | `competitor_prefix` | string | 竞品对比表中的字段前缀。 |
+| `title` | string | 分析结果使用的报告标题。 |
 | `generated_at` | string | ISO 8601 生成时间。 |
 
 ## `source_files[]`

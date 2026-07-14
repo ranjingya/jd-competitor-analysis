@@ -67,14 +67,16 @@
 - `range_low`
 - `range_high`
 - `position_p`
+- `position_p_valid`
 - `in_range`
 - `median_error_rate`
 - `historical_p`
 - `historical_p_period`
+- `historical_p_periods`
 - `historical_p_error_rate`
 - `note`
 
-本品最终值始终使用真实值。没有可用历史 P 时，历史 P 相关字段为 `null`。
+本品最终值始终使用真实值。`position_p` 保存未经截断的原始位置，只有 `position_p_valid=true` 时才能参与当期竞品估算。没有可用历史 P 时，历史 P 数值为 `null`，来源周期数组为空。
 
 ### `competitor_core_conversions[]`
 
@@ -88,12 +90,16 @@
 - `median_candidate`
 - `p_candidate`
 - `historical_p_candidate`
+- `historical_p`
+- `historical_p_periods`
+- `candidate_source`
+- `selected_candidate`
 - `final_value`
 - `basis`
 - `confidence`
 - `checks`
 
-同周期本品 P 候选是核心指标的主候选，中位数是基准和兜底。`checks` 记录原始区间、成交公式、顶层流量约束、父子渠道约束和调整结果；未使用的候选字段为 `null`。
+`candidate_source` 取 `same_period_p`、`historical_p` 或 `median`，对应当期有效 P、同粒度历史有效 P 均值和中位值兜底。`checks` 记录原始区间、成交公式、顶层流量约束、件单关系、调整结果和无法消解的冲突；未生成的候选字段为 `null`。
 
 ## 分析模块映射
 
@@ -160,7 +166,7 @@
 
 ## `ai_recommendations[]`
 
-基础分析脚本只初始化空数组。Skill 读取完整分析结果和 [ai-recommendations.md](ai-recommendations.md) 后生成建议，再通过 `scripts/apply_ai_recommendations.py` 写回。
+基础分析流程只初始化空数组。Skill 读取完整分析结果和 [ai-recommendations.md](ai-recommendations.md) 后生成建议，再通过 `scripts/main.py apply-ai` 写回。
 
 每项至少包含：
 

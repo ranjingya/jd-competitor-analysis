@@ -11,7 +11,7 @@
     "self_spu": "100142563319",
     "competitor_name": "HeyBetter儿童轻氧光变防晒大帽檐防紫外线（蓝色）",
     "competitor_spu": "100194742852",
-    "confidence": "high",
+    "confidence": "medium",
     "summary": "本品成交金额、访客数领先。",
     "weakness_summary": "本品成交转化率、成交客单价落后，需要优先优化。",
     "generated_at": "2026-07-13T14:40:11"
@@ -81,10 +81,12 @@
       "range_low": 100000.0,
       "range_high": 250000.0,
       "position_p": 0.12691333333333332,
+      "position_p_valid": true,
       "in_range": true,
       "median_error_rate": 0.4701311356973042,
       "historical_p": null,
       "historical_p_period": null,
+      "historical_p_periods": [],
       "historical_p_error_rate": null,
       "note": "本品使用真实 SPU 数据。"
     },
@@ -96,10 +98,12 @@
       "range_low": 2000.0,
       "range_high": 4000.0,
       "position_p": 0.159,
+      "position_p_valid": true,
       "in_range": true,
       "median_error_rate": 0.2942191544434858,
       "historical_p": null,
       "historical_p_period": null,
+      "historical_p_periods": [],
       "historical_p_error_rate": null,
       "note": "本品使用真实 SPU 数据。"
     },
@@ -111,10 +115,12 @@
       "range_low": 1000.0,
       "range_high": 2000.0,
       "position_p": 0.947,
+      "position_p_valid": true,
       "in_range": true,
       "median_error_rate": 0.2295839753466872,
       "historical_p": null,
       "historical_p_period": null,
+      "historical_p_periods": [],
       "historical_p_error_rate": null,
       "note": "本品使用真实 SPU 数据。"
     },
@@ -126,10 +132,12 @@
       "range_low": 60000.0,
       "range_high": 80000.0,
       "position_p": 0.0096,
+      "position_p_valid": true,
       "in_range": true,
       "median_error_rate": 0.1629452418926103,
       "historical_p": null,
       "historical_p_period": null,
+      "historical_p_periods": [],
       "historical_p_error_rate": null,
       "note": "本品使用真实 SPU 数据。"
     },
@@ -141,10 +149,12 @@
       "range_low": 10000.0,
       "range_high": 20000.0,
       "position_p": 0.6753,
+      "position_p_valid": true,
       "in_range": true,
       "median_error_rate": 0.10463797528800811,
       "historical_p": null,
       "historical_p_period": null,
+      "historical_p_periods": [],
       "historical_p_error_rate": null,
       "note": "本品使用真实 SPU 数据。"
     },
@@ -156,10 +166,12 @@
       "range_low": 2000.0,
       "range_high": 4000.0,
       "position_p": 0.239,
+      "position_p_valid": true,
       "in_range": true,
       "median_error_rate": 0.2106537530266344,
       "historical_p": null,
       "historical_p_period": null,
+      "historical_p_periods": [],
       "historical_p_error_rate": null,
       "note": "本品使用真实 SPU 数据。"
     },
@@ -171,10 +183,12 @@
       "range_low": 0.1,
       "range_high": 0.15,
       "position_p": 0.21200000000000002,
+      "position_p_valid": true,
       "in_range": true,
       "median_error_rate": 0.13019891500904154,
       "historical_p": null,
       "historical_p_period": null,
+      "historical_p_periods": [],
       "historical_p_error_rate": null,
       "note": "本品使用真实 SPU 数据。"
     },
@@ -186,10 +200,12 @@
       "range_low": 50.0,
       "range_high": 100.0,
       "position_p": 0.2847999999999999,
+      "position_p_valid": true,
       "in_range": true,
       "median_error_rate": 0.16749688667496895,
       "historical_p": null,
       "historical_p_period": null,
+      "historical_p_periods": [],
       "historical_p_error_rate": null,
       "note": "本品使用真实 SPU 数据。"
     }
@@ -204,15 +220,22 @@
       "median_candidate": 70000.0,
       "p_candidate": 62538.26666666666,
       "historical_p_candidate": null,
+      "historical_p": null,
+      "historical_p_periods": [],
+      "candidate_source": "same_period_p",
+      "selected_candidate": 62538.26666666666,
       "final_value": 69135.90513279999,
-      "basis": "成交公式与流量约束校正",
-      "confidence": "high",
+      "basis": "同周期本品 P 候选；按成交公式校正并限制在原始区间",
+      "confidence": "medium",
       "checks": {
         "range_consistent": true,
         "traffic_consistent": null,
+        "gmv_formula_consistent": true,
+        "units_orders_consistent": true,
         "adjustments": [
-          "成交商品件数按不小于成交单量校正"
-        ]
+          "按成交公式校正并限制在原始区间"
+        ],
+        "conflicts": []
       }
     },
     {
@@ -224,15 +247,22 @@
       "median_candidate": 700.0,
       "p_candidate": 631.8,
       "historical_p_candidate": null,
+      "historical_p": null,
+      "historical_p_periods": [],
+      "candidate_source": "same_period_p",
+      "selected_candidate": 631.8,
       "final_value": 789.4,
-      "basis": "成交公式与流量约束校正",
-      "confidence": "high",
+      "basis": "同周期本品 P 候选；按不小于成交单量校正",
+      "confidence": "medium",
       "checks": {
         "range_consistent": true,
         "traffic_consistent": null,
+        "gmv_formula_consistent": true,
+        "units_orders_consistent": true,
         "adjustments": [
-          "成交商品件数按不小于成交单量校正"
-        ]
+          "按不小于成交单量校正"
+        ],
+        "conflicts": []
       }
     },
     {
@@ -244,15 +274,20 @@
       "median_candidate": 700.0,
       "p_candidate": 789.4,
       "historical_p_candidate": null,
+      "historical_p": null,
+      "historical_p_periods": [],
+      "candidate_source": "same_period_p",
+      "selected_candidate": 789.4,
       "final_value": 789.4,
       "basis": "同周期本品 P 候选",
       "confidence": "high",
       "checks": {
         "range_consistent": true,
         "traffic_consistent": null,
-        "adjustments": [
-          "成交商品件数按不小于成交单量校正"
-        ]
+        "gmv_formula_consistent": true,
+        "units_orders_consistent": true,
+        "adjustments": [],
+        "conflicts": []
       }
     },
     {
@@ -264,15 +299,20 @@
       "median_candidate": 30000.0,
       "p_candidate": 20192.0,
       "historical_p_candidate": null,
+      "historical_p": null,
+      "historical_p_periods": [],
+      "candidate_source": "same_period_p",
+      "selected_candidate": 20192.0,
       "final_value": 20192.0,
       "basis": "同周期本品 P 候选",
       "confidence": "high",
       "checks": {
         "range_consistent": true,
         "traffic_consistent": null,
-        "adjustments": [
-          "成交商品件数按不小于成交单量校正"
-        ]
+        "gmv_formula_consistent": true,
+        "units_orders_consistent": true,
+        "adjustments": [],
+        "conflicts": []
       }
     },
     {
@@ -284,15 +324,20 @@
       "median_candidate": 3000.0,
       "p_candidate": 3350.6,
       "historical_p_candidate": null,
+      "historical_p": null,
+      "historical_p_periods": [],
+      "candidate_source": "same_period_p",
+      "selected_candidate": 3350.6,
       "final_value": 3350.6,
       "basis": "同周期本品 P 候选",
       "confidence": "high",
       "checks": {
         "range_consistent": true,
         "traffic_consistent": null,
-        "adjustments": [
-          "成交商品件数按不小于成交单量校正"
-        ]
+        "gmv_formula_consistent": true,
+        "units_orders_consistent": true,
+        "adjustments": [],
+        "conflicts": []
       }
     },
     {
@@ -304,15 +349,20 @@
       "median_candidate": 1500.0,
       "p_candidate": 1239.0,
       "historical_p_candidate": null,
+      "historical_p": null,
+      "historical_p_periods": [],
+      "candidate_source": "same_period_p",
+      "selected_candidate": 1239.0,
       "final_value": 1239.0,
       "basis": "同周期本品 P 候选",
       "confidence": "high",
       "checks": {
         "range_consistent": true,
         "traffic_consistent": null,
-        "adjustments": [
-          "成交商品件数按不小于成交单量校正"
-        ]
+        "gmv_formula_consistent": true,
+        "units_orders_consistent": true,
+        "adjustments": [],
+        "conflicts": []
       }
     },
     {
@@ -324,15 +374,20 @@
       "median_candidate": 0.175,
       "p_candidate": 0.1606,
       "historical_p_candidate": null,
+      "historical_p": null,
+      "historical_p_periods": [],
+      "candidate_source": "same_period_p",
+      "selected_candidate": 0.1606,
       "final_value": 0.1606,
       "basis": "同周期本品 P 候选",
       "confidence": "high",
       "checks": {
         "range_consistent": true,
         "traffic_consistent": null,
-        "adjustments": [
-          "成交商品件数按不小于成交单量校正"
-        ]
+        "gmv_formula_consistent": true,
+        "units_orders_consistent": true,
+        "adjustments": [],
+        "conflicts": []
       }
     },
     {
@@ -344,15 +399,20 @@
       "median_candidate": 150.0,
       "p_candidate": 128.48,
       "historical_p_candidate": null,
+      "historical_p": null,
+      "historical_p_periods": [],
+      "candidate_source": "same_period_p",
+      "selected_candidate": 128.48,
       "final_value": 128.48,
       "basis": "同周期本品 P 候选",
       "confidence": "high",
       "checks": {
         "range_consistent": true,
         "traffic_consistent": null,
-        "adjustments": [
-          "成交商品件数按不小于成交单量校正"
-        ]
+        "gmv_formula_consistent": true,
+        "units_orders_consistent": true,
+        "adjustments": [],
+        "conflicts": []
       }
     }
   ],
