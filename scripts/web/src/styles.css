@@ -492,7 +492,7 @@ h1 {
 }
 
 .analysis-panel,
-.diagnosis-panel {
+.ai-recommendations-panel {
   height: var(--content-panel-height);
   min-height: 0;
   padding: 24px;
@@ -880,13 +880,13 @@ h1 {
   font-size: 13px;
 }
 
-.diagnosis-panel {
+.ai-recommendations-panel {
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-.diagnosis-list {
+.ai-recommendations-list {
   display: grid;
   min-height: 0;
   padding-right: 6px;
@@ -899,22 +899,22 @@ h1 {
   scrollbar-gutter: stable;
 }
 
-.diagnosis-card {
+.ai-recommendation-card {
   padding: 13px 14px;
   border: 1px solid var(--line);
   border-radius: 7px;
   background: var(--soft-amber);
 }
 
-.diagnosis-card.warning {
+.ai-recommendation-card.warning {
   background: var(--soft-teal);
 }
 
-.diagnosis-card p {
+.ai-recommendation-card p {
   margin: 0;
 }
 
-.diagnosis-primary-action {
+.ai-recommendation-primary-action {
   display: -webkit-box;
   margin-top: 7px;
   color: var(--text);
@@ -926,14 +926,14 @@ h1 {
   -webkit-line-clamp: 2;
 }
 
-.diagnosis-details {
+.ai-recommendation-details {
   margin-top: 8px;
   color: var(--muted);
   font-size: 11.5px;
   line-height: 1.5;
 }
 
-.diagnosis-details summary {
+.ai-recommendation-details summary {
   width: max-content;
   color: var(--muted);
   cursor: pointer;
@@ -941,30 +941,30 @@ h1 {
   list-style: none;
 }
 
-.diagnosis-details summary::-webkit-details-marker {
+.ai-recommendation-details summary::-webkit-details-marker {
   display: none;
 }
 
-.diagnosis-details summary::before {
+.ai-recommendation-details summary::before {
   margin-right: 4px;
   content: "+";
 }
 
-.diagnosis-details[open] summary::before {
+.ai-recommendation-details[open] summary::before {
   content: "−";
 }
 
-.diagnosis-details[open] summary {
+.ai-recommendation-details[open] summary {
   color: var(--text);
 }
 
-.diagnosis-details summary:focus-visible {
+.ai-recommendation-details summary:focus-visible {
   border-radius: 3px;
   outline: 2px solid rgba(15, 123, 115, 0.34);
   outline-offset: 2px;
 }
 
-.diagnosis-secondary-actions {
+.ai-recommendation-secondary-actions {
   display: grid;
   gap: 2px;
   margin: 7px 0 0;
@@ -974,19 +974,19 @@ h1 {
   line-height: 1.4;
 }
 
-.diagnosis-details p {
+.ai-recommendation-details p {
   margin-top: 5px;
   line-height: 1.4;
 }
 
-.diagnosis-details p span {
+.ai-recommendation-details p span {
   display: inline-block;
   min-width: 32px;
   color: var(--text);
   font-weight: 800;
 }
 
-.diagnosis-type {
+.ai-recommendation-type {
   color: var(--amber);
   font-size: 10.5px;
   font-weight: 900;
@@ -994,23 +994,23 @@ h1 {
   letter-spacing: 0.06em;
 }
 
-.diagnosis-card.warning .diagnosis-type {
+.ai-recommendation-card.warning .ai-recommendation-type {
   color: var(--teal);
 }
 
 .tab-body::-webkit-scrollbar,
-.diagnosis-list::-webkit-scrollbar {
+.ai-recommendations-list::-webkit-scrollbar {
   width: 7px;
 }
 
 .tab-body::-webkit-scrollbar-thumb,
-.diagnosis-list::-webkit-scrollbar-thumb {
+.ai-recommendations-list::-webkit-scrollbar-thumb {
   border-radius: 999px;
   background: rgba(102, 112, 133, 0.28);
 }
 
 .tab-body::-webkit-scrollbar-track,
-.diagnosis-list::-webkit-scrollbar-track {
+.ai-recommendations-list::-webkit-scrollbar-track {
   background: transparent;
 }
 

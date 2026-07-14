@@ -201,19 +201,19 @@ function renderTabs() {
   });
 }
 
-function renderDiagnosis() {
-  const target = document.querySelector("#diagnosis");
+function renderAiRecommendations() {
+  const target = document.querySelector("#ai-recommendations");
   const suggestions = (dashboardState.data?.ai_recommendations || []).slice(0, 5);
   target.innerHTML = suggestions.map((item) => {
     const actions = item.actions || [];
     return `
-      <section class="diagnosis-card ${item.status === "warning" ? "warning" : "advantage"}">
-        <p class="diagnosis-type">${escapeHtml(item.source_label || "AI 判断")} · ${escapeHtml(item.target || "-")}</p>
-        <p class="diagnosis-primary-action">${escapeHtml(actions[0] || "查看完整分析后确定动作")}</p>
-        <details class="diagnosis-details">
+      <section class="ai-recommendation-card ${item.status === "warning" ? "warning" : "advantage"}">
+        <p class="ai-recommendation-type">${escapeHtml(item.source_label || "AI 建议")} · ${escapeHtml(item.target || "-")}</p>
+        <p class="ai-recommendation-primary-action">${escapeHtml(actions[0] || "查看完整分析后确定动作")}</p>
+        <details class="ai-recommendation-details">
           <summary>查看依据与验收</summary>
           ${actions.length > 1 ? `
-            <ul class="diagnosis-secondary-actions">
+            <ul class="ai-recommendation-secondary-actions">
               ${actions.slice(1).map((step) => `<li>${escapeHtml(step)}</li>`).join("")}
             </ul>
           ` : ""}
@@ -451,7 +451,7 @@ export function renderDashboard(data, activeMetricId = "") {
     });
   });
   renderTabs();
-  renderDiagnosis();
+  renderAiRecommendations();
   document.querySelector("#risks").textContent = `风险提示：${(data.risks || ["暂无"]).join("；")}`;
   document.querySelector("#page-state").hidden = true;
   document.querySelector("#dashboard").hidden = false;

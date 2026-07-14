@@ -135,7 +135,7 @@ Vite 中间件把该目录只读映射为 `/reports/`，只允许读取 `report-
 | 流量来源 Tab | `tabs[id=traffic]` | 必须 |
 | 关键词 Tab | `tabs[id=keywords]` | 完整看板必需 |
 | 客户画像 Tab | `tabs[id=customer_profile]` | 完整看板必需 |
-| AI核心判断与建议 | `ai_recommendations[]` | AI 分析后必需 |
+| AI 建议 | `ai_recommendations[]` | AI 分析后必需 |
 | 风险提示 | `risks[]` | 必须 |
 
 ## 展示约束
