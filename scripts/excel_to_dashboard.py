@@ -1058,6 +1058,7 @@ def empty_contract() -> dict[str, Any]:
         "customer_profile": empty_profile,
         "promotion": {"available": False, "self": {}, "competitor": {}, "attributed_gmv_rate": None, "judgement": None, "notes": []},
         "tabs": build_tabs([], empty_keywords, empty_profile),
+        "ai_recommendations": [],
         "diagnosis": [],
         "action_tracking": [],
         "risks": [],
@@ -1178,6 +1179,7 @@ def build_analysis_result(args: argparse.Namespace) -> tuple[dict[str, Any], dic
         "customer_profile": profile,
         "promotion": promotion,
         "tabs": tabs,
+        "ai_recommendations": [],
         "diagnosis": diagnosis,
         "action_tracking": actions,
         "risks": list(dict.fromkeys(risks)),
@@ -1207,6 +1209,7 @@ def validate_contract(data: dict[str, Any], allow_empty: bool = False) -> None:
         "customer_profile",
         "promotion",
         "tabs",
+        "ai_recommendations",
         "diagnosis",
         "action_tracking",
         "risks",
@@ -1220,6 +1223,14 @@ def validate_contract(data: dict[str, Any], allow_empty: bool = False) -> None:
         raise ValueError(f"analysis_result.meta 缺少周期字段：{missing_meta}")
     if not isinstance(data["risks"], list) or any(not isinstance(item, str) for item in data["risks"]):
         raise ValueError("risks 必须是字符串数组")
+    if not isinstance(data["ai_recommendations"], list):
+        raise ValueError("ai_recommendations 必须是数组")
+    for item in data["ai_recommendations"]:
+        for field in ("source_id", "source_label", "target", "status", "evidence", "actions", "validation"):
+            if field not in item:
+                raise ValueError(f"AI 建议缺少字段：{field}")
+        if not isinstance(item["actions"], list) or not item["actions"]:
+            raise ValueError("AI 建议 actions 必须是非空数组")
     tab_map = {tab.get("id"): tab for tab in data["tabs"]}
     if set(tab_map) != {"traffic", "keywords", "customer_profile"}:
         raise ValueError(f"tabs 必须包含 traffic、keywords、customer_profile，当前={sorted(tab_map)}")

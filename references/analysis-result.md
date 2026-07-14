@@ -22,6 +22,7 @@
 | `customer_profile` | object | 完整看板必需 | 性别、年龄、省份、城市画像对比。 |
 | `promotion` | object/null | 诊断增强 | 推广估算和广告归因判断。 |
 | `tabs` | array | 必须 | HTML 差距来源 Tab 的直接渲染数据。 |
+| `ai_recommendations` | array | AI 分析后必需 | Skill 基于完整事实生成的结构化建议；基础数据脚本初始化为空数组。 |
 | `diagnosis` | array | 必须 | AI 核心判断、证据和建议。 |
 | `action_tracking` | array | 可选 | 后续行动和复盘字段。 |
 | `risks` | array | 必须 | 缺失、冲突、降级和口径风险。 |
@@ -88,6 +89,20 @@
 ### `diagnosis[]`
 
 每项至少包含 `title`、`evidence`、`recommendation`、`status` 和 `source`。证据和建议分开保存，禁止把建议拼进证据字段。
+
+### `ai_recommendations[]`
+
+每项至少包含：
+
+- `source_id`：`traffic`、`keywords` 或 `customer_profile`。
+- `source_label`：页面展示的差距来源名称。
+- `target`：建议针对的具体渠道、关键词或画像项。
+- `status`：`warning`、`advantage` 或 `neutral`。
+- `evidence`：直接引用本周期实际值、竞品准真实值和差距，不写动作。
+- `actions`：1–3 条基于完整上下文独立判断的动作，不使用前端文案模板。
+- `validation`：使用当前基线定义的验收条件。
+
+基础数据脚本只初始化空数组。Skill 读取完整 `analysis_result.json` 和 `recommendation-rules.md` 后生成该字段，并通过 `scripts/apply_ai_recommendations.py` 写回。HTML 只展示该数组，不根据数值拼接建议。
 
 ## 审计约定
 

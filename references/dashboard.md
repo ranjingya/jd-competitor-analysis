@@ -96,12 +96,13 @@ keywords
 customer_profile
 promotion
 tabs
+ai_recommendations
 diagnosis
 action_tracking
 risks
 ```
 
-页面直接消费 `meta`、`core_metrics[]`、`tabs[]`、`diagnosis[]` 和 `risks[]`。其余字段保留给审计、明细复核和后续分析使用，完整约束见 [analysis-result.md](analysis-result.md)。浏览器不读取 `normalized_data.json`。
+页面直接消费 `meta`、`core_metrics[]`、`tabs[]`、`ai_recommendations[]` 和 `risks[]`。其余字段保留给审计、明细复核和后续分析使用，完整约束见 [analysis-result.md](analysis-result.md)。浏览器不读取 `normalized_data.json`。
 
 ## 加载流程
 
@@ -146,7 +147,7 @@ risks
 | 流量来源 Tab | `tabs[id=traffic]` | 必须 |
 | 关键词 Tab | `tabs[id=keywords]` | 完整看板必需 |
 | 客户画像 Tab | `tabs[id=customer_profile]` | 完整看板必需 |
-| AI核心判断与建议 | `diagnosis[]` | 必须 |
+| AI核心判断与建议 | `ai_recommendations[]` | AI 分析后必需 |
 | 风险提示 | `risks[]` | 必须 |
 
 ## 展示约束
@@ -157,7 +158,7 @@ risks
 4. 趋势图使用 ECharts 6 按需模块绘制，本品为绿色线、竞品为棕色线，保留网格、周期横轴、数值纵轴、图例和轴触发悬浮信息。
 5. 每个差距来源 Tab 先展示 3 至 5 项重点数据，再展示完整表格。
 6. 客户画像完整表格支持性别、年龄、省份、城市切换。
-7. `diagnosis[]` 分别展示证据和建议，不在网页端拼接业务结论。
+7. `ai_recommendations[]` 分别展示证据、动作和验收条件；数组为空时显示未生成状态，不在网页端拼接或回退到模板建议。
 8. 数值为 `null` 时显示 `-`，数值 `0` 正常显示。
 9. 明细表格在自身容器内滚动，不造成页面级横向溢出。
 10. 缺失模块保持空状态，并在页面底部显示 `risks[]`。

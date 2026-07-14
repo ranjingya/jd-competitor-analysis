@@ -27,6 +27,75 @@ function formatTableValue(value, unit = "") {
 }
 
 /**
+ * 功能说明：判断当前列是否为需要使用进度条展示的占比列。
+ * 参数 column：当前列定义，包含单位等展示信息。
+ * 返回值：单位为百分号且列标题包含“占比”时返回 true，转化率和差值列返回 false。
+ */
+function isProgressColumn(column) {
+  return column.unit === "%" && String(column.label || "").includes("占比");
+}
+
+/**
+ * 功能说明：识别由分析计算或规则判断得到的表格列，用于区别原始值和区间中位值。
+ * 参数 column：当前列定义，包含字段名和展示标题。
+ * 返回值：判断、差距和同层占比列返回 true，其余列返回 false。
+ */
+function isDerivedColumn(column) {
+  const key = String(column.key || "");
+  const label = String(column.label || "");
+  return key === "judgement"
+    || key === "opportunity"
+    || label.includes("判断")
+    || GAP_FIELD_PATTERN.test(key)
+    || label.includes("差距")
+    || key.includes("current_level")
+    || label.includes("同层占比");
+}
+
+/**
+ * 功能说明：把百分比值限制在进度条可展示的 0 至 100 范围。
+ * 参数 value：当前单元格的原始百分比值。
+ * 返回值：有效数值返回限制范围后的结果，无效值返回 null。
+ */
+function normalizeProgressValue(value) {
+  if (value == null || value === "" || value === "-") {
+    return null;
+  }
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.min(100, Math.max(0, number)) : null;
+}
+
+/**
+ * 功能说明：生成正式表格使用的细进度条与右侧百分比数字。
+ * 参数 value：当前单元格的原始百分比值。
+ * 参数 column：当前列定义，用于统一数值格式。
+ * 返回值：可直接放入 VXE 列插槽的 Vue 虚拟节点。
+ */
+function renderProgressValue(value, column) {
+  const percentage = normalizeProgressValue(value);
+  const displayValue = formatTableValue(value, column.unit || "");
+  if (percentage == null) {
+    return h("span", {
+      class: "analysis-value-neutral",
+      title: displayValue
+    }, displayValue);
+  }
+  return h("span", {
+    class: "analysis-progress-cell",
+    title: displayValue,
+    "aria-label": `占比 ${displayValue}`
+  }, [
+    h("span", { class: "analysis-progress-track", "aria-hidden": "true" }, [
+      h("span", {
+        class: "analysis-progress-fill",
+        style: { width: `${percentage}%` }
+      })
+    ]),
+    h("strong", { class: "analysis-progress-value" }, displayValue)
+  ]);
+}
+
+/**
  * 功能说明：根据判断文本或差距数值返回优势、劣势或中性样式。
  * 参数 value：当前单元格的原始值。
  * 参数 column：当前列定义。
@@ -95,6 +164,9 @@ function columnWidth(column, columnIndex, tableId) {
   if (columnIndex === 1) {
     return 108;
   }
+  if (isProgressColumn(column)) {
+    return 160;
+  }
   const labelLength = String(column.label || "").length;
   return Math.min(Math.max(112, labelLength * 15 + 32), 172);
 }
@@ -158,7 +230,7 @@ export function mountAnalysisVxeTable(target, config) {
       const syncExpandedState = async (active) => {
         isExpanded.value = active;
         tableHeight.value = active
-          ? Math.min(620, Math.max(window.innerHeight - 180, 260))
+          ? Math.max(Math.floor(window.innerHeight * 0.8) - 94, 260)
           : normalTableHeight;
         document.body.classList.toggle("has-analysis-modal", active);
         await recalculate();
@@ -247,14 +319,17 @@ export function mountAnalysisVxeTable(target, config) {
           fixed: columnIndex === 0 ? "left" : undefined,
           sortable: true,
           treeNode: isTree && columnIndex === 0,
+          headerClassName: isDerivedColumn(column) ? "analysis-derived-header" : undefined,
           showOverflow: "title",
           showHeaderOverflow: "title"
         };
         return h(VxeColumn, props, {
-          default: ({ row }) => h("span", {
-            class: valueTone(row[column.key], column),
-            title: formatTableValue(row[column.key], column.unit || "")
-          }, formatTableValue(row[column.key], column.unit || ""))
+          default: ({ row }) => isProgressColumn(column)
+            ? renderProgressValue(row[column.key], column)
+            : h("span", {
+              class: valueTone(row[column.key], column),
+              title: formatTableValue(row[column.key], column.unit || "")
+            }, formatTableValue(row[column.key], column.unit || ""))
         });
       });
 

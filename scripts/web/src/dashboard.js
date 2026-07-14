@@ -173,7 +173,6 @@ function renderTabs() {
       ` : ""}
       <div id="analysis-vxe-mount"></div>
     </section>
-    ${(current.notes || []).length ? `<ul class="notes">${current.notes.map((note) => `<li>${escapeHtml(note)}</li>`).join("")}</ul>` : ""}
   `;
 
   const tableTarget = document.querySelector("#analysis-vxe-mount");
@@ -204,27 +203,17 @@ function renderTabs() {
 
 function renderDiagnosis() {
   const target = document.querySelector("#diagnosis");
-  const tabs = dashboardState.data?.tabs || [];
-  const primarySuggestions = [];
-  const secondarySuggestions = [];
-  tabs.forEach((tab) => {
-    const highlights = [...(tab.highlights || [])].sort((left, right) =>
-      Number(right.status === "warning") - Number(left.status === "warning")
-    );
-    const suggestions = highlights.map((item) => ({ ...item, sourceLabel: tab.label || "差距来源" }));
-    if (suggestions[0]) {
-      primarySuggestions.push(suggestions[0]);
-    }
-    secondarySuggestions.push(...suggestions.slice(1));
-  });
-  const suggestions = [...primarySuggestions, ...secondarySuggestions].slice(0, 5);
+  const suggestions = (dashboardState.data?.ai_recommendations || []).slice(0, 5);
   target.innerHTML = suggestions.map((item) => `
     <section class="diagnosis-card ${item.status === "warning" ? "warning" : "advantage"}">
-      <p class="diagnosis-type">${escapeHtml(item.sourceLabel)} · ${item.status === "warning" ? "劣势" : "优势"}</p>
-      <h3>${escapeHtml(item.action || "持续跟踪当前差距并验证优化效果")}</h3>
-      <p class="diagnosis-context">关注：${escapeHtml(item.label || "-")}</p>
+      <p class="diagnosis-type">${escapeHtml(item.source_label || "AI 判断")} · ${escapeHtml(item.target || "-")}</p>
+      <ul class="diagnosis-actions">
+        ${(item.actions || []).map((step) => `<li>${escapeHtml(step)}</li>`).join("")}
+      </ul>
+      <p class="diagnosis-validation">验收：${escapeHtml(item.validation || "-")}</p>
+      <p class="diagnosis-context" title="${escapeHtml(item.evidence || "")}">依据：${escapeHtml(item.evidence || "-")}</p>
     </section>
-  `).join("") || '<p class="empty-inline">当前周期暂无行动建议</p>';
+  `).join("") || '<p class="empty-inline">当前报告尚未生成 AI 建议，请运行 Skill 的建议分析步骤。</p>';
 }
 
 function compactNumber(value) {
