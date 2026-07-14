@@ -204,16 +204,25 @@ function renderTabs() {
 function renderDiagnosis() {
   const target = document.querySelector("#diagnosis");
   const suggestions = (dashboardState.data?.ai_recommendations || []).slice(0, 5);
-  target.innerHTML = suggestions.map((item) => `
-    <section class="diagnosis-card ${item.status === "warning" ? "warning" : "advantage"}">
-      <p class="diagnosis-type">${escapeHtml(item.source_label || "AI 判断")} · ${escapeHtml(item.target || "-")}</p>
-      <ul class="diagnosis-actions">
-        ${(item.actions || []).map((step) => `<li>${escapeHtml(step)}</li>`).join("")}
-      </ul>
-      <p class="diagnosis-validation">验收：${escapeHtml(item.validation || "-")}</p>
-      <p class="diagnosis-context" title="${escapeHtml(item.evidence || "")}">依据：${escapeHtml(item.evidence || "-")}</p>
-    </section>
-  `).join("") || '<p class="empty-inline">当前报告尚未生成 AI 建议，请运行 Skill 的建议分析步骤。</p>';
+  target.innerHTML = suggestions.map((item) => {
+    const actions = item.actions || [];
+    return `
+      <section class="diagnosis-card ${item.status === "warning" ? "warning" : "advantage"}">
+        <p class="diagnosis-type">${escapeHtml(item.source_label || "AI 判断")} · ${escapeHtml(item.target || "-")}</p>
+        <p class="diagnosis-primary-action">${escapeHtml(actions[0] || "查看完整分析后确定动作")}</p>
+        <details class="diagnosis-details">
+          <summary>查看依据与验收</summary>
+          ${actions.length > 1 ? `
+            <ul class="diagnosis-secondary-actions">
+              ${actions.slice(1).map((step) => `<li>${escapeHtml(step)}</li>`).join("")}
+            </ul>
+          ` : ""}
+          <p><span>依据</span>${escapeHtml(item.evidence || "-")}</p>
+          <p><span>验收</span>${escapeHtml(item.validation || "-")}</p>
+        </details>
+      </section>
+    `;
+  }).join("") || '<p class="empty-inline">当前报告尚未生成 AI 建议，请运行 Skill 的建议分析步骤。</p>';
 }
 
 function compactNumber(value) {
