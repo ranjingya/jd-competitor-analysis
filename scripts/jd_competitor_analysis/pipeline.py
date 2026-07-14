@@ -22,6 +22,7 @@ from .sources import (
 
 
 LOGGER = logging.getLogger(__name__)
+DEFAULT_TITLE = "竞品准真实值看板"
 
 
 def analyze_normalized(normalized: dict[str, Any], history: PHistory | None = None) -> tuple[dict[str, Any], list[dict[str, Any]]]:
@@ -68,7 +69,7 @@ def _period_request(args: argparse.Namespace) -> PeriodRequest:
         self_spu=args.self_spu,
         competitor_spu=args.competitor_spu,
         competitor_prefix=args.competitor_prefix,
-        title=args.title,
+        title=args.title or DEFAULT_TITLE,
     )
 
 
@@ -136,7 +137,7 @@ def run_batch(args: argparse.Namespace) -> None:
         "schema_version": "1.0",
         "updated_at": None,
         "meta": {
-            "title": args.title,
+            "title": args.title or DEFAULT_TITLE,
             "self_spu": args.self_spu,
             "competitor_spu": args.competitor_spu,
         },
@@ -162,7 +163,7 @@ def run_batch(args: argparse.Namespace) -> None:
                 self_spu=args.self_spu,
                 competitor_spu=args.competitor_spu,
                 competitor_prefix=args.competitor_prefix,
-                title=args.title,
+                title=args.title or DEFAULT_TITLE,
             )
             period_dir = output_root / granularity / period_file
             LOGGER.info("开始处理周期：%s", period_meta["period_key"])

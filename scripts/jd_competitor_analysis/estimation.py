@@ -94,23 +94,23 @@ def parse_range(value: Any) -> ParsedRange:
     raw = clean_text(value)
     if not raw or raw == "-":
         return ParsedRange(raw or None, None, None, None, False, True)
-    is_percent = "%" in raw
-    normalized = raw.replace(",", "").replace("¥", "").replace("￥", "").replace("％", "%")
-    numbers = re.findall(r"-?\d+(?:\.\d+)?\s*万?", normalized)
+    is_percent = "%" in raw or "％" in raw
+    normalized = raw.replace(",", "").replace("¥", "").replace("￥", "").replace(" ", "").replace("％", "%").replace("%", "")
+    parts = re.split(r"~|－|—", normalized)
     parsed = []
-    for token in numbers:
-        token = token.replace(" ", "")
-        multiplier = 10000 if token.endswith("万") else 1
-        token = token.rstrip("万")
+    for part in parts:
+        if not part:
+            continue
+        multiplier = 10000 if part.endswith("万") else 1
         try:
-            parsed.append(float(token) * multiplier / (100 if is_percent else 1))
+            parsed.append(float(part.rstrip("万")) * multiplier / (100 if is_percent else 1))
         except ValueError:
             LOGGER.warning("区间解析失败：%s", raw)
             return ParsedRange(raw, None, None, None, is_percent, True)
     if not parsed:
         return ParsedRange(raw, None, None, None, is_percent, True)
-    low = min(parsed)
-    high = max(parsed)
+    low = parsed[0]
+    high = parsed[1] if len(parsed) > 1 else parsed[0]
     return ParsedRange(raw, low, high, (low + high) / 2, is_percent, False)
 
 

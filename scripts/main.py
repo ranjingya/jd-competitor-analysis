@@ -23,7 +23,7 @@ def _add_analysis_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--self-spu", help="本品 SPU。")
     parser.add_argument("--competitor-spu", help="竞品 SPU。")
     parser.add_argument("--competitor-prefix", default="竞品1", help="导出表中的目标竞品字段前缀。")
-    parser.add_argument("--title", default="竞品准真实值看板", help="网页标题。")
+    parser.add_argument("--title", help="网页标题，默认使用“竞品准真实值看板”。")
     parser.add_argument("--output-root", help="批量模式的输出根目录。")
     parser.add_argument("--start-date", help="批量模式的最早周期日期，格式为 YYYY-MM-DD。")
     parser.add_argument("--end-date", help="批量模式的最晚周期日期，格式为 YYYY-MM-DD。")
