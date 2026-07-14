@@ -265,12 +265,13 @@ export function mountAnalysisVxeTable(target, config) {
         if (event.ctrlKey || event.metaKey) {
           return;
         }
+        if (!(event.target instanceof Element) || !event.target.closest(".vxe-table")) {
+          return;
+        }
         const scrollBody = event.currentTarget.querySelector(
           ".vxe-table--main-wrapper .vxe-table--body-inner-wrapper"
         );
         if (!scrollBody) {
-          event.preventDefault();
-          event.stopPropagation();
           return;
         }
         const unit = event.deltaMode === 1
