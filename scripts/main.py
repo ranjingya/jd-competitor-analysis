@@ -13,12 +13,10 @@ from jd_competitor_analysis.recommendations import apply_recommendations
 def _add_analysis_arguments(parser: argparse.ArgumentParser) -> None:
     """注册分析子命令参数。"""
 
-    parser.add_argument("--batch", action="store_true", help="扫描日、周、月目录并批量生成全部周期。")
-    parser.add_argument("--input-root", help="批量模式的原始数据根目录，目录下包含天、周、月。")
-    parser.add_argument("--input-dir", help="单周期模式的原始 Excel 目录。")
-    parser.add_argument("--normalized-input", help="单周期重算使用的 normalized_data.json，提供后不读取 Excel。")
-    parser.add_argument("--period-file", help="单周期模式的文件名周期片段，例如 YYYY-MM-DD_YYYY-MM-DD。")
-    parser.add_argument("--period", help="单周期模式的页面展示周期，例如 YYYY-MM-DD~YYYY-MM-DD。")
+    parser.add_argument("--batch", action="store_true", help="扫描 day、week、month 目录并批量生成全部周期。")
+    parser.add_argument("--input-root", help="批量模式的原始数据根目录，目录下包含 day、week、month。")
+    parser.add_argument("--input-dir", help="单周期模式的原始 ZIP/XLSX 周期目录。")
+    parser.add_argument("--normalized-input", help="单周期重算使用的 normalized_data.json，提供后不读取工作簿。")
     parser.add_argument("--granularity", choices=["day", "week", "month"], help="单周期模式的分析粒度。")
     parser.add_argument("--self-spu", help="本品 SPU。")
     parser.add_argument("--competitor-spu", help="竞品 SPU。")

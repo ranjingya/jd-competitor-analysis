@@ -1,4 +1,4 @@
-"""把原始 Excel 行整理为稳定的标准化事实契约。"""
+"""把原始工作簿行整理为稳定的标准化事实契约。"""
 
 from __future__ import annotations
 
@@ -8,7 +8,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from .sources import clean_identifier, discover_sources, period_fields, read_rows
+from .input_files import (
+    parse_period_directory,
+    period_fields,
+    prepare_workbooks,
+    validate_workbook_period,
+)
+from .sources import clean_identifier, discover_sources, read_rows, validate_rows_period
 
 
 LOGGER = logging.getLogger(__name__)
@@ -19,9 +25,7 @@ class PeriodRequest:
     """定义单周期分析输入。
 
     功能说明：隔离命令行参数与内部标准化、估算流程。
-    参数 input_dir：当前粒度的原始 Excel 目录。
-    参数 period_file：输入文件名中的周期片段。
-    参数 period：页面展示周期。
+    参数 input_dir：当前周期的原始 ZIP/XLSX 目录。
     参数 granularity：分析粒度。
     参数 self_spu：本品 SPU。
     参数 competitor_spu：竞品 SPU。
@@ -31,8 +35,6 @@ class PeriodRequest:
     """
 
     input_dir: Path
-    period_file: str
-    period: str
     granularity: str
     self_spu: str
     competitor_spu: str
@@ -50,7 +52,7 @@ def _public_source(source: dict[str, Any]) -> dict[str, Any]:
         "sheet_name": source.get("sheet_name"),
         "required_level": source["required_level"],
         "status": source["status"],
-        "warnings": [],
+        "warnings": list(source.get("warnings", [])),
     }
 
 
@@ -62,9 +64,25 @@ def normalize_period(request: PeriodRequest) -> dict[str, Any]:
     返回值：符合标准化事实契约的字典。
     """
 
-    LOGGER.info("开始标准化周期：%s / %s", request.period, request.granularity)
-    sources = discover_sources(request.input_dir, request.period_file, request.competitor_prefix)
-    rows_by_role = {role: read_rows(source) for role, source in sources.items()}
+    period_input = parse_period_directory(request.input_dir, request.granularity)
+    period_meta = period_fields(request.granularity, period_input.path.name)
+    LOGGER.info("开始标准化周期：%s / %s", period_meta["period"], request.granularity)
+    with prepare_workbooks(request.input_dir) as workbooks:
+        for workbook in workbooks:
+            validate_workbook_period(
+                workbook,
+                period_meta["period_start"],
+                period_meta["period_end"],
+            )
+        sources = discover_sources(workbooks, request.competitor_prefix)
+        rows_by_role = {role: read_rows(source) for role, source in sources.items()}
+        for role, rows in rows_by_role.items():
+            validate_rows_period(
+                role,
+                rows,
+                period_meta["period_start"],
+                period_meta["period_end"],
+            )
 
     self_matches = [
         row for row in rows_by_role["self_real"] if clean_identifier(row.get("SPU")) == request.self_spu
@@ -75,17 +93,18 @@ def normalize_period(request: PeriodRequest) -> dict[str, Any]:
         raise RuntimeError(f"竞品核心数据对比必须唯一，当前行数={len(rows_by_role['core'])}")
 
     source_files = [_public_source(source) for source in sources.values()]
-    warnings = [
-        f"缺少{source['label']}"
-        for source in sources.values()
-        if source["status"] != "ready"
-    ]
+    warnings = []
+    for source in sources.values():
+        if source["status"] == "missing":
+            warnings.append(f"缺少{source['label']}")
+        elif source["status"] == "conflict":
+            warnings.append(f"{source['label']}存在多个候选")
     generated_at = datetime.now().isoformat(timespec="seconds")
     normalized = {
         "schema_version": "1.0",
         "meta": {
-            **period_fields(request.granularity, request.period),
-            "period_file": request.period_file,
+            **period_meta,
+            "period_file": period_input.path.name,
             "granularity": request.granularity,
             "self_spu": request.self_spu,
             "competitor_spu": request.competitor_spu,

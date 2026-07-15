@@ -22,7 +22,7 @@
 | 周期开始日期 | `meta.period_start` | `YYYY-MM-DD`。 |
 | 周期结束日期 | `meta.period_end` | `YYYY-MM-DD`。 |
 | 周期唯一键 | `meta.period_key` | 粒度与起止日期组成的唯一键。 |
-| 文件周期片段 | `meta.period_file` | 输入文件名中的日期片段。 |
+| 输入周期目录 | `meta.period_file` | 当前周期输入目录名。 |
 | 分析粒度 | `meta.granularity` | `day`、`week` 或 `month`。 |
 | 本品 SPU | `meta.self_spu` | 本品真实数据唯一匹配条件。 |
 | 竞品 SPU | `meta.competitor_spu` | 关键词等明细中的竞品筛选条件。 |
@@ -55,7 +55,7 @@
 | `period_start` | string | 周期开始日期。 |
 | `period_end` | string | 周期结束日期。 |
 | `period_key` | string | 例如 `week:2026-06-01_2026-06-07`。 |
-| `period_file` | string | 文件名使用的周期片段。 |
+| `period_file` | string | 当前周期输入目录名。 |
 | `granularity` | string | `day`、`week` 或 `month`。 |
 | `self_spu` | string | 本品 SPU。 |
 | `competitor_spu` | string | 竞品 SPU。 |
@@ -71,9 +71,9 @@
 |---|---|
 | `role` | `self_real`、`core`、`traffic`、`keywords`、`customer_profile` 或 `promotion`。 |
 | `label` | 数据角色中文名称。 |
-| `file_name` | 输入文件名。 |
+| `file_name` | 输入文件名；ZIP 内工作簿使用 `压缩包.zip!工作簿.xlsx`。 |
 | `sheet_name` | 实际读取的工作表。 |
-| `required_level` | `core`、`full` 或 `enhancement`。 |
+| `required_level` | `core`、`complete` 或 `enhancement`。 |
 | `status` | `ready`、`missing` 或 `conflict`。 |
 | `warnings` | 当前输入的读取和匹配警告。 |
 

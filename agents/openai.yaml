@@ -1,4 +1,4 @@
 interface:
   display_name: "京东竞品分析"
   short_description: "读取京东导出数据并生成竞品准真实估算、AI建议与多周期看板"
-  default_prompt: "使用 $jd-competitor-analysis 分析京东竞品 Excel，生成可审计的准真实估算、AI 建议和多周期看板。"
+  default_prompt: "使用 $jd-competitor-analysis 分析京东竞品原始 ZIP/XLSX，生成可审计的准真实估算、AI 建议和多周期看板。"

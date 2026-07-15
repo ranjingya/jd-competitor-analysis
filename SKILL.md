@@ -78,7 +78,8 @@ npm run dev
 | `assets/analysis-result.template.json` | 不含业务值的空结构模板，保留 HTML 所需顶层字段、Tab 和列定义。 |
 | `assets/report-index.template.json` | 不含业务值的日、周、月报告索引空结构。 |
 | `scripts/main.py` | 唯一外部入口，提供 `analyze` 和 `apply-ai` 子命令。 |
-| `scripts/jd_competitor_analysis/sources.py` | 发现周期和六类真实 Excel，并按表头确认数据角色。 |
+| `scripts/jd_competitor_analysis/input_files.py` | 发现粒度与周期目录，校验文件周期，并在临时目录中展开 ZIP。 |
+| `scripts/jd_competitor_analysis/sources.py` | 按表头确认六类真实工作簿的数据角色并读取业务行。 |
 | `scripts/jd_competitor_analysis/normalization.py` | 生成可独立重算的 `normalized_data.json`。 |
 | `scripts/jd_competitor_analysis/estimation.py` | 计算 P 候选、校正核心约束并判断置信度。 |
 | `scripts/jd_competitor_analysis/dimensions.py` | 分析流量来源、关键词、成交客户画像和推广数据。 |

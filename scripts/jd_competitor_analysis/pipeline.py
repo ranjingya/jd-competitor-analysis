@@ -11,15 +11,15 @@ from typing import Any
 from . import OUTPUT_ROOT
 from .contracts import read_json, validate_contract, write_json
 from .estimation import PHistory, analyze_core
-from .normalization import PeriodRequest, normalize_period
-from .report import build_analysis_result
-from .sources import (
+from .input_files import (
     GRANULARITY_DIRS,
     discover_periods,
     period_fields,
     period_in_window,
     validate_date_window,
 )
+from .normalization import PeriodRequest, normalize_period
+from .report import build_analysis_result
 
 
 LOGGER = logging.getLogger(__name__)
@@ -46,9 +46,9 @@ def analyze_normalized(normalized: dict[str, Any], history: PHistory | None = No
 
 
 def analyze_period(request: PeriodRequest, history: PHistory | None = None) -> tuple[dict[str, Any], dict[str, Any], list[dict[str, Any]]]:
-    """读取 Excel 并完成单周期分析。
+    """读取原始工作簿并完成单周期分析。
 
-    功能说明：先生成稳定的标准化事实，再调用独立分析阶段生成最终结果。
+    功能说明：先读取 ZIP/XLSX 并生成稳定的标准化事实，再调用独立分析阶段生成最终结果。
     参数 request：单周期输入请求。
     参数 history：同商品、同粒度、此前周期的有效 P 样本。
     返回值：最终分析结果、标准化事实和当前周期新增的有效 P 样本。
@@ -63,9 +63,7 @@ def _period_request(args: argparse.Namespace) -> PeriodRequest:
     """从命令行参数生成内部单周期请求。"""
 
     return PeriodRequest(
-        input_dir=Path(args.input_dir),
-        period_file=args.period_file,
-        period=args.period,
+        input_dir=Path(args.input_dir).resolve(),
         granularity=args.granularity,
         self_spu=args.self_spu,
         competitor_spu=args.competitor_spu,
@@ -157,7 +155,7 @@ def _write_period_result(result: dict[str, Any], normalized: dict[str, Any]) -> 
 def run_single(args: argparse.Namespace) -> None:
     """执行单周期分析。
 
-    功能说明：读取单周期 Excel 或已有标准化事实，生成分析结果并更新固定输出目录和报告索引。
+    功能说明：读取单周期 ZIP/XLSX 或已有标准化事实，生成分析结果并更新固定输出目录和报告索引。
     参数 args：包含输入、商品和周期的命令行参数。
     返回值：无；成功时写入 `scripts/output/`。
     """
@@ -170,8 +168,6 @@ def run_single(args: argparse.Namespace) -> None:
     else:
         required = {
             "input_dir": args.input_dir,
-            "period_file": args.period_file,
-            "period": args.period,
             "granularity": args.granularity,
             "self_spu": args.self_spu,
             "competitor_spu": args.competitor_spu,
@@ -198,6 +194,10 @@ def run_batch(args: argparse.Namespace) -> None:
         raise ValueError("批量模式必须提供 --self-spu 和 --competitor-spu")
     validate_date_window(args.start_date, args.end_date)
     input_root = Path(args.input_root).resolve()
+    if not input_root.is_dir():
+        raise ValueError(f"批量输入根目录不存在：{input_root}")
+    if not any((input_root / directory_name).is_dir() for directory_name in GRANULARITY_DIRS.values()):
+        raise ValueError(f"输入根目录中未发现 day、week 或 month：{input_root}")
     report_index = _new_report_index(args.title or DEFAULT_TITLE, args.self_spu, args.competitor_spu)
 
     for granularity, directory_name in GRANULARITY_DIRS.items():
@@ -206,22 +206,23 @@ def run_batch(args: argparse.Namespace) -> None:
         if not input_dir.is_dir():
             LOGGER.warning("粒度目录不存在，跳过：%s", input_dir)
             continue
-        for period_start, period_end in discover_periods(input_dir):
+        for period_input in discover_periods(input_dir, granularity):
+            period_start = period_input.period_start
+            period_end = period_input.period_end
             if not period_in_window(period_start, period_end, args.start_date, args.end_date):
                 continue
-            period_file = f"{period_start}_{period_end}"
+            period_file = period_input.path.name
             period_meta = period_fields(granularity, period_file)
             request = PeriodRequest(
-                input_dir=input_dir,
-                period_file=period_file,
-                period=period_meta["period"],
+                input_dir=period_input.path,
                 granularity=granularity,
                 self_spu=args.self_spu,
                 competitor_spu=args.competitor_spu,
                 competitor_prefix=args.competitor_prefix,
                 title=args.title or DEFAULT_TITLE,
             )
-            period_dir = OUTPUT_ROOT / granularity / period_file
+            output_period_file = f"{period_start}_{period_end}"
+            period_dir = OUTPUT_ROOT / granularity / output_period_file
             LOGGER.info("开始处理周期：%s", period_meta["period_key"])
             result, normalized, samples = analyze_period(request, history)
             write_json(period_dir / "normalized_data.json", normalized)
