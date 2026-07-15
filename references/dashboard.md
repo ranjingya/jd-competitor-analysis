@@ -17,6 +17,8 @@
 
 Vite 源码位于 `scripts/web/`，运行产物位于 `scripts/output/`。以上路径均相对于 Skill 根目录，输出目录保持在版本控制之外。
 
+分析脚本始终写入该目录，不接受其他结果输出路径。
+
 ```text
 scripts/output/
 ├── report-index.json
@@ -42,14 +44,7 @@ npm run build
 npm run preview
 ```
 
-默认读取 `<Skill根目录>/scripts/output/`。需要读取其他输出目录时，在启动前设置环境变量：
-
-```powershell
-$env:REPORT_OUTPUT_DIR = "D:\path\to\report-output"
-npm run dev
-```
-
-Vite 中间件把该目录只读映射为 `/reports/`，只允许读取 `report-index.json` 和各周期的 `analysis_result.json`，不提供 Excel、`normalized_data.json` 或任意其他文件。
+Vite 中间件把 `<Skill根目录>/scripts/output/` 只读映射为 `/reports/`，只允许读取 `report-index.json` 和各周期的 `analysis_result.json`，不提供 Excel、`normalized_data.json` 或任意其他文件。
 
 ## 报告索引
 
