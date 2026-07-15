@@ -13,13 +13,13 @@
       <a class="back-link" href="/">← 返回分析看板</a>
       <p class="eyebrow">PERIOD SELECTOR PLAYGROUND</p>
       <h1>一个日历，选择日、周、月</h1>
-      <p class="intro">点击打开查看回弹动效。日选单格，周选整行，月选月份；选择具体周期后日历保持打开。</p>
+      <p class="intro">点击触发器查看翻页打开与反向收起。动效平滑落位、不回弹；选择具体周期后日历保持打开。</p>
     </header>
 
     <section class="demo-card" aria-labelledby="demo-title">
       <header class="demo-heading">
         <div>
-          <p class="section-label">分析周期</p>
+          <p class="section-label">翻页落位 · 开合动效</p>
           <h2 id="demo-title">紧凑弹层日历</h2>
         </div>
         <div class="current-selection" aria-live="polite">
@@ -27,20 +27,6 @@
           <strong id="current-selection">正在读取报告</strong>
         </div>
       </header>
-
-      <div class="motion-lab" aria-label="入场动效选择">
-        <div class="motion-copy">
-          <span>当前入场动效</span>
-          <strong id="motion-title">柔和回弹</strong>
-          <p id="motion-description">轻微越过终点再回落，反馈最明确。</p>
-        </div>
-        <div class="motion-options" id="motion-options">
-          <button type="button" class="is-selected" data-motion="spring" aria-pressed="true"><strong>柔和回弹</strong><span>360ms</span></button>
-          <button type="button" data-motion="snap" aria-pressed="false"><strong>磁吸展开</strong><span>280ms</span></button>
-          <button type="button" data-motion="fold" aria-pressed="false"><strong>翻页落位</strong><span>420ms</span></button>
-          <button type="button" data-motion="glide" aria-pressed="false"><strong>侧滑减速</strong><span>320ms</span></button>
-        </div>
-      </div>
 
       <div class="dashboard-strip">
         <div class="strip-context">
@@ -54,7 +40,7 @@
             <span id="trigger-label">正在读取报告</span>
             <span class="chevron" aria-hidden="true">⌄</span>
           </button>
-          <div class="period-popover" id="period-popover" data-motion="spring"></div>
+          <div class="period-popover" id="period-popover"></div>
         </div>
       </div>
     </section>

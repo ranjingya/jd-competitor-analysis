@@ -89,79 +89,6 @@ h1 {
 
 h2 { margin: 6px 0 0; font-size: 24px; letter-spacing: -0.025em; }
 
-.motion-lab {
-  display: grid;
-  grid-template-columns: minmax(190px, 0.7fr) minmax(0, 1.6fr);
-  gap: 18px;
-  align-items: center;
-  margin-top: 20px;
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: rgba(255, 253, 248, 0.66);
-}
-
-.motion-copy span,
-.motion-copy strong {
-  display: block;
-}
-
-.motion-copy span {
-  color: var(--muted);
-  font-size: 10px;
-}
-
-.motion-copy strong {
-  margin-top: 3px;
-  font-size: 15px;
-}
-
-.motion-copy p {
-  margin: 5px 0 0;
-  color: var(--muted);
-  font-size: 11px;
-  line-height: 1.5;
-}
-
-.motion-options {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.motion-options button {
-  min-width: 0;
-  padding: 9px 7px;
-  border: 1px solid transparent;
-  border-radius: 7px;
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-  transition: border-color 150ms ease, color 150ms ease, background-color 150ms ease;
-}
-
-.motion-options button:hover:not(.is-selected) {
-  border-color: rgba(15, 123, 115, 0.28);
-  color: var(--blue-deep);
-}
-
-.motion-options button.is-selected {
-  border-color: rgba(15, 123, 115, 0.35);
-  background: var(--blue-soft);
-  color: var(--blue-deep);
-}
-
-.motion-options strong,
-.motion-options span {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.motion-options strong { font-size: 11px; }
-.motion-options span { margin-top: 3px; opacity: 0.72; font: 9px/1.2 Consolas, monospace; }
-
 .current-selection {
   min-width: 300px;
   padding: 12px 15px;
@@ -235,8 +162,13 @@ h2 { margin: 6px 0 0; font-size: 24px; letter-spacing: -0.025em; }
   transform-origin: top right;
 }
 
-.period-popover.is-open {
+.period-popover.is-open,
+.period-popover.is-closing {
   display: grid;
+}
+
+.period-popover.is-closing {
+  pointer-events: none;
 }
 
 .granularity-rail {
@@ -412,8 +344,6 @@ h2 { margin: 6px 0 0; font-size: 24px; letter-spacing: -0.025em; }
   .playground-shell { width: min(100% - 24px, 1120px); padding-top: 22px; }
   .demo-card { padding: 17px; }
   .demo-heading { display: block; }
-  .motion-lab { grid-template-columns: 1fr; }
-  .motion-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .current-selection { min-width: 0; margin-top: 14px; }
   .dashboard-strip { display: block; min-height: 660px; padding: 14px; }
   .period-field { justify-content: space-between; margin-top: 16px; }
@@ -430,45 +360,23 @@ h2 { margin: 6px 0 0; font-size: 24px; letter-spacing: -0.025em; }
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .period-popover.is-open[data-motion="spring"] {
-    animation: calendar-popover-spring 360ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  }
-
-  .period-popover.is-open[data-motion="snap"] {
-    animation: calendar-popover-snap 280ms cubic-bezier(0.2, 0.86, 0.24, 1) both;
-  }
-
-  .period-popover.is-open[data-motion="fold"] {
-    animation: calendar-popover-fold 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  .period-popover.is-open {
+    animation: calendar-popover-fold-enter 360ms cubic-bezier(0.22, 0.74, 0.24, 1) both;
     transform-origin: top center;
   }
 
-  .period-popover.is-open[data-motion="glide"] {
-    animation: calendar-popover-glide 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  .period-popover.is-closing {
+    animation: calendar-popover-fold-exit 260ms cubic-bezier(0.4, 0, 0.65, 0.2) both;
+    transform-origin: top center;
   }
 
-  @keyframes calendar-popover-spring {
-    0% { opacity: 0; transform: translateY(-12px) scale(0.965); }
-    62% { opacity: 1; transform: translateY(2px) scale(1.008); }
-    82% { transform: translateY(-1px) scale(0.998); }
-    100% { opacity: 1; transform: translateY(0) scale(1); }
+  @keyframes calendar-popover-fold-enter {
+    from { opacity: 0; transform: perspective(900px) translateY(-9px) rotateX(-9deg) scale(0.985); }
+    to { opacity: 1; transform: perspective(900px) translateY(0) rotateX(0) scale(1); }
   }
 
-  @keyframes calendar-popover-snap {
-    0% { opacity: 0; clip-path: inset(0 0 94% 0 round 13px); transform: translateY(-5px) scale(0.99); }
-    72% { opacity: 1; clip-path: inset(0 0 0 0 round 13px); transform: translateY(1px) scale(1.002); }
-    100% { opacity: 1; clip-path: inset(0 0 0 0 round 13px); transform: translateY(0) scale(1); }
-  }
-
-  @keyframes calendar-popover-fold {
-    0% { opacity: 0; transform: perspective(900px) translateY(-9px) rotateX(-11deg) scale(0.985); }
-    68% { opacity: 1; transform: perspective(900px) translateY(1px) rotateX(1.2deg) scale(1); }
-    100% { opacity: 1; transform: perspective(900px) translateY(0) rotateX(0) scale(1); }
-  }
-
-  @keyframes calendar-popover-glide {
-    0% { opacity: 0; filter: blur(3px); transform: translateX(24px) scale(0.98); }
-    72% { opacity: 1; filter: blur(0); transform: translateX(-2px) scale(1.002); }
-    100% { opacity: 1; filter: blur(0); transform: translateX(0) scale(1); }
+  @keyframes calendar-popover-fold-exit {
+    from { opacity: 1; transform: perspective(900px) translateY(0) rotateX(0) scale(1); }
+    to { opacity: 0; transform: perspective(900px) translateY(-7px) rotateX(-7deg) scale(0.99); }
   }
 }
