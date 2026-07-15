@@ -274,9 +274,10 @@ export function showTrendState(message, isError = false) {
  * 参数 reports：按时间升序排列的 `analysis_result.json` 数组。
  * 参数 metricId：当前选择的核心指标 ID。
  * 参数 granularity：当前报告粒度。
+ * 参数 selectedPeriodStart：当前选中报告的开始日期，用于标记趋势中的当前点。
  * 返回值：无；直接更新趋势标题、范围说明和 ECharts 图表。
  */
-export function renderTrendChart(reports, metricId, granularity) {
+export function renderTrendChart(reports, metricId, granularity, selectedPeriodStart = "") {
   const series = reports.map((report) => {
     const metric = (report.core_metrics || []).find((item) => item.id === metricId);
     if (!metric || typeof metric.self_value !== "number" || typeof metric.competitor_value !== "number") {
@@ -284,6 +285,7 @@ export function renderTrendChart(reports, metricId, granularity) {
     }
     return {
       period: report.meta?.period || "-",
+      periodStart: String(report.meta?.period_start || ""),
       label: trendPeriodLabel(report.meta || {}, granularity),
       selfValue: metric.self_value,
       competitorValue: metric.competitor_value,
@@ -296,13 +298,23 @@ export function renderTrendChart(reports, metricId, granularity) {
   }
 
   const metric = series[0].metric;
-  const scopeLabels = { day: `近 ${series.length} 天`, week: `本月 ${series.length} 周`, month: `${series.length} 个月` };
   document.querySelector("#trend-title").textContent = `${metric.label || "指标"}趋势`;
+  if (series.length < 2) {
+    document.querySelector("#trend-scope").textContent = "历史数据不足";
+    showTrendState("当前只有 1 个周期的数据，至少需要 2 个周期才能形成趋势");
+    return;
+  }
+  const selectedItem = series.find((item) => item.periodStart === selectedPeriodStart);
+  const scopeLabels = {
+    day: `${series.length} 天窗口${selectedItem ? ` · 当前 ${selectedItem.label}` : ""}`,
+    week: `本月 ${series.length} 周`,
+    month: `${series.length} 个月`
+  };
   document.querySelector("#trend-scope").textContent = `${scopeLabels[granularity] || `${series.length} 个周期`} · 点击指标卡切换`;
   const target = document.querySelector("#trend-chart");
   disposeTrendChart();
   target.innerHTML = "";
-  target.setAttribute("aria-label", `${metric.label || "指标"}本品与竞品趋势图`);
+  target.setAttribute("aria-label", `${metric.label || "指标"}本品与竞品趋势图${selectedItem ? `，当前选中 ${selectedItem.label}` : ""}`);
   trendChartInstance = echarts.init(target, null, { renderer: "svg" });
   const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
   trendChartInstance.setOption({
@@ -360,7 +372,11 @@ export function renderTrendChart(reports, metricId, granularity) {
         symbolSize: 7,
         showSymbol: true,
         lineStyle: { width: 3 },
-        data: series.map((item) => item.selfValue)
+        data: series.map((item) => item.periodStart === selectedPeriodStart ? {
+          value: item.selfValue,
+          symbolSize: 11,
+          itemStyle: { borderColor: "#fffdf8", borderWidth: 3, shadowBlur: 6, shadowColor: "rgba(15, 123, 115, 0.28)" }
+        } : item.selfValue)
       },
       {
         name: "竞品",
@@ -370,7 +386,11 @@ export function renderTrendChart(reports, metricId, granularity) {
         symbolSize: 7,
         showSymbol: true,
         lineStyle: { width: 3 },
-        data: series.map((item) => item.competitorValue)
+        data: series.map((item) => item.periodStart === selectedPeriodStart ? {
+          value: item.competitorValue,
+          symbolSize: 11,
+          itemStyle: { borderColor: "#fffdf8", borderWidth: 3, shadowBlur: 6, shadowColor: "rgba(185, 105, 5, 0.25)" }
+        } : item.competitorValue)
       }
     ]
   });

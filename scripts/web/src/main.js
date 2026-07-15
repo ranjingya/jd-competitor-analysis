@@ -62,15 +62,20 @@ function bindPeriodPickerDismissal() {
 }
 
 /**
- * 功能说明：按当前粒度和所选周期筛选趋势图需要加载的报告条目。
+ * 功能说明：按当前粒度和所选周期筛选趋势报告，日报围绕选中日期双向补齐至 7 条。
  * 参数 entry：当前周期的报告索引条目。
  * 返回值：按日期升序排列的趋势报告条目数组。
  */
 function trendEntriesFor(entry) {
-  const reports = reportsFor(state.activeGranularity);
+  const reports = [...reportsFor(state.activeGranularity)].sort((left, right) =>
+    String(left.period_start || "").localeCompare(String(right.period_start || ""))
+  );
   if (state.activeGranularity === "day") {
     const selectedIndex = Math.max(0, reports.findIndex((item) => item.period_key === entry.period_key));
-    return reports.slice(Math.max(0, selectedIndex - 6), selectedIndex + 1);
+    const windowSize = 7;
+    const centeredStart = selectedIndex - Math.floor(windowSize / 2);
+    const start = Math.min(Math.max(0, centeredStart), Math.max(0, reports.length - windowSize));
+    return reports.slice(start, start + windowSize);
   }
   if (state.activeGranularity === "week") {
     const selectedMonth = String(entry.period_start || "").slice(0, 7);
@@ -94,7 +99,7 @@ async function renderActiveTrend(entry) {
     if (requestId !== state.trendRequestId) {
       return;
     }
-    renderTrendChart(reports, state.activeMetricId, state.activeGranularity);
+    renderTrendChart(reports, state.activeMetricId, state.activeGranularity, entry.period_start);
   } catch (error) {
     console.error("趋势数据加载失败", error);
     if (requestId === state.trendRequestId) {
