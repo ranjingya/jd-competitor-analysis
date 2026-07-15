@@ -2,11 +2,18 @@ import { loadReportIndex } from "./data-client.js";
 
 const granularityLabels = { day: "日", week: "周", month: "月" };
 const weekdayLabels = ["一", "二", "三", "四", "五", "六", "日"];
+const motionPresets = {
+  spring: { title: "柔和回弹", description: "轻微越过终点再回落，反馈最明确。" },
+  snap: { title: "磁吸展开", description: "从触发器边缘快速展开，停靠感更强。" },
+  fold: { title: "翻页落位", description: "沿顶部轴线翻开，强化日历的纸张感。" },
+  glide: { title: "侧滑减速", description: "从右侧快速滑入后减速，方向感最明显。" }
+};
 
 const state = {
   index: null,
   activeGranularity: "day",
-  selectedKeys: {}
+  selectedKeys: {},
+  motion: "spring"
 };
 
 function dateParts(value) {
@@ -301,6 +308,45 @@ function bindPopoverTrigger() {
   });
 }
 
+function updateMotionControls() {
+  const preset = motionPresets[state.motion];
+  document.querySelector("#motion-title").textContent = preset.title;
+  document.querySelector("#motion-description").textContent = preset.description;
+  document.querySelectorAll("#motion-options [data-motion]").forEach((button) => {
+    const selected = button.dataset.motion === state.motion;
+    button.classList.toggle("is-selected", selected);
+    button.setAttribute("aria-pressed", String(selected));
+  });
+}
+
+/**
+ * 功能说明：应用指定入场动效并立即重播日历弹层。
+ * 参数 motion：spring、snap、fold 或 glide 动效标识。
+ * 返回值：无。
+ */
+function replayMotion(motion) {
+  if (!motionPresets[motion]) return;
+  state.motion = motion;
+  const trigger = document.querySelector("#period-trigger");
+  const popover = document.querySelector("#period-popover");
+  popover.dataset.motion = motion;
+  popover.classList.remove("is-open");
+  trigger.setAttribute("aria-expanded", "false");
+  void popover.offsetWidth;
+  requestAnimationFrame(() => {
+    popover.classList.add("is-open");
+    trigger.setAttribute("aria-expanded", "true");
+  });
+  updateMotionControls();
+  console.info("Playground 入场动效重播", { motion });
+}
+
+function bindMotionControls() {
+  document.querySelectorAll("#motion-options [data-motion]").forEach((button) => {
+    button.addEventListener("click", () => replayMotion(button.dataset.motion));
+  });
+}
+
 /**
  * 功能说明：读取真实报告索引并初始化单一的日周月日历 Playground。
  * 返回值：Promise；初始化完成后页面可交互。
@@ -316,6 +362,8 @@ async function initializePlayground() {
     updateSelectionLabels(state.activeGranularity, entry);
     renderPopover();
     bindPopoverTrigger();
+    bindMotionControls();
+    updateMotionControls();
     console.info("分析周期日历 Playground 初始化完成");
   } catch (error) {
     console.error("分析周期日历 Playground 初始化失败", error);
