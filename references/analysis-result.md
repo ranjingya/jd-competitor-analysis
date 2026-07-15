@@ -166,7 +166,7 @@
 
 ## `ai_recommendations[]`
 
-基础分析流程只初始化空数组。Skill 读取完整分析结果和 [ai-recommendations.md](ai-recommendations.md) 后生成建议，再通过 `scripts/main.py apply-ai` 写回。
+基础分析流程只初始化空数组。Skill 读取完整分析结果和 [ai-recommendations.md](ai-recommendations.md) 后生成建议，再通过 `scripts/main.py apply-ai` 写回。独立建议 JSON 是位于 `scripts/output/` 之外的临时输入，写回确认后立即清理，不属于最终结果契约。
 
 每项至少包含：
 

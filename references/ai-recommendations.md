@@ -25,7 +25,14 @@ AI 建议是基础分析完成后的独立 Skill 步骤。先读取完整 `analy
 4. 先处理有明确证据的劣势，再识别可复制的优势做法。
 5. 比较指标之间是否存在结构分化，避免把单项差距直接等同于问题。
 6. 生成 1–5 条建议；每条建议只针对一个明确对象，并给出证据、动作和验收条件。
-7. 将建议保存为独立 JSON，通过 `scripts/main.py apply-ai --recommendations <文件>` 校验周期，并按 `period_key` 写回 `scripts/output/` 中对应的分析结果。
+7. 将建议保存到 `scripts/output/` 之外的临时 JSON，通过 `scripts/main.py apply-ai --recommendations <文件>` 校验周期，并按 `period_key` 写回对应的正式分析结果。
+8. 重新读取正式 `analysis_result.json`，确认 `ai_recommendations[]` 与临时 JSON 一致后，删除临时文件和本次临时目录。
+
+## 中间文件约束
+
+- `scripts/output/` 只保存 `report-index.json` 和日、周、月正式报告。
+- 独立建议 JSON 仅用于 `apply-ai` 输入，不属于报告产物，不由网页读取。
+- 建议写回成功后立即清理中间文件；最终建议只保存在 `analysis_result.json` 的 `ai_recommendations[]` 中。
 
 ## 证据规则
 
