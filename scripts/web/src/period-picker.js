@@ -220,9 +220,9 @@ function bindPeriodSelection(root, options, granularity) {
   });
 }
 
-function createActivePanel(options) {
-  if (options.activeGranularity === "week") return createWeekPanel(options);
-  if (options.activeGranularity === "month") return createMonthPanel(options);
+function createActivePanel(options, granularity) {
+  if (granularity === "week") return createWeekPanel(options);
+  if (granularity === "month") return createMonthPanel(options);
   return createDayPanel(options);
 }
 
@@ -232,7 +232,11 @@ function createActivePanel(options) {
  * 返回值：无。
  */
 export function renderPeriodPicker(options) {
-  const activeEntry = selectedEntry(options);
+  const activeEntry = selectedEntry(options, options.activeGranularity);
+  const pickerGranularity = options.pickerState.open
+    ? options.pickerState.draftGranularity || options.activeGranularity
+    : options.activeGranularity;
+  const pickerEntry = selectedEntry(options, pickerGranularity);
   options.container.innerHTML = `
     <label class="period-label" for="period-trigger">分析周期</label>
     <button class="period-trigger" id="period-trigger" type="button" aria-expanded="${options.pickerState.open}" aria-controls="period-popover" ${activeEntry ? "" : "disabled"}>
@@ -244,24 +248,30 @@ export function renderPeriodPicker(options) {
       <nav class="period-granularity-rail" aria-label="分析粒度">
         ${Object.entries(granularityLabels).map(([key, label]) => {
           const count = reportsFor(options.index, key).length;
-          return `<button type="button" data-granularity="${key}" class="${key === options.activeGranularity ? "is-selected" : ""}" aria-pressed="${key === options.activeGranularity}" ${count ? "" : "disabled"}><strong>${label}</strong><span>${count}</span></button>`;
+          return `<button type="button" data-granularity="${key}" class="${key === pickerGranularity ? "is-selected" : ""}" aria-pressed="${key === pickerGranularity}" ${count ? "" : "disabled"}><strong>${label}</strong><span>${count}</span></button>`;
         }).join("")}
       </nav>
       <section class="period-selector-content" data-selector-content></section>
     </div>
   `;
   options.container.querySelector("#period-trigger")?.addEventListener("click", () => {
-    options.pickerState.open = !options.pickerState.open;
+    const opening = !options.pickerState.open;
+    options.pickerState.open = opening;
+    if (opening) {
+      options.pickerState.draftGranularity = options.activeGranularity;
+      options.pickerState.contexts[options.activeGranularity] = contextForEntry(options.activeGranularity, activeEntry);
+    }
     renderPeriodPicker(options);
   });
   options.container.querySelectorAll("[data-granularity]:not(:disabled)").forEach((button) => {
     button.addEventListener("click", () => {
       const granularity = button.dataset.granularity;
+      options.pickerState.draftGranularity = granularity;
       options.pickerState.contexts[granularity] = contextForEntry(granularity, selectedEntry(options, granularity));
       options.pickerState.open = true;
-      options.onGranularityChange(granularity);
+      renderPeriodPicker(options);
     });
   });
   const content = options.container.querySelector("[data-selector-content]");
-  if (content && activeEntry) content.replaceChildren(createActivePanel(options));
+  if (content && pickerEntry) content.replaceChildren(createActivePanel(options, pickerGranularity));
 }

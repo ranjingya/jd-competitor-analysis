@@ -19,7 +19,8 @@ const state = {
 
 const periodPickerState = {
   open: false,
-  contexts: {}
+  contexts: {},
+  draftGranularity: null
 };
 
 function reportsFor(granularity) {
@@ -30,18 +31,14 @@ function renderControls() {
   const reports = reportsFor(state.activeGranularity);
   const latest = reports.at(-1);
   const selectedKey = state.selectedPeriods[state.activeGranularity] || latest?.period_key || "";
-  document.querySelector("#period-note").textContent = `${granularityLabels[state.activeGranularity]}维度共 ${reports.length} 个周期`;
   renderPeriodPicker({
     container: document.querySelector("#period-picker"),
     index: state.index,
     activeGranularity: state.activeGranularity,
     selectedPeriods: { ...state.selectedPeriods, [state.activeGranularity]: selectedKey },
     pickerState: periodPickerState,
-    onGranularityChange(granularity) {
-      state.activeGranularity = granularity;
-      selectActiveReport();
-    },
     onPeriodChange(granularity, periodKey) {
+      state.activeGranularity = granularity;
       state.selectedPeriods[granularity] = periodKey;
       selectActiveReport();
     }

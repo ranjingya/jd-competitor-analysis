@@ -92,23 +92,17 @@ h1 {
   box-shadow: 0 0 0 4px rgba(15, 123, 115, 0.12);
 }
 
-.view-switcher {
+.report-toolbar {
   position: relative;
   z-index: 30;
+  grid-column: 1 / -1;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  min-height: 52px;
-  margin-bottom: 14px;
+  min-height: 46px;
   padding: 6px 0;
-  border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
-}
-
-.period-summary {
-  color: var(--muted);
-  font-size: 12px;
 }
 
 .period-control {
@@ -1324,16 +1318,20 @@ h1 {
     grid-template-columns: 1fr;
   }
 
+  .report-header {
+    gap: 12px;
+  }
+
   .hero {
     gap: 10px;
     min-height: 0;
   }
 
-  .view-switcher,
+  .report-toolbar,
   .period-control {
     align-items: stretch;
     flex-direction: column;
-    gap: 12px;
+    gap: 9px;
   }
 
   .period-control {
