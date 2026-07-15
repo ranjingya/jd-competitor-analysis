@@ -1,5 +1,6 @@
 import { renderDashboard, renderTrendChart, showPageState, showTrendState } from "./dashboard.js";
 import { loadReport, loadReportIndex } from "./data-client.js";
+import { renderPeriodPicker } from "./period-picker.js";
 
 const granularityLabels = {
   day: "日",
@@ -16,42 +17,51 @@ const state = {
   trendRequestId: 0
 };
 
+const periodPickerState = {
+  open: false,
+  contexts: {}
+};
+
 function reportsFor(granularity) {
   return state.index?.reports?.[granularity] || [];
 }
 
 function renderControls() {
-  const switcher = document.querySelector("#granularity-switch");
-  switcher.innerHTML = Object.entries(granularityLabels).map(([key, label]) => {
-    const count = reportsFor(key).length;
-    return `
-      <button class="granularity-button ${key === state.activeGranularity ? "active" : ""}" type="button" data-granularity="${key}" aria-pressed="${key === state.activeGranularity}" ${count ? "" : "disabled"}>
-        <span>${label}</span><span class="granularity-count">${count}</span>
-      </button>
-    `;
-  }).join("");
-  switcher.querySelectorAll("[data-granularity]").forEach((button) => {
-    button.addEventListener("click", () => {
-      state.activeGranularity = button.dataset.granularity;
-      selectActiveReport();
-    });
-  });
-
   const reports = reportsFor(state.activeGranularity);
   const latest = reports.at(-1);
   const selectedKey = state.selectedPeriods[state.activeGranularity] || latest?.period_key || "";
-  const select = document.querySelector("#period-select");
-  select.innerHTML = reports.slice().reverse().map((entry, index) => `
-    <option value="${entry.period_key}" ${entry.period_key === selectedKey ? "selected" : ""}>
-      ${entry.period}${index === 0 ? "（最新）" : ""}
-    </option>
-  `).join("");
-  select.disabled = reports.length === 0;
-  select.onchange = (event) => {
-    state.selectedPeriods[state.activeGranularity] = event.target.value;
-    selectActiveReport();
-  };
   document.querySelector("#period-note").textContent = `${granularityLabels[state.activeGranularity]}维度共 ${reports.length} 个周期`;
+  renderPeriodPicker({
+    container: document.querySelector("#period-picker"),
+    index: state.index,
+    activeGranularity: state.activeGranularity,
+    selectedPeriods: { ...state.selectedPeriods, [state.activeGranularity]: selectedKey },
+    pickerState: periodPickerState,
+    onGranularityChange(granularity) {
+      state.activeGranularity = granularity;
+      selectActiveReport();
+    },
+    onPeriodChange(granularity, periodKey) {
+      state.selectedPeriods[granularity] = periodKey;
+      selectActiveReport();
+    }
+  });
+}
+
+function bindPeriodPickerDismissal() {
+  document.addEventListener("click", (event) => {
+    const container = document.querySelector("#period-picker");
+    const eventPath = typeof event.composedPath === "function" ? event.composedPath() : [];
+    if (!periodPickerState.open || !container || container.contains(event.target) || eventPath.includes(container)) return;
+    periodPickerState.open = false;
+    renderControls();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || !periodPickerState.open) return;
+    periodPickerState.open = false;
+    renderControls();
+    document.querySelector("#period-trigger")?.focus();
+  });
 }
 
 /**
@@ -146,6 +156,7 @@ async function initialize() {
       ? `数据生成于 ${state.index.updated_at.slice(0, 19).replace("T", " ")}`
       : "暂无分析结果";
     renderControls();
+    bindPeriodPickerDismissal();
     await selectActiveReport();
   } catch (error) {
     console.error("报告索引加载失败", error);
