@@ -80,6 +80,7 @@ def normalize_period(request: PeriodRequest) -> dict[str, Any]:
             validate_rows_period(
                 role,
                 rows,
+                request.granularity,
                 period_meta["period_start"],
                 period_meta["period_end"],
             )

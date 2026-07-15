@@ -217,14 +217,16 @@ def read_rows(source: dict[str, Any]) -> list[dict[str, Any]]:
 def validate_rows_period(
     role: str,
     rows: list[dict[str, Any]],
+    granularity: str,
     period_start: str,
     period_end: str,
 ) -> None:
     """校验工作表业务行的周期。
 
-    功能说明：检查带时间字段的数据行是否全部等于当前周期目录的起止日期。
+    功能说明：检查带时间字段的数据行是否匹配当前周期；月维度兼容京东 `YYYYMM` 格式。
     参数 role：当前数据角色。
     参数 rows：当前工作表读取出的全部业务行。
+    参数 granularity：当前分析粒度。
     参数 period_start：当前周期开始日期。
     参数 period_end：当前周期结束日期。
     返回值：无；表内时间冲突时抛出 RuntimeError。
@@ -237,7 +239,17 @@ def validate_rows_period(
     values.discard("")
     for value in values:
         dates = extract_dates(value)
-        if not dates or dates[0] != period_start or dates[-1] != period_end:
+        iso_range_matched = bool(
+            dates and dates[0] == period_start and dates[-1] == period_end
+        )
+        compact_month_matched = bool(
+            granularity == "month"
+            and len(value) == 6
+            and value.isdigit()
+            and period_start[:7] == period_end[:7]
+            and value == period_start[:7].replace("-", "")
+        )
+        if not iso_range_matched and not compact_month_matched:
             raise RuntimeError(
                 f"{ROLE_RULES[role]['label']}表内周期与目录冲突：{value}，"
                 f"目录周期={period_start}_{period_end}"
