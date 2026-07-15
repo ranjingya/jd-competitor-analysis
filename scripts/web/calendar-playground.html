@@ -34,18 +34,18 @@
         <p class="concept-copy">保留现在的日/周/月切换，只把右侧周期下拉框换成日历。页面高度不变，学习成本最低。</p>
         <div class="demo-stage demo-stage--toolbar">
           <div class="mock-granularity" aria-label="模拟分析粒度">
-            <button class="active" type="button">日 <span>7</span></button>
-            <button type="button">周 <span>5</span></button>
-            <button type="button">月 <span>1</span></button>
+            <button class="active" type="button" data-compact-granularity="day" aria-pressed="true">日 <span>7</span></button>
+            <button type="button" data-compact-granularity="week" aria-pressed="false">周 <span>5</span></button>
+            <button type="button" data-compact-granularity="month" aria-pressed="false">月 <span>1</span></button>
           </div>
           <div class="compact-picker" data-picker="compact">
             <span class="field-label">分析周期</span>
             <button class="date-trigger" type="button" aria-expanded="true">
               <span class="calendar-mark" aria-hidden="true">▦</span>
-              <span data-selected-label>2026-06-07</span>
+              <span data-compact-label>2026-06-07</span>
               <span class="chevron" aria-hidden="true">⌄</span>
             </button>
-            <div class="calendar-popover is-open" data-calendar-host></div>
+            <div class="calendar-popover is-open" data-compact-host></div>
           </div>
         </div>
       </article>
@@ -64,7 +64,7 @@
             <span>2026 年 6 月</span>
             <strong><i></i> 7 天有报告</strong>
           </div>
-          <div class="inline-calendar" data-calendar-host></div>
+          <div class="inline-calendar" data-day-calendar-host></div>
         </div>
       </article>
 
@@ -83,7 +83,7 @@
             <button class="icon-calendar-button" type="button" aria-label="展开完整月历" aria-expanded="false">▦</button>
           </div>
           <div class="date-rail" data-date-rail></div>
-          <div class="rail-calendar" data-calendar-host hidden></div>
+          <div class="rail-calendar" data-day-calendar-host hidden></div>
         </div>
       </article>
 

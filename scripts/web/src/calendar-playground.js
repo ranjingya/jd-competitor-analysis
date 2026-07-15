@@ -6,6 +6,8 @@ const granularityLabels = { day: "日", week: "周", month: "月" };
 const state = {
   index: null,
   selectedDay: "2026-06-07",
+  compactGranularity: "day",
+  compactKeys: {},
   adaptiveGranularity: "day",
   adaptiveKeys: {}
 };
@@ -25,6 +27,61 @@ function latestEntry(granularity) {
 function formatDayLabel(value) {
   const [year, month, day] = value.split("-");
   return `${year} 年 ${Number(month)} 月 ${Number(day)} 日`;
+}
+
+function dateParts(value) {
+  const [year, month, day] = String(value).split("-").map(Number);
+  return { year, month, day };
+}
+
+/**
+ * 功能说明：把周起止日期格式化为易读范围，并保留跨月、跨年边界信息。
+ * 参数 start：周开始日期，格式为 YYYY-MM-DD。
+ * 参数 end：周结束日期，格式为 YYYY-MM-DD。
+ * 返回值：适合界面展示的中文日期范围。
+ */
+function formatWeekRange(start, end) {
+  const from = dateParts(start);
+  const to = dateParts(end);
+  if (from.year !== to.year) {
+    return `${from.year}年${from.month}月${from.day}日—${to.year}年${to.month}月${to.day}日`;
+  }
+  if (from.month !== to.month) {
+    return `${from.year}年${from.month}月${from.day}日—${to.month}月${to.day}日`;
+  }
+  return `${from.year}年${from.month}月${from.day}日—${to.day}日`;
+}
+
+function formatPeriodLabel(granularity, entry) {
+  if (!entry) return "暂无报告";
+  if (granularity === "day") return formatDayLabel(entry.period_start);
+  if (granularity === "week") return formatWeekRange(entry.period_start, entry.period_end);
+  const { year, month } = dateParts(entry.period_start);
+  return `${year} 年 ${month} 月`;
+}
+
+function isCrossMonth(entry) {
+  const from = dateParts(entry.period_start);
+  const to = dateParts(entry.period_end);
+  return from.year !== to.year || from.month !== to.month;
+}
+
+function weekScopeLabel(entries) {
+  if (!entries.length) return "暂无周报告";
+  const from = dateParts(entries[0].period_start);
+  const to = dateParts(entries.at(-1).period_end);
+  if (from.year !== to.year) return `${from.year}年${from.month}月—${to.year}年${to.month}月`;
+  if (from.month !== to.month) return `${from.year}年${from.month}—${to.month}月`;
+  return `${from.year}年${from.month}月`;
+}
+
+function isoWeekNumber(value) {
+  const { year, month, day } = dateParts(value);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  const weekday = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - weekday);
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
 }
 
 /**
@@ -81,11 +138,14 @@ function createDayCalendar(selectedDay, onSelect, compact = false) {
 
 function updateSharedDay(date) {
   state.selectedDay = date;
+  const entry = matchingEntry("day", date);
+  if (entry) state.compactKeys.day = entry.period_key;
   document.querySelector("#shared-selection").textContent = `日分析 · ${formatDayLabel(date)}`;
   document.querySelectorAll("[data-selected-label]").forEach((node) => {
     node.textContent = date;
   });
   renderDayExamples();
+  if (state.compactGranularity === "day") renderCompactExample();
   console.info("Playground 日报告选择完成", { date });
 }
 
@@ -94,9 +154,9 @@ function updateSharedDay(date) {
  * 返回值：无。
  */
 function renderDayExamples() {
-  document.querySelectorAll("[data-calendar-host]").forEach((host, index) => {
+  document.querySelectorAll("[data-day-calendar-host]").forEach((host) => {
     const shouldRemainHidden = host.hasAttribute("hidden");
-    host.replaceChildren(createDayCalendar(state.selectedDay, updateSharedDay, index === 0));
+    host.replaceChildren(createDayCalendar(state.selectedDay, updateSharedDay));
     if (shouldRemainHidden) host.hidden = true;
   });
 
@@ -120,24 +180,27 @@ function matchingEntry(granularity, date) {
 /**
  * 功能说明：生成按粒度变化的选择面板，日选日期、周选整行、月选月份。
  * 参数 granularity：day、week 或 month。
- * 返回值：自适应选择面板 DOM 元素。
+ * 参数 selectedKey：当前选中的报告周期键。
+ * 参数 onSelect：选中报告条目后的回调函数。
+ * 参数 compact：是否使用紧凑弹层尺寸。
+ * 返回值：完成事件绑定的周期选择面板 DOM 元素。
  */
-function createAdaptiveCalendar(granularity) {
+function createPeriodSelector(granularity, selectedKey, onSelect, compact = false) {
   if (granularity === "day") {
-    const selectedEntry = (state.index?.reports?.day || []).find((entry) => entry.period_key === state.adaptiveKeys.day);
+    const selectedEntry = (state.index?.reports?.day || []).find((entry) => entry.period_key === selectedKey);
     const selected = selectedEntry?.period_start || latestEntry("day")?.period_start || state.selectedDay;
-    return createDayCalendar(selected, (date) => selectAdaptive("day", matchingEntry("day", date)));
+    return createDayCalendar(selected, (date) => onSelect(matchingEntry("day", date)), compact);
   }
 
   const root = document.createElement("div");
-  root.className = "period-board";
+  root.className = `period-board${compact ? " period-board--compact" : ""}`;
   const entries = state.index?.reports?.[granularity] || [];
-  const selectedKey = state.adaptiveKeys[granularity] || latestEntry(granularity)?.period_key;
+  const activeKey = selectedKey || latestEntry(granularity)?.period_key;
   if (granularity === "week") {
     root.innerHTML = `
-      <header class="period-board-heading"><strong>2026 年 6 月</strong><span>选择整周报告</span></header>
+      <header class="period-board-heading"><strong>${weekScopeLabel(entries)}</strong><span>选择整周报告</span></header>
       <div class="week-list">
-        ${entries.map((entry, index) => `<button type="button" data-period-key="${entry.period_key}" class="${entry.period_key === selectedKey ? "is-selected" : ""}"><span>第 ${index + 1} 周</span><strong>${entry.period_start.slice(5).replace("-", "/")} — ${entry.period_end.slice(5).replace("-", "/")}</strong><i>7 天</i></button>`).join("")}
+        ${entries.map((entry) => `<button type="button" data-period-key="${entry.period_key}" class="${entry.period_key === activeKey ? "is-selected" : ""}"><span>第 ${isoWeekNumber(entry.period_start)} 周</span><strong>${formatWeekRange(entry.period_start, entry.period_end)}</strong><i class="${isCrossMonth(entry) ? "cross-boundary" : ""}">${isCrossMonth(entry) ? "跨月" : "7 天"}</i></button>`).join("")}
       </div>
     `;
   } else {
@@ -147,23 +210,63 @@ function createAdaptiveCalendar(granularity) {
         ${Array.from({ length: 12 }, (_, index) => {
           const month = index + 1;
           const entry = entries.find((item) => Number(item.period_start.slice(5, 7)) === month);
-          return `<button type="button" ${entry ? `data-period-key="${entry.period_key}"` : "disabled"} class="${entry?.period_key === selectedKey ? "is-selected" : ""}"><strong>${String(month).padStart(2, "0")}</strong><span>${entry ? "报告可用" : "暂无报告"}</span></button>`;
+          return `<button type="button" ${entry ? `data-period-key="${entry.period_key}"` : "disabled"} class="${entry?.period_key === activeKey ? "is-selected" : ""}"><strong>${String(month).padStart(2, "0")}</strong><span>${entry ? "报告可用" : "暂无报告"}</span></button>`;
         }).join("")}
       </div>
     `;
   }
   root.querySelectorAll("[data-period-key]").forEach((button) => {
     const entry = entries.find((item) => item.period_key === button.dataset.periodKey);
-    button.addEventListener("click", () => selectAdaptive(granularity, entry));
+    button.addEventListener("click", () => onSelect(entry));
   });
   return root;
+}
+
+/**
+ * 功能说明：刷新紧凑弹层的粒度按钮、触发器文本和周期选择面板。
+ * 返回值：无。
+ */
+function renderCompactExample() {
+  const granularity = state.compactGranularity;
+  const entry = (state.index?.reports?.[granularity] || []).find((item) => item.period_key === state.compactKeys[granularity])
+    || latestEntry(granularity);
+  document.querySelectorAll("[data-compact-granularity]").forEach((button) => {
+    const selected = button.dataset.compactGranularity === granularity;
+    button.classList.toggle("active", selected);
+    button.setAttribute("aria-pressed", String(selected));
+  });
+  document.querySelector("[data-compact-label]").textContent = formatPeriodLabel(granularity, entry);
+  const host = document.querySelector("[data-compact-host]");
+  host.replaceChildren(createPeriodSelector(granularity, entry?.period_key, (selectedEntry) => {
+    selectCompact(granularity, selectedEntry);
+  }, true));
+}
+
+/**
+ * 功能说明：记录紧凑弹层选择结果，并同步当前模拟选择。
+ * 参数 granularity：day、week 或 month。
+ * 参数 entry：当前选中的报告索引条目。
+ * 返回值：无。
+ */
+function selectCompact(granularity, entry) {
+  if (!entry) return;
+  state.compactKeys[granularity] = entry.period_key;
+  if (granularity === "day") {
+    state.selectedDay = entry.period_start;
+    renderDayExamples();
+  }
+  document.querySelector("#shared-selection").textContent = `${granularityLabels[granularity]}分析 · ${formatPeriodLabel(granularity, entry)}`;
+  renderCompactExample();
+  console.info("Playground 紧凑周期选择完成", { granularity, period: entry.period });
 }
 
 function selectAdaptive(granularity, entry) {
   if (!entry) return;
   state.adaptiveKeys[granularity] = entry.period_key;
-  document.querySelector("[data-adaptive-result]").textContent = `${granularityLabels[granularity]}分析 · ${entry.period}`;
-  document.querySelector("[data-adaptive-host]").replaceChildren(createAdaptiveCalendar(granularity));
+  document.querySelector("[data-adaptive-result]").textContent = `${granularityLabels[granularity]}分析 · ${formatPeriodLabel(granularity, entry)}`;
+  document.querySelector("[data-adaptive-host]").replaceChildren(createPeriodSelector(granularity, entry.period_key, (selectedEntry) => {
+    selectAdaptive(granularity, selectedEntry);
+  }));
   console.info("Playground 自适应周期选择完成", { granularity, period: entry.period });
 }
 
@@ -185,7 +288,11 @@ function renderAdaptiveExample() {
       selectAdaptive(state.adaptiveGranularity, entry);
     });
   });
-  document.querySelector("[data-adaptive-host]").replaceChildren(createAdaptiveCalendar(state.adaptiveGranularity));
+  document.querySelector("[data-adaptive-host]").replaceChildren(createPeriodSelector(
+    state.adaptiveGranularity,
+    state.adaptiveKeys[state.adaptiveGranularity],
+    (selectedEntry) => selectAdaptive(state.adaptiveGranularity, selectedEntry)
+  ));
 }
 
 function bindDisclosureControls() {
@@ -194,6 +301,12 @@ function bindDisclosureControls() {
   compactTrigger.addEventListener("click", () => {
     const open = compactPopover.classList.toggle("is-open");
     compactTrigger.setAttribute("aria-expanded", String(open));
+  });
+  document.querySelectorAll("[data-compact-granularity]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.compactGranularity = button.dataset.compactGranularity;
+      selectCompact(state.compactGranularity, latestEntry(state.compactGranularity));
+    });
   });
 
   const railTrigger = document.querySelector(".icon-calendar-button");
@@ -214,9 +327,11 @@ async function initializePlayground() {
     state.index = await loadReportIndex();
     state.selectedDay = latestEntry("day")?.period_start || state.selectedDay;
     for (const granularity of Object.keys(granularityLabels)) {
+      state.compactKeys[granularity] = latestEntry(granularity)?.period_key || "";
       state.adaptiveKeys[granularity] = latestEntry(granularity)?.period_key || "";
     }
     updateSharedDay(state.selectedDay);
+    renderCompactExample();
     renderAdaptiveExample();
     selectAdaptive("day", latestEntry("day"));
     bindDisclosureControls();
