@@ -147,8 +147,17 @@ h1 {
 }
 
 .period-chevron {
+  display: block;
+  flex: 0 0 8px;
+  width: 8px;
+  height: 8px;
   margin-left: auto;
+  margin-right: 2px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
   color: var(--muted);
+  transform: translateY(-2px) rotate(45deg);
+  transform-origin: center;
 }
 
 .period-popover {

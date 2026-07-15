@@ -270,7 +270,7 @@ export function renderPeriodPicker(options) {
     <button class="period-trigger" id="period-trigger" type="button" aria-expanded="${options.pickerState.open}" aria-controls="period-popover" ${activeEntry ? "" : "disabled"}>
       <span class="period-calendar-icon" aria-hidden="true">▦</span>
       <span>${formatPeriodLabel(options.activeGranularity, activeEntry)}</span>
-      <span class="period-chevron" aria-hidden="true">⌄</span>
+      <span class="period-chevron" aria-hidden="true"></span>
     </button>
     <div class="period-popover${options.pickerState.open ? " is-open" : ""}${options.pickerState.closing ? " is-closing" : ""}${options.pickerState.animateOpen ? " is-entering" : ""}" id="period-popover">
       <nav class="period-granularity-rail" aria-label="分析粒度">
