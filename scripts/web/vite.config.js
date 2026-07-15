@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 
 const webRoot = fileURLToPath(new URL(".", import.meta.url));
-const outputRoot = resolve(process.env.REPORT_OUTPUT_DIR || resolve(webRoot, "../output"));
+const outputRoot = resolve(webRoot, "../output");
 const emptyIndex = JSON.stringify({
   schema_version: "1.0",
   updated_at: null,

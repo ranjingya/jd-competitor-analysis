@@ -24,12 +24,8 @@ def _add_analysis_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--competitor-spu", help="竞品 SPU。")
     parser.add_argument("--competitor-prefix", default="竞品1", help="导出表中的目标竞品字段前缀。")
     parser.add_argument("--title", help="网页标题，默认使用“竞品准真实值看板”。")
-    parser.add_argument("--output-root", help="批量模式的输出根目录。")
     parser.add_argument("--start-date", help="批量模式的最早周期日期，格式为 YYYY-MM-DD。")
     parser.add_argument("--end-date", help="批量模式的最晚周期日期，格式为 YYYY-MM-DD。")
-    parser.add_argument("--output-json", help="单周期模式的 analysis_result.json 输出路径。")
-    parser.add_argument("--output-normalized", help="可选的 normalized_data.json 输出路径。")
-    parser.add_argument("--empty-template-output", help="可选的空结构 JSON 输出路径。")
     parser.add_argument("--log-level", default="INFO", help="日志级别。")
 
 
@@ -48,12 +44,9 @@ def parse_args() -> argparse.Namespace:
     analyze_parser.set_defaults(handler=run_analysis)
 
     apply_parser = subparsers.add_parser("apply-ai", help="把 Skill 生成的 AI 建议写入分析结果。")
-    apply_parser.add_argument("--analysis", type=Path, required=True, help="analysis_result.json 路径。")
     apply_parser.add_argument("--recommendations", type=Path, required=True, help="AI 建议输入 JSON 路径。")
     apply_parser.add_argument("--log-level", default="INFO", help="日志级别。")
-    apply_parser.set_defaults(
-        handler=lambda args: apply_recommendations(args.analysis, args.recommendations)
-    )
+    apply_parser.set_defaults(handler=lambda args: apply_recommendations(args.recommendations))
     return parser.parse_args()
 
 
@@ -61,7 +54,7 @@ def main() -> None:
     """执行京东竞品分析命令。
 
     功能说明：解析外部命令，初始化标准日志，并调用对应的内部业务流程。
-    返回值：无；分析结果由对应流程写入调用方指定位置。
+    返回值：无；分析结果由对应流程固定写入 `scripts/output/`。
     """
 
     args = parse_args()

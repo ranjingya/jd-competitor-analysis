@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import logging
+import re
 from pathlib import Path
 from typing import Any
 
+from . import OUTPUT_ROOT
 from .contracts import read_json, validate_contract, write_json
 
 
@@ -54,18 +56,33 @@ def validate_recommendations(items: Any) -> list[dict[str, Any]]:
     return items
 
 
-def apply_recommendations(analysis_path: Path, recommendations_path: Path) -> None:
+def _analysis_path(period_key: str) -> Path:
+    """根据周期唯一键定位固定输出目录中的分析结果。"""
+
+    granularity, separator, period_file = period_key.partition(":")
+    if (
+        separator != ":"
+        or granularity not in {"day", "week", "month"}
+        or re.fullmatch(r"\d{4}-\d{2}-\d{2}_\d{4}-\d{2}-\d{2}", period_file) is None
+    ):
+        raise ValueError(f"建议 period_key 无效：{period_key}")
+    return OUTPUT_ROOT / granularity / period_file / "analysis_result.json"
+
+
+def apply_recommendations(recommendations_path: Path) -> None:
     """把建议写入分析结果。
 
-    功能说明：读取正式分析结果与 Skill 产出的建议，校验周期一致性后原子更新 `ai_recommendations`。
-    参数 analysis_path：需要更新的 `analysis_result.json` 路径。
+    功能说明：读取 Skill 产出的建议，按周期定位固定输出目录中的正式分析结果并原子更新 `ai_recommendations`。
     参数 recommendations_path：包含 `period_key` 和 `ai_recommendations` 的输入 JSON 路径。
     返回值：无；成功后原子覆盖分析结果文件。
     """
 
+    payload = read_json(recommendations_path)
+    analysis_path = _analysis_path(str(payload.get("period_key") or ""))
+    if not analysis_path.is_file():
+        raise FileNotFoundError(f"固定输出目录中不存在分析结果：{analysis_path}")
     LOGGER.info("开始写入 AI 建议：%s", analysis_path)
     analysis = read_json(analysis_path)
-    payload = read_json(recommendations_path)
     expected_period = analysis.get("meta", {}).get("period_key")
     if payload.get("period_key") != expected_period:
         raise ValueError(f"建议周期与分析结果不一致：{payload.get('period_key')} != {expected_period}")
