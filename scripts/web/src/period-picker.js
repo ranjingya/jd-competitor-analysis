@@ -129,6 +129,7 @@ function bindContextNavigation(root, options, granularity) {
   root.querySelectorAll("[data-context-index]:not(:disabled)").forEach((button) => {
     button.addEventListener("click", () => {
       options.pickerState.contexts[granularity] = contexts[Number(button.dataset.contextIndex)];
+      options.pickerState.animateOpen = false;
       renderPeriodPicker(options);
     });
   });
@@ -214,7 +215,9 @@ function bindPeriodSelection(root, options, granularity) {
       const entry = reportsFor(options.index, granularity).find((item) => item.period_key === button.dataset.periodKey);
       if (!entry) return;
       options.pickerState.contexts[granularity] = contextForEntry(granularity, entry);
-      options.pickerState.open = false;
+      options.pickerState.open = true;
+      options.pickerState.closing = false;
+      options.pickerState.animateOpen = false;
       options.onPeriodChange(granularity, entry.period_key);
     });
   });
@@ -224,6 +227,31 @@ function createActivePanel(options, granularity) {
   if (granularity === "week") return createWeekPanel(options);
   if (granularity === "month") return createMonthPanel(options);
   return createDayPanel(options);
+}
+
+/**
+ * 功能说明：播放周期选择器的收起动效，并同步按钮的可访问状态。
+ * 参数 container：周期选择器容器元素。
+ * 参数 pickerState：周期选择器的开合与动效状态。
+ * 返回值：成功发起收起时返回 true，否则返回 false。
+ */
+export function closePeriodPicker(container, pickerState) {
+  if (!container || !pickerState.open) return false;
+  const trigger = container.querySelector("#period-trigger");
+  const popover = container.querySelector("#period-popover");
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  pickerState.open = false;
+  pickerState.animateOpen = false;
+  trigger?.setAttribute("aria-expanded", "false");
+  if (!popover || reduceMotion) {
+    pickerState.closing = false;
+    popover?.classList.remove("is-open", "is-entering", "is-closing");
+    return true;
+  }
+  pickerState.closing = true;
+  popover.classList.remove("is-open", "is-entering");
+  popover.classList.add("is-closing");
+  return true;
 }
 
 /**
@@ -244,7 +272,7 @@ export function renderPeriodPicker(options) {
       <span>${formatPeriodLabel(options.activeGranularity, activeEntry)}</span>
       <span class="period-chevron" aria-hidden="true">⌄</span>
     </button>
-    <div class="period-popover${options.pickerState.open ? " is-open" : ""}" id="period-popover">
+    <div class="period-popover${options.pickerState.open ? " is-open" : ""}${options.pickerState.closing ? " is-closing" : ""}${options.pickerState.animateOpen ? " is-entering" : ""}" id="period-popover">
       <nav class="period-granularity-rail" aria-label="分析粒度">
         ${Object.entries(granularityLabels).map(([key, label]) => {
           const count = reportsFor(options.index, key).length;
@@ -255,12 +283,15 @@ export function renderPeriodPicker(options) {
     </div>
   `;
   options.container.querySelector("#period-trigger")?.addEventListener("click", () => {
-    const opening = !options.pickerState.open;
-    options.pickerState.open = opening;
-    if (opening) {
-      options.pickerState.draftGranularity = options.activeGranularity;
-      options.pickerState.contexts[options.activeGranularity] = contextForEntry(options.activeGranularity, activeEntry);
+    if (options.pickerState.open) {
+      closePeriodPicker(options.container, options.pickerState);
+      return;
     }
+    options.pickerState.open = true;
+    options.pickerState.closing = false;
+    options.pickerState.animateOpen = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    options.pickerState.draftGranularity = options.activeGranularity;
+    options.pickerState.contexts[options.activeGranularity] = contextForEntry(options.activeGranularity, activeEntry);
     renderPeriodPicker(options);
   });
   options.container.querySelectorAll("[data-granularity]:not(:disabled)").forEach((button) => {
@@ -269,8 +300,22 @@ export function renderPeriodPicker(options) {
       options.pickerState.draftGranularity = granularity;
       options.pickerState.contexts[granularity] = contextForEntry(granularity, selectedEntry(options, granularity));
       options.pickerState.open = true;
+      options.pickerState.closing = false;
+      options.pickerState.animateOpen = false;
       renderPeriodPicker(options);
     });
+  });
+  const popover = options.container.querySelector("#period-popover");
+  popover?.addEventListener("animationend", (event) => {
+    if (event.animationName === "period-picker-fold-enter") {
+      options.pickerState.animateOpen = false;
+      popover.classList.remove("is-entering");
+      return;
+    }
+    if (event.animationName === "period-picker-fold-exit" && options.pickerState.closing) {
+      options.pickerState.closing = false;
+      popover.classList.remove("is-closing");
+    }
   });
   const content = options.container.querySelector("[data-selector-content]");
   if (content && pickerEntry) content.replaceChildren(createActivePanel(options, pickerGranularity));

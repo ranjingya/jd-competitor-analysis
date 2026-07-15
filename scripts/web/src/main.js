@@ -1,6 +1,6 @@
 import { renderDashboard, renderTrendChart, showPageState, showTrendState } from "./dashboard.js";
 import { loadReport, loadReportIndex } from "./data-client.js";
-import { renderPeriodPicker } from "./period-picker.js";
+import { closePeriodPicker, renderPeriodPicker } from "./period-picker.js";
 
 const granularityLabels = {
   day: "日",
@@ -19,6 +19,8 @@ const state = {
 
 const periodPickerState = {
   open: false,
+  closing: false,
+  animateOpen: false,
   contexts: {},
   draftGranularity: null
 };
@@ -50,13 +52,11 @@ function bindPeriodPickerDismissal() {
     const container = document.querySelector("#period-picker");
     const eventPath = typeof event.composedPath === "function" ? event.composedPath() : [];
     if (!periodPickerState.open || !container || container.contains(event.target) || eventPath.includes(container)) return;
-    periodPickerState.open = false;
-    renderControls();
+    closePeriodPicker(container, periodPickerState);
   });
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape" || !periodPickerState.open) return;
-    periodPickerState.open = false;
-    renderControls();
+    closePeriodPicker(document.querySelector("#period-picker"), periodPickerState);
     document.querySelector("#period-trigger")?.focus();
   });
 }

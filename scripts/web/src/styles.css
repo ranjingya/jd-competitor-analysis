@@ -166,8 +166,49 @@ h1 {
   box-shadow: 0 22px 52px rgba(31, 41, 51, 0.18);
 }
 
-.period-popover.is-open {
+.period-popover.is-open,
+.period-popover.is-closing {
   display: grid;
+}
+
+.period-popover.is-closing {
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .period-popover.is-open.is-entering {
+    transform-origin: top center;
+    animation: period-picker-fold-enter 280ms cubic-bezier(0.22, 0.74, 0.24, 1) both;
+  }
+
+  .period-popover.is-closing {
+    transform-origin: top center;
+    animation: period-picker-fold-exit 180ms cubic-bezier(0.4, 0, 0.65, 0.2) both;
+  }
+
+  @keyframes period-picker-fold-enter {
+    from {
+      opacity: 0;
+      transform: perspective(900px) translateY(-6px) rotateX(-7deg) scale(0.99);
+    }
+
+    to {
+      opacity: 1;
+      transform: perspective(900px) translateY(0) rotateX(0) scale(1);
+    }
+  }
+
+  @keyframes period-picker-fold-exit {
+    from {
+      opacity: 1;
+      transform: perspective(900px) translateY(0) rotateX(0) scale(1);
+    }
+
+    to {
+      opacity: 0;
+      transform: perspective(900px) translateY(-5px) rotateX(-6deg) scale(0.992);
+    }
+  }
 }
 
 .period-granularity-rail {
@@ -180,6 +221,7 @@ h1 {
 }
 
 .period-granularity-rail button {
+  position: relative;
   display: grid;
   place-items: center;
   gap: 3px;
@@ -189,11 +231,30 @@ h1 {
   background: transparent;
   color: var(--muted);
   cursor: pointer;
+  transition: color 160ms ease;
 }
 
-.period-granularity-rail button:hover:not(:disabled) {
-  background: var(--soft-teal);
+.period-granularity-rail button::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 3px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--teal);
+  content: "";
+  opacity: 0;
+  transform: translateY(-50%) scaleY(0.35);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.period-granularity-rail button:hover:not(.is-selected):not(:disabled) {
   color: var(--teal);
+}
+
+.period-granularity-rail button:hover:not(.is-selected):not(:disabled)::before {
+  opacity: 1;
+  transform: translateY(-50%) scaleY(1);
 }
 
 .period-granularity-rail button.is-selected {
@@ -1410,6 +1471,19 @@ h1 {
     grid-template-columns: auto auto;
     flex: 1;
     min-height: 40px;
+  }
+
+  .period-granularity-rail button::before {
+    top: auto;
+    bottom: 0;
+    left: 50%;
+    width: 20px;
+    height: 3px;
+    transform: translateX(-50%) scaleX(0.35);
+  }
+
+  .period-granularity-rail button:hover:not(.is-selected):not(:disabled)::before {
+    transform: translateX(-50%) scaleX(1);
   }
 
   .period-selector-content {
