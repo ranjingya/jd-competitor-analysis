@@ -13,7 +13,7 @@
       <a class="back-link" href="/">← 返回分析看板</a>
       <p class="eyebrow">PERIOD SELECTOR PLAYGROUND</p>
       <h1>一个日历，选择日、周、月</h1>
-      <p class="intro">粒度切换位于日历内部。日选单格，周选整行，月选月份；不可用周期保持禁用。</p>
+      <p class="intro">点击打开查看回弹动效。日选单格，周选整行，月选月份；选择具体周期后日历保持打开。</p>
     </header>
 
     <section class="demo-card" aria-labelledby="demo-title">
@@ -35,17 +35,17 @@
         </div>
         <div class="period-field">
           <label for="period-trigger">分析周期</label>
-          <button class="period-trigger" id="period-trigger" type="button" aria-expanded="true" aria-controls="period-popover">
+          <button class="period-trigger" id="period-trigger" type="button" aria-expanded="false" aria-controls="period-popover">
             <span class="calendar-icon" aria-hidden="true">▦</span>
             <span id="trigger-label">正在读取报告</span>
             <span class="chevron" aria-hidden="true">⌄</span>
           </button>
-          <div class="period-popover is-open" id="period-popover"></div>
+          <div class="period-popover" id="period-popover"></div>
         </div>
       </div>
     </section>
 
-    <p class="usage-note"><span></span>蓝点代表已有报告；周维度的整行边框代表一个不可拆分的自然周。</p>
+    <p class="usage-note"><span></span>琥珀点代表已有报告；具体周期选中后弹层持续打开，可继续比较其他周期。</p>
   </main>
 
   <script type="module" src="/src/calendar-playground.js"></script>
