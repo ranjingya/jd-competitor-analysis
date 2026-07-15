@@ -81,6 +81,7 @@ npm run dev
 | `scripts/jd_competitor_analysis/input_files.py` | 发现粒度与周期目录，校验文件周期，并在临时目录中展开 ZIP。 |
 | `scripts/jd_competitor_analysis/sources.py` | 按表头确认六类真实工作簿的数据角色并读取业务行。 |
 | `scripts/jd_competitor_analysis/normalization.py` | 生成可独立重算的 `normalized_data.json`。 |
+| `scripts/jd_competitor_analysis/output_paths.py` | 统一生成日、周、月结果目录和分析结果定位路径。 |
 | `scripts/jd_competitor_analysis/estimation.py` | 计算 P 候选、校正核心约束并判断置信度。 |
 | `scripts/jd_competitor_analysis/dimensions.py` | 分析流量来源、关键词、成交客户画像和推广数据。 |
 | `scripts/jd_competitor_analysis/report.py` | 组装核心对比、指标卡、Tab、摘要和最终报告结构。 |

@@ -19,6 +19,7 @@ from .input_files import (
     validate_date_window,
 )
 from .normalization import PeriodRequest, normalize_period
+from .output_paths import period_directory_name
 from .report import build_analysis_result
 
 
@@ -98,7 +99,11 @@ def _report_entry(result: dict[str, Any]) -> dict[str, Any]:
     """从单周期分析结果生成轻量索引条目。"""
 
     meta = result["meta"]
-    period_file = f"{meta['period_start']}_{meta['period_end']}"
+    period_file = period_directory_name(
+        meta["granularity"],
+        meta["period_start"],
+        meta["period_end"],
+    )
     return {
         "period": meta["period"],
         "period_start": meta["period_start"],
@@ -120,7 +125,11 @@ def _write_period_result(result: dict[str, Any], normalized: dict[str, Any]) -> 
     """
 
     meta = result["meta"]
-    period_file = f"{meta['period_start']}_{meta['period_end']}"
+    period_file = period_directory_name(
+        meta["granularity"],
+        meta["period_start"],
+        meta["period_end"],
+    )
     period_dir = OUTPUT_ROOT / meta["granularity"] / period_file
     index_path = OUTPUT_ROOT / "report-index.json"
     report_index = (
@@ -221,7 +230,7 @@ def run_batch(args: argparse.Namespace) -> None:
                 competitor_prefix=args.competitor_prefix,
                 title=args.title or DEFAULT_TITLE,
             )
-            output_period_file = f"{period_start}_{period_end}"
+            output_period_file = period_directory_name(granularity, period_start, period_end)
             period_dir = OUTPUT_ROOT / granularity / output_period_file
             LOGGER.info("开始处理周期：%s", period_meta["period_key"])
             result, normalized, samples = analyze_period(request, history)

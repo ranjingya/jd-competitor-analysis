@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import logging
-import re
 from pathlib import Path
 from typing import Any
 
-from . import OUTPUT_ROOT
 from .contracts import read_json, validate_contract, write_json
+from .output_paths import analysis_path_from_period_key
 
 
 LOGGER = logging.getLogger(__name__)
@@ -56,19 +55,6 @@ def validate_recommendations(items: Any) -> list[dict[str, Any]]:
     return items
 
 
-def _analysis_path(period_key: str) -> Path:
-    """根据周期唯一键定位固定输出目录中的分析结果。"""
-
-    granularity, separator, period_file = period_key.partition(":")
-    if (
-        separator != ":"
-        or granularity not in {"day", "week", "month"}
-        or re.fullmatch(r"\d{4}-\d{2}-\d{2}_\d{4}-\d{2}-\d{2}", period_file) is None
-    ):
-        raise ValueError(f"建议 period_key 无效：{period_key}")
-    return OUTPUT_ROOT / granularity / period_file / "analysis_result.json"
-
-
 def apply_recommendations(recommendations_path: Path) -> None:
     """把建议写入分析结果。
 
@@ -78,7 +64,7 @@ def apply_recommendations(recommendations_path: Path) -> None:
     """
 
     payload = read_json(recommendations_path)
-    analysis_path = _analysis_path(str(payload.get("period_key") or ""))
+    analysis_path = analysis_path_from_period_key(str(payload.get("period_key") or ""))
     if not analysis_path.is_file():
         raise FileNotFoundError(f"固定输出目录中不存在分析结果：{analysis_path}")
     LOGGER.info("开始写入 AI 建议：%s", analysis_path)

@@ -22,9 +22,9 @@ Vite 源码位于 `scripts/web/`，运行产物位于 `scripts/output/`。以上
 ```text
 scripts/output/
 ├── report-index.json
-├── day/{period_file}/analysis_result.json
-├── week/{period_file}/analysis_result.json
-└── month/{period_file}/analysis_result.json
+├── day/{YYYY-MM-DD}/analysis_result.json
+├── week/{YYYY-MM-DD_YYYY-MM-DD}/analysis_result.json
+└── month/{YYYY-MM-DD_YYYY-MM-DD}/analysis_result.json
 ```
 
 ## 启动前端
@@ -154,7 +154,7 @@ Vite将 `/reports/` 只读映射到运行产物目录。网页使用以下地址
 
 ```text
 /reports/report-index.json
-/reports/day/2026-06-01_2026-06-01/analysis_result.json
+/reports/day/2026-06-01/analysis_result.json
 ```
 
 映射层只提供静态 JSON，不触发分析任务，不修改输出文件，也不暴露输入 Excel。
