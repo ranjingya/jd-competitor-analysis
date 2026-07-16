@@ -9,6 +9,8 @@
   --soft-teal: #dff1ec;
   --soft-amber: #f4e7d3;
   --shadow: 0 12px 32px rgba(31, 41, 51, 0.08);
+  --interactive-hover-border: rgba(15, 123, 115, 0.48);
+  --interactive-hover-shadow: 0 5px 14px rgba(31, 41, 51, 0.1);
 }
 
 * {
@@ -136,12 +138,6 @@ h1 {
   color: var(--text);
   text-decoration: none;
   transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
-}
-
-a.product-card:hover {
-  border-color: rgba(15, 123, 115, 0.45);
-  box-shadow: 0 5px 14px rgba(31, 41, 51, 0.08);
-  transform: translateY(-1px);
 }
 
 .product-card:focus-visible {
@@ -776,11 +772,7 @@ a.product-card:hover {
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: box-shadow 160ms ease;
-}
-
-.metric-card:hover {
-  box-shadow: 0 6px 18px rgba(31, 41, 51, 0.12);
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
 
 .metric-card.active {
@@ -965,6 +957,19 @@ a.product-card:hover {
   padding: 0 14px;
   font-size: 13px;
   font-weight: 800;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+a.product-card:hover,
+.metric-card:hover,
+.tab:hover {
+  border-color: var(--interactive-hover-border);
+  box-shadow: var(--interactive-hover-shadow);
+  transform: translateY(-1px);
+}
+
+.tab.active:hover {
+  border-color: var(--teal);
 }
 
 .tab.active,
@@ -1511,8 +1516,16 @@ a.product-card:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .metric-card {
+  .product-card,
+  .metric-card,
+  .tab {
     transition: none;
+  }
+
+  a.product-card:hover,
+  .metric-card:hover,
+  .tab:hover {
+    transform: none;
   }
 }
 
