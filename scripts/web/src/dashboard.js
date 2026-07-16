@@ -209,7 +209,6 @@ function renderTabs() {
     : rows;
 
   document.querySelector("#tab-body").innerHTML = `
-    <h3>${escapeHtml(current.headline || "-")}</h3>
     <section class="tab-section">
       <p class="section-title">优势与劣势</p>
       <div class="insight-grid">

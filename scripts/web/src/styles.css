@@ -1006,12 +1006,6 @@ a.product-card:hover,
   color: #fff;
 }
 
-.tab-body > h3 {
-  margin: 14px 0;
-  color: var(--teal);
-  font-size: 19px;
-}
-
 .analysis-panel,
 .ai-recommendations-panel {
   height: var(--content-panel-height);

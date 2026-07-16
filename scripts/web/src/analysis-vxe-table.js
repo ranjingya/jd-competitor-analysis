@@ -38,7 +38,7 @@ function isProgressColumn(column) {
 /**
  * 功能说明：识别由分析计算或规则判断得到的表格列，用于区别原始值和区间中位值。
  * 参数 column：当前列定义，包含字段名和展示标题。
- * 返回值：判断、差距和同层占比列返回 true，其余列返回 false。
+ * 返回值：判断、差距和计算占比列返回 true，其余列返回 false。
  */
 function isDerivedColumn(column) {
   const key = String(column.key || "");
@@ -49,7 +49,8 @@ function isDerivedColumn(column) {
     || GAP_FIELD_PATTERN.test(key)
     || label.includes("差距")
     || key.includes("current_level")
-    || label.includes("同层占比");
+    || key.includes("visitor_share")
+    || label.includes("访客占比");
 }
 
 /**

@@ -147,7 +147,20 @@ def build_tabs(traffic: list[dict[str, Any]], keywords: dict[str, Any], profile:
         }
         for item in traffic
     ]
-    keyword_rows = keywords["rows"]
+    keyword_rows = [
+        {
+            **item,
+            "self_visitor_share_pct": (
+                item["self_visitor_share"] * 100 if item.get("self_visitor_share") is not None else None
+            ),
+            "competitor_visitor_share_pct": (
+                item["competitor_visitor_share"] * 100
+                if item.get("competitor_visitor_share") is not None
+                else None
+            ),
+        }
+        for item in keywords["rows"]
+    ]
     keyword_highlights = _select_balanced_highlights(
         [
             {
@@ -215,6 +228,8 @@ def build_tabs(traffic: list[dict[str, Any]], keywords: dict[str, Any], profile:
                 {"key": "keyword", "label": "关键词"},
                 {"key": "opportunity", "label": "机会判断"},
                 {"key": "visitor_gap", "label": "访客差距"},
+                {"key": "self_visitor_share_pct", "label": "本品访客占比", "unit": "%"},
+                {"key": "competitor_visitor_share_pct", "label": "竞品访客占比", "unit": "%"},
                 {"key": "gmv_gap", "label": "成交差距"},
                 {"key": "coverage_relation", "label": "覆盖关系"},
                 {"key": "self_visitors", "label": "本品访客"},

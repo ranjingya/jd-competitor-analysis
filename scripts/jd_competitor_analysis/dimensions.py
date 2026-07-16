@@ -175,6 +175,17 @@ def analyze_keywords(
     result_rows.sort(key=lambda item: max(abs(item["gmv_gap"]), abs(item["visitor_gap"])), reverse=True)
     self_visitor_sum = sum(item["self_visitors"] or 0 for item in result_rows)
     competitor_visitor_sum = sum(item["competitor_visitors"] or 0 for item in result_rows)
+    for item in result_rows:
+        item["self_visitor_share"] = (
+            item["self_visitors"] / self_visitor_sum
+            if item["self_visitors"] is not None and self_visitor_sum
+            else None
+        )
+        item["competitor_visitor_share"] = (
+            item["competitor_visitors"] / competitor_visitor_sum
+            if item["competitor_visitors"] is not None and competitor_visitor_sum
+            else None
+        )
     self_gmv_sum = sum(item["self_gmv"] or 0 for item in result_rows)
     competitor_gmv_sum = sum(item["competitor_gmv"] or 0 for item in result_rows)
     return {
