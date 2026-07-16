@@ -9,6 +9,7 @@
   --soft-teal: #dff1ec;
   --soft-amber: #f4e7d3;
   --shadow: 0 12px 32px rgba(31, 41, 51, 0.08);
+  --card-gap: 10px;
   --interactive-hover-border: rgba(15, 123, 115, 0.48);
   --interactive-hover-shadow: 0 5px 14px rgba(31, 41, 51, 0.1);
 }
@@ -54,7 +55,7 @@ select:focus-visible {
   column-gap: 20px;
   row-gap: 8px;
   align-items: start;
-  margin-bottom: 12px;
+  margin-bottom: var(--card-gap);
 }
 
 h1,
@@ -104,7 +105,7 @@ h1 {
   justify-content: space-between;
   gap: 20px;
   min-height: 46px;
-  padding: 6px 0;
+  padding: 4px 0 var(--card-gap);
   border-bottom: 1px solid var(--line);
 }
 
@@ -117,21 +118,21 @@ h1 {
 
 .product-comparison {
   display: grid;
-  grid-template-columns: minmax(240px, 1fr) auto minmax(240px, 1fr);
-  gap: 12px;
+  grid-template-columns: minmax(250px, 1fr) auto minmax(250px, 1fr);
+  gap: var(--card-gap);
   align-items: center;
-  width: min(100%, 760px);
+  width: min(100%, 820px);
   min-width: 0;
 }
 
 .product-card {
   display: grid;
-  grid-template-columns: 58px minmax(0, 1fr);
+  grid-template-columns: 68px minmax(0, 1fr);
   gap: 12px;
   align-items: center;
   min-width: 0;
-  min-height: 76px;
-  padding: 8px 10px;
+  min-height: 88px;
+  padding: 9px 11px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(255, 253, 248, 0.78);
@@ -153,8 +154,8 @@ h1 {
   position: relative;
   display: grid;
   place-items: center;
-  width: 58px;
-  height: 58px;
+  width: 68px;
+  height: 68px;
   overflow: hidden;
   border: 1px solid rgba(102, 112, 133, 0.2);
   border-radius: 7px;
@@ -277,12 +278,16 @@ h1 {
 
 .period-control {
   position: relative;
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  display: grid;
+  gap: 5px;
+  align-content: center;
+  align-self: flex-end;
+  min-width: 270px;
+  min-height: 88px;
 }
 
 .period-label {
+  padding-left: 2px;
   color: var(--muted);
   font-size: 13px;
   font-weight: 700;
@@ -293,7 +298,8 @@ h1 {
   align-items: center;
   gap: 8px;
   min-width: 270px;
-  height: 36px;
+  width: 100%;
+  height: 44px;
   padding: 0 11px;
   border: 1px solid var(--line);
   border-radius: 7px;
@@ -332,7 +338,7 @@ h1 {
 
 .period-popover {
   position: absolute;
-  top: 43px;
+  top: calc(100% + 8px);
   right: 0;
   display: none;
   grid-template-columns: 76px minmax(0, 1fr);
@@ -725,7 +731,7 @@ h1 {
   align-items: center;
   min-height: 88px;
   padding: 14px 22px;
-  margin-bottom: 16px;
+  margin-bottom: var(--card-gap);
 }
 
 .hero-block {
@@ -771,15 +777,15 @@ h1 {
 .metrics-trend {
   display: grid;
   grid-template-columns: 290px minmax(0, 1fr);
-  gap: 14px;
+  gap: var(--card-gap);
   align-items: stretch;
-  margin-bottom: 16px;
+  margin-bottom: var(--card-gap);
 }
 
 .metrics {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 8px;
+  gap: var(--card-gap);
 }
 
 .metric-card {
@@ -939,9 +945,9 @@ h1 {
   --content-panel-height: min(750px, calc(100vh - 48px));
   display: grid;
   grid-template-columns: minmax(0, 1.55fr) minmax(360px, 0.95fr);
-  gap: 16px;
+  gap: var(--card-gap);
   align-items: start;
-  margin-bottom: 16px;
+  margin-bottom: var(--card-gap);
 }
 
 .panel {
@@ -1040,7 +1046,7 @@ a.product-card:hover,
 .insight-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  gap: var(--card-gap);
 }
 
 .insight-card {
@@ -1405,7 +1411,7 @@ a.product-card:hover,
   display: grid;
   min-height: 0;
   padding-right: 6px;
-  gap: 12px;
+  gap: var(--card-gap);
   margin-top: 10px;
   align-content: start;
   flex: 1 1 auto;
@@ -1606,6 +1612,7 @@ a.product-card:hover,
 
   .period-control {
     width: 100%;
+    min-height: 0;
   }
 
   .period-trigger {
