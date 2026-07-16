@@ -67,6 +67,20 @@ function normalizeProgressValue(value) {
 }
 
 /**
+ * 功能说明：生成占比列的排序值，使缺失值、短横线和零值在升降序中始终沉底。
+ * 参数 row：当前表格行数据。
+ * 参数 column：当前 VXE 列对象，用于读取字段名和排序方向。
+ * 返回值：有效正数原样返回，无效值按排序方向返回对应的末尾哨兵值。
+ */
+function progressSortValue({ row, column }) {
+  const value = Number(row[column.field]);
+  if (Number.isFinite(value) && value > 0) {
+    return value;
+  }
+  return column.order === "desc" ? Number.NEGATIVE_INFINITY : Number.POSITIVE_INFINITY;
+}
+
+/**
  * 功能说明：生成正式表格使用的细进度条与右侧百分比数字。
  * 参数 value：当前单元格的原始百分比值。
  * 参数 column：当前列定义，用于统一数值格式。
@@ -320,6 +334,7 @@ export function mountAnalysisVxeTable(target, config) {
           minWidth: columnWidth(column, columnIndex, tableId),
           fixed: columnIndex === 0 ? "left" : undefined,
           sortable: true,
+          sortBy: isProgressColumn(column) ? progressSortValue : undefined,
           treeNode: isTree && columnIndex === 0,
           headerClassName: isDerivedColumn(column) ? "analysis-derived-header" : undefined,
           showOverflow: "title",
