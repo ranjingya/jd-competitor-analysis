@@ -12988,6 +12988,10 @@
           "label": "访客差距"
         },
         {
+          "key": "gmv_gap",
+          "label": "成交差距"
+        },
+        {
           "key": "self_visitor_share_pct",
           "label": "本品访客占比",
           "unit": "%"
@@ -12996,10 +13000,6 @@
           "key": "competitor_visitor_share_pct",
           "label": "竞品访客占比",
           "unit": "%"
-        },
-        {
-          "key": "gmv_gap",
-          "label": "成交差距"
         },
         {
           "key": "coverage_relation",
