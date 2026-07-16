@@ -71,7 +71,12 @@ function renderProductComparison(meta) {
     const content = `
       <span class="product-image-frame ${product.imageUrl ? "has-image" : ""}">
         ${image}
-        <span class="product-image-fallback" aria-hidden="true">JD</span>
+        <span class="product-image-fallback" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false">
+            <path d="M4 5.5h16v13H4zM7.5 15l3.1-3.4 2.4 2.5 1.7-1.7 2.8 2.6M16.5 8.7h.01" />
+          </svg>
+          <span>暂无主图</span>
+        </span>
       </span>
       <span class="product-card-copy">
         <span class="product-card-topline">
@@ -83,7 +88,7 @@ function renderProductComparison(meta) {
     const card = product.itemUrl
       ? `<a class="product-card" href="${escapeHtml(product.itemUrl)}" target="_blank" rel="noopener noreferrer" aria-label="在京东打开${product.label}：${escapeHtml(product.name)}">${content}</a>`
       : `<span class="product-card product-card-disabled">${content}</span>`;
-    const divider = index === 0 ? `<span class="product-compare-marker" aria-hidden="true">对比</span>` : "";
+    const divider = index === 0 ? `<span class="product-compare-marker" aria-hidden="true">VS</span>` : "";
     return `${card}${divider}`;
   }).join("");
   target.querySelectorAll("[data-product-image]").forEach((imageElement) => {

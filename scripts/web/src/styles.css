@@ -117,21 +117,21 @@ h1 {
 
 .product-comparison {
   display: grid;
-  grid-template-columns: minmax(210px, 1fr) auto minmax(210px, 1fr);
-  gap: 9px;
+  grid-template-columns: minmax(240px, 1fr) auto minmax(240px, 1fr);
+  gap: 12px;
   align-items: center;
-  width: min(100%, 670px);
+  width: min(100%, 760px);
   min-width: 0;
 }
 
 .product-card {
   display: grid;
-  grid-template-columns: 48px minmax(0, 1fr);
-  gap: 10px;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 12px;
   align-items: center;
   min-width: 0;
-  min-height: 62px;
-  padding: 6px 9px;
+  min-height: 76px;
+  padding: 8px 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(255, 253, 248, 0.78);
@@ -153,8 +153,8 @@ h1 {
   position: relative;
   display: grid;
   place-items: center;
-  width: 48px;
-  height: 48px;
+  width: 58px;
+  height: 58px;
   overflow: hidden;
   border: 1px solid rgba(102, 112, 133, 0.2);
   border-radius: 7px;
@@ -170,10 +170,23 @@ h1 {
 }
 
 .product-image-fallback {
+  display: grid;
+  gap: 2px;
+  place-items: center;
   color: var(--muted);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.product-image-fallback svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.35;
 }
 
 .product-image-frame.has-image .product-image-fallback {
@@ -218,7 +231,7 @@ h1 {
 .product-name {
   overflow: hidden;
   color: var(--text);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   line-height: 1.4;
   text-overflow: ellipsis;
@@ -242,16 +255,24 @@ h1 {
 }
 
 .product-compare-marker {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border: 1px solid var(--line);
-  border-radius: 50%;
-  background: var(--panel);
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
   color: var(--muted);
-  font-size: 10px;
-  font-weight: 700;
+  font-family: Arial, sans-serif;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.product-compare-marker::before,
+.product-compare-marker::after {
+  width: 8px;
+  height: 1px;
+  background: rgba(102, 112, 133, 0.42);
+  content: "";
 }
 
 .period-control {
@@ -1630,12 +1651,13 @@ a.product-card:hover,
   }
 
   .product-card {
-    grid-template-columns: 44px minmax(0, 1fr);
+    grid-template-columns: 50px minmax(0, 1fr);
+    min-height: 68px;
   }
 
   .product-image-frame {
-    width: 44px;
-    height: 44px;
+    width: 50px;
+    height: 50px;
   }
 
   .metrics {
