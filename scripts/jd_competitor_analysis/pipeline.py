@@ -20,6 +20,7 @@ from .input_files import (
 )
 from .normalization import PeriodRequest, normalize_period
 from .output_paths import period_directory_name
+from .product_assets import load_product_images
 from .report import build_analysis_result
 
 
@@ -27,36 +28,47 @@ LOGGER = logging.getLogger(__name__)
 DEFAULT_TITLE = "竞品准真实值看板"
 
 
-def analyze_normalized(normalized: dict[str, Any], history: PHistory | None = None) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+def analyze_normalized(
+    normalized: dict[str, Any],
+    history: PHistory | None = None,
+    product_images: dict[str, dict[str, Any]] | None = None,
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     """从标准化事实生成分析结果。
 
     功能说明：执行核心估算、分析域和报告组装，使算法调整后可以不读取 Excel 直接重算。
     参数 normalized：单周期标准化事实数据。
     参数 history：同商品、同粒度、此前周期的有效 P 样本。
+    参数 product_images：按商品 ID 索引的主图素材；未传入时读取正式素材文件。
     返回值：最终分析结果与当前周期新增的有效 P 样本。
     """
 
     period_key = normalized.get("meta", {}).get("period_key")
     LOGGER.info("开始分析标准化事实：%s", period_key)
     core = analyze_core(normalized, history)
-    result = build_analysis_result(normalized, core)
+    resolved_product_images = product_images if product_images is not None else load_product_images()
+    result = build_analysis_result(normalized, core, resolved_product_images)
     result["meta"]["generated_at"] = datetime.now().isoformat(timespec="seconds")
     validate_contract(result)
     LOGGER.info("标准化事实分析完成：%s", period_key)
     return result, core["p_samples"]
 
 
-def analyze_period(request: PeriodRequest, history: PHistory | None = None) -> tuple[dict[str, Any], dict[str, Any], list[dict[str, Any]]]:
+def analyze_period(
+    request: PeriodRequest,
+    history: PHistory | None = None,
+    product_images: dict[str, dict[str, Any]] | None = None,
+) -> tuple[dict[str, Any], dict[str, Any], list[dict[str, Any]]]:
     """读取原始工作簿并完成单周期分析。
 
     功能说明：先读取 ZIP/XLSX 并生成稳定的标准化事实，再调用独立分析阶段生成最终结果。
     参数 request：单周期输入请求。
     参数 history：同商品、同粒度、此前周期的有效 P 样本。
+    参数 product_images：按商品 ID 索引的主图素材；未传入时读取正式素材文件。
     返回值：最终分析结果、标准化事实和当前周期新增的有效 P 样本。
     """
 
     normalized = normalize_period(request)
-    result, samples = analyze_normalized(normalized, history)
+    result, samples = analyze_normalized(normalized, history, product_images)
     return result, normalized, samples
 
 
@@ -169,11 +181,12 @@ def run_single(args: argparse.Namespace) -> None:
     返回值：无；成功时写入 `scripts/output/`。
     """
 
+    product_images = load_product_images()
     if args.normalized_input:
         normalized = read_json(Path(args.normalized_input))
         if args.title:
             normalized.setdefault("meta", {})["title"] = args.title
-        result, _ = analyze_normalized(normalized)
+        result, _ = analyze_normalized(normalized, product_images=product_images)
     else:
         required = {
             "input_dir": args.input_dir,
@@ -184,7 +197,7 @@ def run_single(args: argparse.Namespace) -> None:
         missing = [name for name, value in required.items() if not value]
         if missing:
             raise ValueError(f"单周期模式缺少参数：{', '.join(missing)}")
-        result, normalized, _ = analyze_period(_period_request(args))
+        result, normalized, _ = analyze_period(_period_request(args), product_images=product_images)
     _write_period_result(result, normalized)
     LOGGER.info("单周期分析完成：%s", result["meta"]["period_key"])
 
@@ -208,6 +221,7 @@ def run_batch(args: argparse.Namespace) -> None:
     if not any((input_root / directory_name).is_dir() for directory_name in GRANULARITY_DIRS.values()):
         raise ValueError(f"输入根目录中未发现 day、week 或 month：{input_root}")
     report_index = _new_report_index(args.title or DEFAULT_TITLE, args.self_spu, args.competitor_spu)
+    product_images = load_product_images()
 
     for granularity, directory_name in GRANULARITY_DIRS.items():
         input_dir = input_root / directory_name
@@ -233,7 +247,7 @@ def run_batch(args: argparse.Namespace) -> None:
             output_period_file = period_directory_name(granularity, period_start, period_end)
             period_dir = OUTPUT_ROOT / granularity / output_period_file
             LOGGER.info("开始处理周期：%s", period_meta["period_key"])
-            result, normalized, samples = analyze_period(request, history)
+            result, normalized, samples = analyze_period(request, history, product_images)
             write_json(period_dir / "normalized_data.json", normalized)
             write_json(period_dir / "analysis_result.json", result)
             _extend_history(history, samples)

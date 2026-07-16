@@ -85,7 +85,7 @@ Vite 中间件把 `<Skill根目录>/scripts/output/` 只读映射为 `/reports/`
 1. 首次读取 `/reports/report-index.json`，获取日、周、月三个报告条目数组。
 2. 根据当前粒度和周期条目的 `path`，读取对应的一份 `analysis_result.json`。
 
-页面直接消费 `meta`、`core_metrics[]`、`tabs[]`、`ai_recommendations[]` 和 `risks[]`。其余字段保留给审计、明细复核和后续分析使用，完整结构与约束以 [analysis-result.md](analysis-result.md) 为准。浏览器不读取 `normalized_data.json`。
+页面直接消费 `meta`、`core_metrics[]`、`tabs[]`、`ai_recommendations[]` 和 `risks[]`。商品详情链接由 `meta.*_product.id` 生成，主图只读取报告内的 `image_url`。其余字段保留给审计、明细复核和后续分析使用，完整结构与约束以 [analysis-result.md](analysis-result.md) 为准。浏览器不读取 `normalized_data.json`。
 
 ## 加载流程
 
@@ -122,7 +122,7 @@ Vite 中间件把 `<Skill根目录>/scripts/output/` 只读映射为 `/reports/`
 
 | 页面区域 | 分析字段 | 要求 |
 |---|---|---|
-| 标题与元信息 | `meta.title`、周期字段、两侧 SPU | 必须 |
+| 标题、周期与商品条 | `meta.title`、周期字段、`meta.self_product`、`meta.competitor_product` | 必须 |
 | 首屏优点 | `meta.summary` | 必须 |
 | 首屏弱点 | `meta.weakness_summary` | 必须 |
 | 四张指标卡 | `core_metrics[]` | 必须 |
@@ -138,6 +138,7 @@ Vite 中间件把 `<Skill根目录>/scripts/output/` 只读映射为 `/reports/`
 1. 本品值标记为真实值，竞品值标记为估算值。
 2. `advantage`、`warning` 和 `neutral` 使用统一状态颜色。
 3. 四张指标卡在桌面端位于趋势图左侧纵向排列，使用左侧色条和浅色背景表达状态；本品与竞品数值使用一致字号，卡片顶部展示“正负差值、分隔线、倍率”。窄屏按 2×2 和单列自适应。
+4. 页头商品条并列展示本品与竞品的主图、商品名和商品 ID，点击整张商品卡在新窗口打开 `https://item.jd.com/{商品ID}.html`。名称单行省略并提供原生悬浮提示；主图缺失或加载失败时显示稳定占位。
 4. 趋势图使用 ECharts 6 按需模块绘制，本品为绿色线、竞品为棕色线，保留网格、周期横轴、数值纵轴、图例和轴触发悬浮信息。
 5. 每个差距来源 Tab 先展示 3 至 5 项重点数据，再展示完整表格。
 6. 客户画像完整表格支持性别、年龄、省份、城市切换。

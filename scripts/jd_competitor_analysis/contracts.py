@@ -39,8 +39,10 @@ def empty_contract() -> dict[str, Any]:
             "granularity": None,
             "self_name": None,
             "self_spu": None,
+            "self_product": {"id": None, "name": None, "image_url": None},
             "competitor_name": None,
             "competitor_spu": None,
+            "competitor_product": {"id": None, "name": None, "image_url": None},
             "confidence": None,
             "summary": None,
             "weakness_summary": None,
@@ -95,10 +97,35 @@ def validate_contract(data: dict[str, Any], allow_empty: bool = False) -> None:
     missing = sorted(required_top - set(data))
     if missing:
         raise ValueError(f"analysis_result 缺少顶层字段：{missing}")
-    required_meta = {"period", "period_start", "period_end", "period_key", "granularity"}
+    required_meta = {
+        "period",
+        "period_start",
+        "period_end",
+        "period_key",
+        "granularity",
+        "self_product",
+        "competitor_product",
+    }
     missing_meta = sorted(required_meta - set(data["meta"]))
     if missing_meta:
         raise ValueError(f"analysis_result.meta 缺少周期字段：{missing_meta}")
+    for product_field, id_field in (
+        ("self_product", "self_spu"),
+        ("competitor_product", "competitor_spu"),
+    ):
+        product = data["meta"][product_field]
+        if not isinstance(product, dict):
+            raise ValueError(f"analysis_result.meta.{product_field} 必须是对象")
+        missing_product = sorted({"id", "name", "image_url"} - set(product))
+        if missing_product:
+            raise ValueError(f"analysis_result.meta.{product_field} 缺少字段：{missing_product}")
+        if product["id"] != data["meta"].get(id_field):
+            raise ValueError(f"analysis_result.meta.{product_field}.id 必须与 {id_field} 一致")
+        if product["name"] is not None and not isinstance(product["name"], str):
+            raise ValueError(f"analysis_result.meta.{product_field}.name 必须是字符串或 null")
+        image_url = product["image_url"]
+        if image_url is not None and (not isinstance(image_url, str) or not image_url.startswith("https://")):
+            raise ValueError(f"analysis_result.meta.{product_field}.image_url 必须是 HTTPS 地址或 null")
     if not isinstance(data["risks"], list) or any(not isinstance(item, str) for item in data["risks"]):
         raise ValueError("risks 必须是字符串数组")
     if not isinstance(data["ai_recommendations"], list):

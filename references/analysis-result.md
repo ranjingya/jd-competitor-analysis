@@ -46,13 +46,16 @@
 | `meta.self_spu`、`meta.competitor_spu` | `meta` | 直接复制。 |
 | `meta.self_name` | `self_real.商品名称` | 清洗文本。 |
 | `meta.competitor_name` | `keyword_rows[].商品名称` | 按竞品 SPU 筛选并唯一化。 |
+| `meta.self_product`、`meta.competitor_product` | 商品 ID、分析商品名、`assets/product-images.json` | 组装商品 ID、名称和 HTTPS 主图地址，商品名优先采用分析数据。 |
 | `meta.title` | 任务参数 | 使用调用方标题。 |
 | `meta.confidence` | 本品校验与竞品约束检查 | 按 [estimation.md](estimation.md) 综合判断。 |
 | `meta.summary`、`meta.weakness_summary` | `core_metrics[]` | 汇总主要优势和短板，不生成行动建议。 |
 | `source_files[]` | `source_files[]` | 保留角色、文件、工作表、状态和警告。 |
 | `risks[]` | `warnings`、转换检查 | 汇总缺失、冲突、降级和口径风险。 |
 
-`meta` 必须包含 `period`、`period_start`、`period_end`、`period_key` 和 `granularity`。`period_key` 在同一商品对的报告索引中唯一。
+`meta` 必须包含 `period`、`period_start`、`period_end`、`period_key`、`granularity`、`self_product` 和 `competitor_product`。`period_key` 在同一商品对的报告索引中唯一。
+
+两侧商品对象都包含 `id`、`name` 和 `image_url`。`id` 与对应 SPU 字段保持一致；`image_url` 为 HTTPS 地址或 `null`。主图素材不存在时报告继续生成，并以 `null` 触发网页占位图降级。
 
 ## 核心审计结构
 

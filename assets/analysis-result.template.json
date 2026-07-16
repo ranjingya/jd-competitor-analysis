@@ -9,8 +9,18 @@
     "granularity": null,
     "self_name": null,
     "self_spu": null,
+    "self_product": {
+      "id": null,
+      "name": null,
+      "image_url": null
+    },
     "competitor_name": null,
     "competitor_spu": null,
+    "competitor_product": {
+      "id": null,
+      "name": null,
+      "image_url": null
+    },
     "confidence": null,
     "summary": null,
     "weakness_summary": null

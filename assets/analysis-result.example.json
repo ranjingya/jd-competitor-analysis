@@ -9,8 +9,18 @@
     "granularity": "week",
     "self_name": "Kocotreekk树儿童防晒帽遮阳男女童360°软帽防紫外线空顶帽运动",
     "self_spu": "100142563319",
+    "self_product": {
+      "id": "100142563319",
+      "name": "Kocotreekk树儿童防晒帽遮阳男女童360°软帽防紫外线空顶帽运动",
+      "image_url": "https://img10.360buyimg.com/pcpubliccms/s1440x1440_jfs/t1/391893/4/15934/102868/6986df3cFfe490d28/00832ee3e80d32bb.jpg.avif"
+    },
     "competitor_name": "HeyBetter儿童轻氧光变防晒大帽檐防紫外线（蓝色）",
     "competitor_spu": "100194742852",
+    "competitor_product": {
+      "id": "100194742852",
+      "name": "HeyBetter儿童轻氧光变防晒大帽檐防紫外线（蓝色）",
+      "image_url": "https://img13.360buyimg.com/pcpubliccms/jfs/t1/378165/6/14701/122357/695343b8F7eb86d80/a0d466381e13b890.jpg.avif"
+    },
     "confidence": "medium",
     "summary": "本品成交金额、访客数领先。",
     "weakness_summary": "本品成交转化率、成交客单价落后，需要优先优化。",

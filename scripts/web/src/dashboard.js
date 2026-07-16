@@ -32,6 +32,68 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+/**
+ * 功能说明：标准化报告中的商品引用，兼容只包含旧版商品字段的报告。
+ * 参数 meta：分析结果中的元信息对象。
+ * 参数 role：商品角色，取值为 self 或 competitor。
+ * 返回值：包含商品 ID、名称、主图和京东详情地址的展示对象。
+ */
+function normalizeProductReference(meta, role) {
+  const reference = meta?.[`${role}_product`] || {};
+  const id = String(reference.id || meta?.[`${role}_spu`] || "").trim();
+  const fallbackName = role === "self" ? "本品" : "竞品";
+  return {
+    id,
+    name: String(reference.name || meta?.[`${role}_name`] || fallbackName).trim(),
+    imageUrl: String(reference.image_url || "").trim(),
+    itemUrl: id ? `https://item.jd.com/${encodeURIComponent(id)}.html` : ""
+  };
+}
+
+/**
+ * 功能说明：渲染本品与竞品商品条，并为图片加载失败提供稳定占位。
+ * 参数 meta：分析结果中的元信息对象。
+ * 返回值：无；直接更新页头商品区域。
+ */
+function renderProductComparison(meta) {
+  const target = document.querySelector("#product-comparison");
+  if (!target) {
+    return;
+  }
+  const products = [
+    { role: "self", label: "本品", ...normalizeProductReference(meta, "self") },
+    { role: "competitor", label: "竞品", ...normalizeProductReference(meta, "competitor") }
+  ];
+  target.innerHTML = products.map((product, index) => {
+    const image = product.imageUrl
+      ? `<img class="product-image" data-product-image src="${escapeHtml(product.imageUrl)}" alt="${escapeHtml(product.name)}主图" loading="eager" referrerpolicy="no-referrer">`
+      : "";
+    const content = `
+      <span class="product-image-frame ${product.imageUrl ? "has-image" : ""}">
+        ${image}
+        <span class="product-image-fallback" aria-hidden="true">JD</span>
+      </span>
+      <span class="product-card-copy">
+        <span class="product-card-topline">
+          <span class="product-role product-role-${product.role}">${product.label}</span>
+          <span class="product-name" title="${escapeHtml(product.name)}">${escapeHtml(product.name)}</span>
+        </span>
+        <span class="product-id">商品 ID ${escapeHtml(product.id || "未配置")}<span class="product-link-icon" aria-hidden="true">↗</span></span>
+      </span>`;
+    const card = product.itemUrl
+      ? `<a class="product-card" href="${escapeHtml(product.itemUrl)}" target="_blank" rel="noopener noreferrer" aria-label="在京东打开${product.label}：${escapeHtml(product.name)}">${content}</a>`
+      : `<span class="product-card product-card-disabled">${content}</span>`;
+    const divider = index === 0 ? `<span class="product-compare-marker" aria-hidden="true">对比</span>` : "";
+    return `${card}${divider}`;
+  }).join("");
+  target.querySelectorAll("[data-product-image]").forEach((imageElement) => {
+    imageElement.addEventListener("error", () => {
+      imageElement.hidden = true;
+      imageElement.closest(".product-image-frame")?.classList.remove("has-image");
+    }, { once: true });
+  });
+}
+
 function formatValue(value, unit = "") {
   if (value == null || value === "" || value === "-") {
     return "-";
@@ -414,10 +476,9 @@ export function renderDashboard(data, activeMetricId = "") {
   document.querySelector("#title").textContent = meta.title || "竞品准真实值看板";
   document.querySelector("#meta").textContent = [
     meta.period,
-    meta.granularity ? `分析粒度：${granularityLabels[meta.granularity] || meta.granularity}` : "",
-    meta.self_spu ? `本品 SPU ${meta.self_spu}` : "",
-    meta.competitor_spu ? `竞品 SPU ${meta.competitor_spu}` : ""
-  ].filter(Boolean).join(" | ");
+    meta.granularity ? `分析粒度：${granularityLabels[meta.granularity] || meta.granularity}` : ""
+  ].filter(Boolean).join(" · ");
+  renderProductComparison(meta);
   const summary = meta.summary || "-";
   const weakness = meta.weakness_summary || "-";
   document.querySelector("#summary").textContent = summary;

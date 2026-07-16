@@ -6,6 +6,7 @@ from typing import Any
 
 from .dimensions import analyze_keywords, analyze_profile, analyze_promotion, analyze_traffic
 from .estimation import CORE_CARD_IDS, CORE_METRICS, to_number
+from .product_assets import resolve_product_reference
 from .sources import clean_identifier, clean_text
 
 
@@ -244,12 +245,17 @@ def build_tabs(traffic: list[dict[str, Any]], keywords: dict[str, Any], profile:
     ]
 
 
-def build_analysis_result(normalized: dict[str, Any], core: dict[str, Any]) -> dict[str, Any]:
+def build_analysis_result(
+    normalized: dict[str, Any],
+    core: dict[str, Any],
+    product_images: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     """组装最终分析结果。
 
     功能说明：消费标准化事实和核心估算结果，执行四个分析域并组装稳定的最终 JSON 契约。
     参数 normalized：单周期标准化事实数据。
     参数 core：核心估算与审计结果。
+    参数 product_images：按商品 ID 索引的已校验主图素材。
     返回值：可供契约校验和网页消费的分析结果字典。
     """
 
@@ -282,6 +288,9 @@ def build_analysis_result(normalized: dict[str, Any], core: dict[str, Any]) -> d
         for row in normalized["keyword_rows"]
         if clean_identifier(row.get("SPUID")) == meta["competitor_spu"] and clean_text(row.get("商品名称"))
     }
+    self_name = clean_text(self_row.get("商品名称")) or None
+    competitor_name = sorted(competitor_names)[0] if competitor_names else None
+    product_images = product_images or {}
     risks = list(core["risks"])
     source_status = {item["role"]: item["status"] for item in normalized["source_files"]}
     if source_status.get("keywords") != "ready":
@@ -302,10 +311,14 @@ def build_analysis_result(normalized: dict[str, Any], core: dict[str, Any]) -> d
             "period_end": meta["period_end"],
             "period_key": meta["period_key"],
             "granularity": meta["granularity"],
-            "self_name": clean_text(self_row.get("商品名称")) or None,
+            "self_name": self_name,
             "self_spu": meta["self_spu"],
-            "competitor_name": sorted(competitor_names)[0] if competitor_names else None,
+            "self_product": resolve_product_reference(meta["self_spu"], self_name, product_images),
+            "competitor_name": competitor_name,
             "competitor_spu": meta["competitor_spu"],
+            "competitor_product": resolve_product_reference(
+                meta["competitor_spu"], competitor_name, product_images
+            ),
             "confidence": core["report_confidence"],
             "summary": f"本品{'、'.join(advantage_labels)}领先。" if advantage_labels else "本品核心指标暂无明显优势。",
             "weakness_summary": f"本品{'、'.join(warning_labels)}落后，需要优先优化。" if warning_labels else "本品核心指标暂无明显短板。",
