@@ -672,14 +672,6 @@ h1 {
   font-size: 11px;
 }
 
-.period-day-summary {
-  background: rgba(223, 241, 236, 0.48);
-}
-
-.period-month-summary {
-  background: rgba(102, 112, 133, 0.08);
-}
-
 .period-month-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
