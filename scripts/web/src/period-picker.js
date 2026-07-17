@@ -150,7 +150,7 @@ function createDayPanel(options) {
         const parts = dateParts(date);
         const entry = available.get(date);
         const outside = parts.month !== month;
-        return `<button type="button" data-period-key="${entry?.period_key || ""}" class="period-day-cell${outside ? " is-outside" : ""}${entry ? " has-report" : ""}${entry?.period_key === selected?.period_key ? " is-selected" : ""}" ${entry ? "" : "disabled"} aria-pressed="${entry?.period_key === selected?.period_key}"><span>${outside ? `${parts.month}/${parts.day}` : parts.day}</span>${entry ? "<i></i>" : ""}</button>`;
+        return `<button type="button" data-period-key="${entry?.period_key || ""}" class="period-day-cell${outside ? " is-outside" : ""}${entry ? " has-report" : ""}${entry?.period_key === selected?.period_key ? " is-selected" : ""}" ${entry ? "" : "disabled"} aria-pressed="${entry?.period_key === selected?.period_key}"><span>${outside ? `${parts.month}/${parts.day}` : parts.day}</span></button>`;
       }).join("")}
     </div>
   `;
@@ -178,7 +178,7 @@ function createWeekPanel(options) {
           ${dates.map((date) => {
             const parts = dateParts(date);
             const outside = parts.month !== month;
-            return `<span class="period-week-day${outside ? " is-outside" : ""}"><b>${outside ? `${parts.month}/${parts.day}` : parts.day}</b>${entry ? "<i></i>" : ""}</span>`;
+            return `<span class="period-week-day${outside ? " is-outside" : ""}"><b>${outside ? `${parts.month}/${parts.day}` : parts.day}</b></span>`;
           }).join("")}
         </button>
       `;
