@@ -366,17 +366,10 @@ export function renderTrendChart(reports, metricId, granularity, selectedPeriodS
   const metric = series[0].metric;
   document.querySelector("#trend-title").textContent = `${metric.label || "指标"}趋势`;
   if (series.length < 2) {
-    document.querySelector("#trend-scope").textContent = "历史数据不足";
     showTrendState("当前只有 1 个周期的数据，至少需要 2 个周期才能形成趋势");
     return;
   }
   const selectedItem = series.find((item) => item.periodStart === selectedPeriodStart);
-  const scopeLabels = {
-    day: `${series.length} 天窗口${selectedItem ? ` · 当前 ${selectedItem.label}` : ""}`,
-    week: `本月 ${series.length} 周`,
-    month: `${series.length} 个月`
-  };
-  document.querySelector("#trend-scope").textContent = `${scopeLabels[granularity] || `${series.length} 个周期`} · 点击指标卡切换`;
   const target = document.querySelector("#trend-chart");
   disposeTrendChart();
   target.innerHTML = "";
