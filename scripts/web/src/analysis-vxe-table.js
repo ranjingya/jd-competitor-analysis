@@ -6,6 +6,7 @@ import VxeUITable, { VxeColumn, VxeTable, VxeToolbar } from "vxe-table";
 import "vxe-pc-ui/lib/style.css";
 import "vxe-table/lib/style.css";
 import "./analysis-vxe-table.css";
+import { sortRowsWithBottomValues } from "./analysis-sort.js";
 
 const GAP_FIELD_PATTERN = /(gap|差距|visitor_gap|gmv_gap|order_gap|gap_rate)/;
 const BAD_TEXT_PATTERN = /落后|竞品独有|补词机会|成交落后|访客落后|短板/;
@@ -64,20 +65,6 @@ function normalizeProgressValue(value) {
   }
   const number = Number(value);
   return Number.isFinite(number) ? Math.min(100, Math.max(0, number)) : null;
-}
-
-/**
- * 功能说明：生成占比列的排序值，使缺失值、短横线和零值在升降序中始终沉底。
- * 参数 row：当前表格行数据。
- * 参数 column：当前 VXE 列对象，用于读取字段名和排序方向。
- * 返回值：有效正数原样返回，无效值按排序方向返回对应的末尾哨兵值。
- */
-function progressSortValue({ row, column }) {
-  const value = Number(row[column.field]);
-  if (Number.isFinite(value) && value > 0) {
-    return value;
-  }
-  return column.order === "desc" ? Number.NEGATIVE_INFINITY : Number.POSITIVE_INFINITY;
 }
 
 /**
@@ -334,7 +321,6 @@ export function mountAnalysisVxeTable(target, config) {
           minWidth: columnWidth(column, columnIndex, tableId),
           fixed: columnIndex === 0 ? "left" : undefined,
           sortable: true,
-          sortBy: isProgressColumn(column) ? progressSortValue : undefined,
           treeNode: isTree && columnIndex === 0,
           headerClassName: isDerivedColumn(column) ? "analysis-derived-header" : undefined,
           showOverflow: "title",
@@ -437,6 +423,11 @@ export function mountAnalysisVxeTable(target, config) {
               isDeep: isTree,
               showIcon: true,
               allowClear: true,
+              sortMethod: ({ data: sortData, sortList }) => sortRowsWithBottomValues(
+                sortData,
+                sortList,
+                isTree ? "_X_ROW_CHILD" : null
+              ),
               defaultSort: config.sortState?.key ? {
                 field: config.sortState.key,
                 order: config.sortState.direction
