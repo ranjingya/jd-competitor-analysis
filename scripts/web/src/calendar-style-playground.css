@@ -1,0 +1,437 @@
+:root {
+  --bg: #f4efe6;
+  --panel: #fffdf8;
+  --line: #ded6c8;
+  --text: #1f2933;
+  --muted: #667085;
+  --teal: #0f7b73;
+  --soft-teal: #dff1ec;
+  --amber: #b96905;
+  --soft-amber: #f4e7d3;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+}
+
+button,
+a {
+  font: inherit;
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid rgba(15, 123, 115, 0.24);
+  outline-offset: 2px;
+}
+
+.playground-shell {
+  width: min(1380px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 30px 0 44px;
+}
+
+.playground-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 20px;
+}
+
+.eyebrow {
+  margin: 0 0 6px;
+  color: var(--teal);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  margin-bottom: 8px;
+  font-size: clamp(25px, 3vw, 36px);
+  line-height: 1.2;
+}
+
+.intro {
+  max-width: 720px;
+  margin-bottom: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.back-link {
+  flex: 0 0 auto;
+  padding: 9px 13px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.preview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.preview-card {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: 0 12px 30px rgba(31, 41, 51, 0.06);
+}
+
+.preview-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 86px;
+  margin-bottom: 14px;
+}
+
+.option-badge {
+  display: inline-block;
+  margin-bottom: 6px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--soft-teal);
+  color: var(--teal);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.preview-card h2 {
+  margin-bottom: 4px;
+  font-size: 20px;
+}
+
+.preview-card-header p {
+  max-width: 390px;
+  margin-bottom: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.mode-switch {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f6f1e9;
+}
+
+.mode-switch button {
+  width: 38px;
+  height: 32px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.mode-switch button.is-active {
+  background: var(--teal);
+  color: #fff;
+  box-shadow: 0 4px 10px rgba(15, 123, 115, 0.2);
+}
+
+.calendar-frame {
+  min-height: 430px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #fffefa;
+}
+
+.calendar-heading {
+  display: grid;
+  grid-template-columns: 34px 1fr 34px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.calendar-heading div {
+  text-align: center;
+}
+
+.calendar-heading strong,
+.calendar-heading span {
+  display: block;
+}
+
+.calendar-heading strong {
+  font-size: 15px;
+}
+
+.calendar-heading span {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.calendar-heading button {
+  border: 0;
+  background: transparent;
+  color: #c8c1b6;
+  cursor: default;
+  font-size: 23px;
+}
+
+.weekday-row,
+.day-grid,
+.week-row {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.weekday-row {
+  margin-bottom: 5px;
+}
+
+.weekday-row span {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 22px;
+  text-align: center;
+}
+
+.date-grid {
+  min-height: 285px;
+}
+
+.day-grid {
+  grid-auto-rows: 53px;
+}
+
+.week-grid {
+  display: grid;
+  grid-auto-rows: 53px;
+}
+
+.date-cell,
+.week-row {
+  border: 0;
+  color: var(--text);
+  font-weight: 800;
+}
+
+button.date-cell,
+.week-row {
+  background: transparent;
+  cursor: pointer;
+}
+
+.date-cell {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+}
+
+.date-cell.is-outside {
+  background: rgba(244, 231, 211, 0.56);
+  color: var(--amber);
+  font-size: 11px;
+}
+
+.week-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 38px;
+  margin-top: 12px;
+  padding: 10px 11px;
+  border-radius: 7px;
+  background: rgba(244, 231, 211, 0.54);
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.week-summary strong {
+  color: var(--text);
+  font-size: 11px;
+}
+
+.week-summary.is-placeholder {
+  visibility: hidden;
+}
+
+/* 方案一：完整复刻原周视图的表格与描边选区。 */
+.style-classic .day-grid,
+.style-classic .week-grid {
+  gap: 0;
+}
+
+.style-classic .date-cell {
+  border-right: 1px solid rgba(222, 214, 200, 0.72);
+}
+
+.style-classic .day-grid .date-cell:nth-child(7n),
+.style-classic .week-row .date-cell:last-child {
+  border-right: 0;
+}
+
+.style-classic button.date-cell.is-selected,
+.style-classic .week-row.is-selected {
+  background: var(--soft-teal);
+  box-shadow: inset 0 0 0 2px var(--teal), 0 6px 14px rgba(15, 123, 115, 0.12);
+}
+
+.style-classic button.date-cell:hover:not(.is-selected),
+.style-classic .week-row:hover:not(.is-selected) {
+  background: rgba(223, 241, 236, 0.42);
+}
+
+/* 方案二：以连续浅色带表达选中范围。 */
+.style-band .day-grid,
+.style-band .week-grid {
+  gap: 4px 0;
+}
+
+.style-band .date-cell {
+  border-right: 1px solid rgba(222, 214, 200, 0.64);
+}
+
+.style-band .day-grid .date-cell:nth-child(7n),
+.style-band .week-row .date-cell:last-child {
+  border-right: 0;
+}
+
+.style-band button.date-cell.is-selected,
+.style-band .week-row.is-selected {
+  background: var(--soft-teal);
+  color: var(--teal);
+  box-shadow: inset 0 -3px 0 var(--teal);
+}
+
+.style-band button.date-cell:hover:not(.is-selected),
+.style-band .week-row:hover:not(.is-selected) {
+  background: rgba(223, 241, 236, 0.34);
+}
+
+/* 方案三：日期使用独立分格，交互边界最明确。 */
+.style-cells .day-grid,
+.style-cells .week-row {
+  gap: 5px;
+}
+
+.style-cells .week-grid {
+  gap: 5px;
+}
+
+.style-cells .date-cell {
+  border: 1px solid rgba(222, 214, 200, 0.78);
+  border-radius: 6px;
+  background: #fffefa;
+}
+
+.style-cells button.date-cell.is-selected,
+.style-cells .week-row.is-selected .date-cell {
+  border-color: var(--teal);
+  background: var(--soft-teal);
+  color: var(--teal);
+}
+
+.style-cells .week-row.is-selected {
+  padding: 2px;
+  border-radius: 8px;
+  background: rgba(223, 241, 236, 0.52);
+  box-shadow: inset 0 0 0 1px var(--teal);
+}
+
+.style-cells button.date-cell:hover:not(.is-selected),
+.style-cells .week-row:not(.is-selected) .date-cell:hover {
+  border-color: rgba(15, 123, 115, 0.44);
+}
+
+/* 方案四：保留表格秩序，用单条底线降低视觉重量。 */
+.style-underline .day-grid,
+.style-underline .week-grid {
+  gap: 4px 0;
+}
+
+.style-underline .date-cell {
+  border-bottom: 1px solid rgba(222, 214, 200, 0.7);
+}
+
+.style-underline button.date-cell.is-selected,
+.style-underline .week-row.is-selected {
+  background: rgba(223, 241, 236, 0.58);
+  color: var(--teal);
+  box-shadow: inset 0 -3px 0 var(--teal);
+}
+
+.style-underline button.date-cell:hover:not(.is-selected),
+.style-underline .week-row:hover:not(.is-selected) {
+  color: var(--teal);
+}
+
+@media (max-width: 980px) {
+  .preview-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .playground-shell {
+    width: min(100% - 24px, 520px);
+    padding-top: 18px;
+  }
+
+  .playground-header,
+  .preview-card-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .mode-switch {
+    width: max-content;
+  }
+
+  .preview-card {
+    padding: 13px;
+  }
+
+  .calendar-frame {
+    min-height: 404px;
+    padding: 12px 10px;
+  }
+
+  .date-grid {
+    min-height: 260px;
+  }
+
+  .day-grid,
+  .week-grid {
+    grid-auto-rows: 48px;
+  }
+
+  .week-summary {
+    display: grid;
+  }
+}

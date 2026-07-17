@@ -95,7 +95,8 @@ export default defineConfig({
     chunkSizeWarningLimit: 600,
     rollupOptions: {
       input: {
-        main: resolve(webRoot, "index.html")
+        main: resolve(webRoot, "index.html"),
+        calendarPlayground: resolve(webRoot, "calendar-style-playground.html")
       },
       output: {
         manualChunks: splitVendorChunk
