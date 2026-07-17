@@ -165,20 +165,24 @@ function createWeekPanel(options) {
   const root = document.createElement("div");
   root.className = "period-calendar-panel period-week-panel";
   const selected = selectedEntry(options, "week");
-  const entries = reportsFor(options.index, "week").filter((entry) => entry.period_start.startsWith(context));
+  const available = new Map(reportsFor(options.index, "week").map((entry) => [entry.period_start, entry]));
   root.innerHTML = `
     ${calendarHeader(options, "week", `${year} 年 ${month} 月`, "选择完整自然周")}
     ${weekdayHeader()}
     <div class="period-week-grid">
-      ${entries.map((entry) => `
-        <button type="button" class="period-week-row${entry.period_key === selected?.period_key ? " is-selected" : ""}" data-period-key="${entry.period_key}" aria-pressed="${entry.period_key === selected?.period_key}" aria-label="第 ${isoWeekNumber(entry.period_start)} 周，${formatWeekRange(entry.period_start, entry.period_end)}">
-          ${datesInRange(entry.period_start, entry.period_end).map((date) => {
+      ${calendarWeeks(year, month).map((dates) => {
+        const entry = available.get(dates[0]);
+        const isSelected = entry?.period_key === selected?.period_key;
+        return `
+        <button type="button" class="period-week-row${isSelected ? " is-selected" : ""}" data-period-key="${entry?.period_key || ""}" ${entry ? "" : "disabled"} aria-pressed="${isSelected}" ${entry ? `aria-label="第 ${isoWeekNumber(entry.period_start)} 周，${formatWeekRange(entry.period_start, entry.period_end)}"` : ""}>
+          ${dates.map((date) => {
             const parts = dateParts(date);
             const outside = parts.month !== month;
             return `<span class="period-week-day${outside ? " is-outside" : ""}"><b>${outside ? `${parts.month}/${parts.day}` : parts.day}</b><i>${outside && parts.day === 1 ? `${parts.month}月` : ""}</i></span>`;
           }).join("")}
         </button>
-      `).join("")}
+      `;
+      }).join("")}
     </div>
     ${selected ? `<footer class="period-week-summary"><span>第 ${isoWeekNumber(selected.period_start)} 周${isCrossMonth(selected) ? " · 跨月" : ""}</span><strong>${formatWeekRange(selected.period_start, selected.period_end)}</strong></footer>` : ""}
   `;
@@ -227,6 +231,23 @@ function createActivePanel(options, granularity) {
   if (granularity === "week") return createWeekPanel(options);
   if (granularity === "month") return createMonthPanel(options);
   return createDayPanel(options);
+}
+
+/**
+ * 功能说明：切换日、周视图时优先沿用当前月份，确保日期网格保持在原位置。
+ * 参数 options：周期选择器渲染配置与各粒度上下文。
+ * 参数 currentGranularity：切换前的粒度。
+ * 参数 nextGranularity：即将切换到的粒度。
+ * 返回值：目标粒度应显示的月份或年份上下文。
+ */
+function contextAfterGranularitySwitch(options, currentGranularity, nextGranularity) {
+  const currentContext = activeContext(options, currentGranularity);
+  const nextContexts = availableContexts(options, nextGranularity);
+  const switchesCalendarMode = ["day", "week"].includes(currentGranularity) && ["day", "week"].includes(nextGranularity);
+  if (switchesCalendarMode && nextContexts.includes(currentContext)) {
+    return currentContext;
+  }
+  return contextForEntry(nextGranularity, selectedEntry(options, nextGranularity));
 }
 
 /**
@@ -297,8 +318,9 @@ export function renderPeriodPicker(options) {
   options.container.querySelectorAll("[data-granularity]:not(:disabled)").forEach((button) => {
     button.addEventListener("click", () => {
       const granularity = button.dataset.granularity;
+      const context = contextAfterGranularitySwitch(options, pickerGranularity, granularity);
       options.pickerState.draftGranularity = granularity;
-      options.pickerState.contexts[granularity] = contextForEntry(granularity, selectedEntry(options, granularity));
+      options.pickerState.contexts[granularity] = context;
       options.pickerState.open = true;
       options.pickerState.closing = false;
       options.pickerState.animateOpen = false;
