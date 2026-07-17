@@ -655,7 +655,7 @@ h1 {
   font-size: 11px;
 }
 
-.period-week-summary {
+.period-selection-summary {
   display: flex;
   justify-content: space-between;
   gap: 12px;
@@ -667,9 +667,17 @@ h1 {
   font-size: 10px;
 }
 
-.period-week-summary strong {
+.period-selection-summary strong {
   color: var(--text);
   font-size: 11px;
+}
+
+.period-day-summary {
+  background: rgba(223, 241, 236, 0.48);
+}
+
+.period-month-summary {
+  background: rgba(102, 112, 133, 0.08);
 }
 
 .period-month-grid {
@@ -1760,7 +1768,7 @@ a.product-card:hover,
     font-size: 11px;
   }
 
-  .period-week-summary {
+  .period-selection-summary {
     display: grid;
   }
 

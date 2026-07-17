@@ -153,6 +153,7 @@ function createDayPanel(options) {
         return `<button type="button" data-period-key="${entry?.period_key || ""}" class="period-day-cell${outside ? " is-outside" : ""}${entry ? " has-report" : ""}${entry?.period_key === selected?.period_key ? " is-selected" : ""}" ${entry ? "" : "disabled"} aria-pressed="${entry?.period_key === selected?.period_key}"><span>${outside ? `${parts.month}/${parts.day}` : parts.day}</span></button>`;
       }).join("")}
     </div>
+    ${selected ? `<footer class="period-selection-summary period-day-summary"><span>已选日期</span><strong>${formatDayLabel(selected.period_start)}</strong></footer>` : ""}
   `;
   bindContextNavigation(root, options, "day");
   bindPeriodSelection(root, options, "day");
@@ -184,7 +185,7 @@ function createWeekPanel(options) {
       `;
       }).join("")}
     </div>
-    ${selected ? `<footer class="period-week-summary"><span>第 ${isoWeekNumber(selected.period_start)} 周${isCrossMonth(selected) ? " · 跨月" : ""}</span><strong>${formatWeekRange(selected.period_start, selected.period_end)}</strong></footer>` : ""}
+    ${selected ? `<footer class="period-selection-summary period-week-summary"><span>第 ${isoWeekNumber(selected.period_start)} 周${isCrossMonth(selected) ? " · 跨月" : ""}</span><strong>${formatWeekRange(selected.period_start, selected.period_end)}</strong></footer>` : ""}
   `;
   bindContextNavigation(root, options, "week");
   bindPeriodSelection(root, options, "week");
@@ -207,6 +208,7 @@ function createMonthPanel(options) {
         return `<button type="button" data-period-key="${entry?.period_key || ""}" ${entry ? "" : "disabled"} class="period-month-cell${entry?.period_key === selected?.period_key ? " is-selected" : ""}" aria-pressed="${entry?.period_key === selected?.period_key}"><strong>${String(month).padStart(2, "0")}</strong><span>${entry ? "报告可用" : "暂无报告"}</span></button>`;
       }).join("")}
     </div>
+    ${selected ? `<footer class="period-selection-summary period-month-summary"><span>已选月份</span><strong>${formatPeriodLabel("month", selected)}</strong></footer>` : ""}
   `;
   bindContextNavigation(root, options, "month");
   bindPeriodSelection(root, options, "month");
