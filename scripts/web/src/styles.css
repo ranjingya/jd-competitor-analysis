@@ -971,6 +971,7 @@ h1 {
   background: var(--panel);
   color: var(--muted);
   cursor: pointer;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
 
 .tab {
@@ -978,18 +979,19 @@ h1 {
   padding: 0 14px;
   font-size: 13px;
   font-weight: 800;
-  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
 
 a.product-card:hover,
 .metric-card:hover,
-.tab:hover {
+.tab:hover,
+.dimension-tab:hover {
   border-color: var(--interactive-hover-border);
   box-shadow: var(--interactive-hover-shadow);
   transform: translateY(-1px);
 }
 
-.tab.active:hover {
+.tab.active:hover,
+.dimension-tab.active:hover {
   border-color: var(--teal);
 }
 
@@ -1445,10 +1447,20 @@ a.product-card:hover,
 
 .ai-recommendation-details summary {
   width: max-content;
-  color: var(--muted);
+  min-height: 26px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border: 1px solid rgba(102, 112, 133, 0.24);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.52);
+  color: var(--text);
   cursor: pointer;
   font-weight: 700;
   list-style: none;
+  user-select: none;
+  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
 }
 
 .ai-recommendation-details summary::-webkit-details-marker {
@@ -1456,8 +1468,10 @@ a.product-card:hover,
 }
 
 .ai-recommendation-details summary::before {
-  margin-right: 4px;
   content: "+";
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1;
 }
 
 .ai-recommendation-details[open] summary::before {
@@ -1465,7 +1479,14 @@ a.product-card:hover,
 }
 
 .ai-recommendation-details[open] summary {
-  color: var(--text);
+  border-color: rgba(15, 123, 115, 0.3);
+  background: rgba(223, 241, 236, 0.58);
+}
+
+.ai-recommendation-details summary:hover {
+  border-color: var(--interactive-hover-border);
+  background: var(--panel);
+  box-shadow: 0 3px 10px rgba(37, 45, 58, 0.1);
 }
 
 .ai-recommendation-details summary:focus-visible {
@@ -1534,13 +1555,16 @@ a.product-card:hover,
 @media (prefers-reduced-motion: reduce) {
   .product-card,
   .metric-card,
-  .tab {
+  .tab,
+  .dimension-tab,
+  .ai-recommendation-details summary {
     transition: none;
   }
 
   a.product-card:hover,
   .metric-card:hover,
-  .tab:hover {
+  .tab:hover,
+  .dimension-tab:hover {
     transform: none;
   }
 }
