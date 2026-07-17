@@ -249,12 +249,6 @@ h1 {
   white-space: nowrap;
 }
 
-.product-link-icon {
-  margin-left: 4px;
-  color: var(--teal);
-  font-size: 12px;
-}
-
 .product-compare-marker {
   display: flex;
   gap: 5px;

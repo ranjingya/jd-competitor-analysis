@@ -83,7 +83,7 @@ function renderProductComparison(meta) {
           <span class="product-role product-role-${product.role}">${product.label}</span>
           <span class="product-name" title="${escapeHtml(product.name)}">${escapeHtml(product.name)}</span>
         </span>
-        <span class="product-id">商品 ID ${escapeHtml(product.id || "未配置")}<span class="product-link-icon" aria-hidden="true">↗</span></span>
+        <span class="product-id">商品 ID ${escapeHtml(product.id || "未配置")}</span>
       </span>`;
     const card = product.itemUrl
       ? `<a class="product-card" href="${escapeHtml(product.itemUrl)}" target="_blank" rel="noopener noreferrer" aria-label="在京东打开${product.label}：${escapeHtml(product.name)}">${content}</a>`
