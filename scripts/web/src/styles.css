@@ -339,7 +339,6 @@ h1 {
   display: none;
   grid-template-columns: 76px minmax(0, 1fr);
   width: 540px;
-  height: 480px;
   min-height: 0;
   overflow: hidden;
   border: 1px solid var(--line);
