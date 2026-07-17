@@ -6,7 +6,10 @@ import VxeUITable, { VxeColumn, VxeTable, VxeToolbar } from "vxe-table";
 import "vxe-pc-ui/lib/style.css";
 import "vxe-table/lib/style.css";
 import "./analysis-vxe-table.css";
-import { sortRowsWithBottomValues } from "./analysis-sort.js";
+import {
+  sortFlatTreeRowsBySiblings,
+  sortRowsWithBottomValues
+} from "./analysis-sort.js";
 
 const GAP_FIELD_PATTERN = /(gap|差距|visitor_gap|gmv_gap|order_gap|gap_rate)/;
 const BAD_TEXT_PATTERN = /落后|竞品独有|补词机会|成交落后|访客落后|短板/;
@@ -208,6 +211,12 @@ export function mountAnalysisVxeTable(target, config) {
   const data = isTree
     ? prepareTrafficRows(config.rows || [])
     : prepareFlatRows(config.rows || [], tableId);
+  const initialSortList = config.sortState?.key
+    ? [{ field: config.sortState.key, order: config.sortState.direction }]
+    : [];
+  const sortedInitialData = isTree
+    ? sortFlatTreeRowsBySiblings(data, initialSortList)
+    : sortRowsWithBottomValues(data, initialSortList, null);
   const normalTableHeight = Math.min(380, Math.max(180, 48 + Math.min(data.length, 8) * 39));
 
   const AnalysisTable = {
@@ -218,6 +227,7 @@ export function mountAnalysisVxeTable(target, config) {
       const toolbarRef = ref();
       const isExpanded = ref(false);
       const tableHeight = ref(normalTableHeight);
+      const tableData = ref(sortedInitialData);
 
       const recalculate = async () => {
         await nextTick();
@@ -304,6 +314,35 @@ export function mountAnalysisVxeTable(target, config) {
         tableRef.value?.connectToolbar?.(toolbarRef.value);
       };
 
+      /**
+       * 功能说明：接管 VXE 排序事件，按当前维度生成新行序并保持表格滚动位置。
+       * 参数 field：当前排序列字段名。
+       * 参数 order：排序方向；null 表示清除排序。
+       * 返回值：Promise；数据、尺寸和滚动位置同步完成后结束。
+       */
+      const handleControlledSort = async (field, order) => {
+        const scrollBody = shellRef.value?.querySelector(
+          ".vxe-table--main-wrapper .vxe-table--body-inner-wrapper"
+        );
+        const scrollPosition = {
+          left: scrollBody?.scrollLeft || 0,
+          top: scrollBody?.scrollTop || 0
+        };
+        const sortList = order ? [{ field, order }] : [];
+        tableData.value = isTree
+          ? sortFlatTreeRowsBySiblings(data, sortList)
+          : sortRowsWithBottomValues(data, sortList, null);
+        config.onSortChange?.(order ? { key: field, direction: order } : null);
+        await recalculate();
+        const refreshedScrollBody = shellRef.value?.querySelector(
+          ".vxe-table--main-wrapper .vxe-table--body-inner-wrapper"
+        );
+        if (refreshedScrollBody) {
+          refreshedScrollBody.scrollLeft = scrollPosition.left;
+          refreshedScrollBody.scrollTop = scrollPosition.top;
+        }
+      };
+
       document.addEventListener("keydown", handleKeydown);
       window.addEventListener("resize", handleResize);
       onMounted(connectColumnToolbar);
@@ -379,7 +418,7 @@ export function mountAnalysisVxeTable(target, config) {
             h(VxeTable, {
             ref: tableRef,
             id: `analysis-vxe-${tableId}`,
-            data,
+            data: tableData.value,
             height: tableHeight.value,
             size: "small",
             border: "inner",
@@ -419,15 +458,9 @@ export function mountAnalysisVxeTable(target, config) {
             } : undefined,
             sortConfig: {
               trigger: "cell",
-              remote: false,
-              isDeep: isTree,
+              remote: true,
               showIcon: true,
               allowClear: true,
-              sortMethod: ({ data: sortData, sortList }) => sortRowsWithBottomValues(
-                sortData,
-                sortList,
-                isTree ? "_X_ROW_CHILD" : null
-              ),
               defaultSort: config.sortState?.key ? {
                 field: config.sortState.key,
                 order: config.sortState.direction
@@ -435,9 +468,7 @@ export function mountAnalysisVxeTable(target, config) {
             },
             scrollX: { enabled: true, gt: 8 },
             scrollY: { enabled: true, gt: 40 },
-            onSortChange: ({ field, order }) => config.onSortChange?.(
-              order ? { key: field, direction: order } : null
-            )
+            onSortChange: ({ field, order }) => handleControlledSort(field, order)
             }, { default: () => columns })
           ])
         ])

@@ -75,3 +75,50 @@ export function sortRowsWithBottomValues(
 
   return sortLevel(data);
 }
+
+/**
+ * 功能说明：对扁平父子数据的每个同级分组分别排序，并按父子顺序重新展开为扁平数组。
+ * 参数 data：包含稳定行标识和父行标识的扁平数据。
+ * 参数 sortList：当前生效的排序字段与方向列表。
+ * 参数 rowField：行标识字段名。
+ * 参数 parentField：父行标识字段名。
+ * 返回值：父节点在前、同级节点有序的扁平数组；清除排序时返回原顺序副本。
+ */
+export function sortFlatTreeRowsBySiblings(
+  data,
+  sortList,
+  rowField = "id",
+  parentField = "parent_id"
+) {
+  if (!Array.isArray(data)) {
+    return data;
+  }
+  const activeSort = sortList?.[0];
+  if (!activeSort?.order || !(activeSort.field || activeSort.property)) {
+    return [...data];
+  }
+
+  const rowIds = new Set(data.map((row) => row?.[rowField]).filter(Boolean));
+  const siblingGroups = new Map();
+  data.forEach((row) => {
+    const parentId = rowIds.has(row?.[parentField]) ? row[parentField] : null;
+    const siblings = siblingGroups.get(parentId) || [];
+    siblings.push(row);
+    siblingGroups.set(parentId, siblings);
+  });
+
+  const flattenedRows = [];
+  const appendLevel = (parentId) => {
+    const siblings = sortRowsWithBottomValues(
+      siblingGroups.get(parentId) || [],
+      sortList,
+      null
+    );
+    siblings.forEach((row) => {
+      flattenedRows.push(row);
+      appendLevel(row?.[rowField]);
+    });
+  };
+  appendLevel(null);
+  return flattenedRows;
+}
