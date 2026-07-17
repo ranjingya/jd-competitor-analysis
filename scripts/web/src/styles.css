@@ -605,18 +605,24 @@ h1 {
   border: 0;
   border-radius: 7px;
   background: transparent;
-  color: var(--text);
+  color: #aaa297;
   cursor: pointer;
 }
 
+.period-week-row:not(:disabled) {
+  color: var(--text);
+  font-weight: 800;
+}
+
 .period-week-row:hover:not(:disabled) {
-  background: rgba(223, 241, 236, 0.42);
-  box-shadow: inset 0 0 0 1px rgba(15, 123, 115, 0.42);
+  background: var(--soft-teal);
+  color: var(--teal);
 }
 
 .period-week-row.is-selected {
-  background: var(--soft-teal);
-  box-shadow: inset 0 0 0 2px var(--teal), 0 6px 14px rgba(15, 123, 115, 0.12);
+  background: var(--teal);
+  color: #fff;
+  box-shadow: 0 6px 14px rgba(15, 123, 115, 0.22);
 }
 
 .period-week-row:disabled {
@@ -625,32 +631,41 @@ h1 {
 }
 
 .period-week-day {
+  position: relative;
   display: grid;
   place-items: center;
   align-content: center;
   min-width: 0;
-  border-right: 1px solid rgba(222, 214, 200, 0.7);
-}
-
-.period-week-day:last-child {
-  border-right: 0;
 }
 
 .period-week-day b {
-  font-size: 13px;
+  font-size: inherit;
+  font-weight: inherit;
 }
 
 .period-week-day i {
-  min-height: 12px;
-  margin-top: 2px;
-  color: var(--amber);
-  font-size: 8px;
-  font-style: normal;
+  position: absolute;
+  left: 50%;
+  bottom: 5px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--amber);
+  transform: translateX(-50%);
 }
 
 .period-week-day.is-outside {
-  background: rgba(244, 231, 211, 0.54);
-  color: var(--amber);
+  color: #c5beb3;
+  font-size: 10px;
+}
+
+.period-week-row.is-selected .period-week-day,
+.period-week-row.is-selected .period-week-day.is-outside {
+  color: #fff;
+}
+
+.period-week-row.is-selected .period-week-day i {
+  background: #fff;
 }
 
 .period-week-summary {

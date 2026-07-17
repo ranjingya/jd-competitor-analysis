@@ -178,7 +178,7 @@ function createWeekPanel(options) {
           ${dates.map((date) => {
             const parts = dateParts(date);
             const outside = parts.month !== month;
-            return `<span class="period-week-day${outside ? " is-outside" : ""}"><b>${outside ? `${parts.month}/${parts.day}` : parts.day}</b><i>${outside && parts.day === 1 ? `${parts.month}月` : ""}</i></span>`;
+            return `<span class="period-week-day${outside ? " is-outside" : ""}"><b>${outside ? `${parts.month}/${parts.day}` : parts.day}</b>${entry ? "<i></i>" : ""}</span>`;
           }).join("")}
         </button>
       `;
