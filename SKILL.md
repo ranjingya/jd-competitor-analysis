@@ -97,7 +97,7 @@ npm run dev
 | `scripts/jd_competitor_analysis/pipeline.py` | 编排单周期、标准化事实重算和多粒度批处理。 |
 | `scripts/pyproject.toml` | uv 项目配置和 Python 依赖声明。 |
 | `scripts/uv.lock` | Python 依赖锁文件。 |
-| `scripts/web/` | Vite 看板源码，读取 `scripts/output/` 并提供日、周、月及周期切换。 |
+| `scripts/web/` | Vite 看板源码及其 Docker、Compose、Nginx 部署配置，读取 `scripts/output/` 并提供日、周、月及周期切换。 |
 
 ## 内部参考
 

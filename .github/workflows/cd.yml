@@ -46,7 +46,7 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v7
         with:
-          context: .
+          context: ./scripts/web
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ github.repository }}:latest
@@ -72,8 +72,9 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           passphrase: ${{ secrets.SSH_PRIVATE_KEY_PASSPHRASE }}
-          source: docker-compose.yaml
+          source: scripts/web/docker-compose.yaml
           target: ${{ vars.DEPLOY_DIR }}
+          strip_components: 2
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.2.5
