@@ -1,0 +1,28 @@
+services:
+  jd-competitor-analysis:
+    image: "ghcr.io/ranjingya/jd-competitor-analysis:latest"
+    container_name: jd-competitor-analysis
+    restart: unless-stopped
+    ports:
+      - "${APP_HTTP_PORT:-8080}:80"
+    expose:
+      - "80"
+    volumes:
+      - ./reports:/usr/share/nginx/html/reports:ro
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: traefik-network
+      traefik.http.routers.jd-competitor-analysis.rule: "Host(`jd-comp.skills.kktree.cn`)"
+      traefik.http.routers.jd-competitor-analysis.entrypoints: websecure
+      traefik.http.routers.jd-competitor-analysis.tls: "true"
+      traefik.http.routers.jd-competitor-analysis.tls.certresolver: myresolver
+      traefik.http.services.jd-competitor-analysis.loadbalancer.server.port: 80
+    networks:
+      - kocotree-skills
+      - traefik-network
+
+networks:
+  kocotree-skills:
+    external: true
+  traefik-network:
+    external: true

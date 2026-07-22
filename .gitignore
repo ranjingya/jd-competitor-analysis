@@ -3,5 +3,8 @@ node_modules/
 dist/
 竞品分析数据/
 output/
+reports/
+.env
 __pycache__/
 *.py[cod]
+.DS_Store
