@@ -3,8 +3,6 @@ services:
     image: "ghcr.io/ranjingya/jd-competitor-analysis:latest"
     container_name: jd-competitor-analysis
     restart: unless-stopped
-    ports:
-      - "${APP_HTTP_PORT:-8080}:80"
     expose:
       - "80"
     volumes:
