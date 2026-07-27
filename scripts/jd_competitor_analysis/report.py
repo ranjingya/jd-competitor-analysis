@@ -18,30 +18,43 @@ def format_number(value: float | None, digits: int = 2) -> str:
     return f"{value:.{digits}f}"
 
 
-def ratio_label(self_value: float | None, competitor_value: float | None) -> str:
-    """生成领先方倍率文本。"""
+def relative_gap_pct(self_value: float | None, competitor_value: float | None) -> float | None:
+    """计算相对竞品的差距幅度百分比。"""
 
-    if self_value is None or competitor_value is None or min(self_value, competitor_value) <= 0:
-        return "无可比倍率"
-    if self_value >= competitor_value:
-        return f"本品 {self_value / competitor_value:.2f}x"
-    return f"竞品 {competitor_value / self_value:.2f}x"
+    if self_value is None or competitor_value is None or competitor_value == 0:
+        return None
+    return (self_value - competitor_value) / competitor_value * 100
+
+
+def format_signed_number(value: float | None, digits: int = 2) -> str:
+    """格式化仅在负数前保留减号的数值。"""
+
+    if value is None:
+        return "-"
+    normalized = 0.0 if abs(value) < 0.5 * 10 ** (-digits) else value
+    return f"{normalized:.{digits}f}"
 
 
 def gap_text(label: str, self_value: float | None, competitor_value: float | None) -> str:
-    """生成统一领先或落后文案。"""
+    """生成统一差值和差距幅度文案。"""
 
     if self_value is None or competitor_value is None:
         return "数据不足"
     direction = "领先" if self_value >= competitor_value else "落后"
-    gap = f"{abs(self_value - competitor_value) * 100:.2f}pct" if label == "成交转化率" else format_number(abs(self_value - competitor_value))
-    return f"本品{direction} {gap} | {ratio_label(self_value, competitor_value)}"
+    if label == "成交转化率":
+        return f"本品{direction} | 转化差值 {format_signed_number((self_value - competitor_value) * 100)}pct"
+    amplitude = relative_gap_pct(self_value, competitor_value)
+    amplitude_text = f"{format_signed_number(amplitude)}%" if amplitude is not None else "-"
+    return (
+        f"本品{direction} | 差值 {format_signed_number(self_value - competitor_value)}"
+        f" | 差距幅度 {amplitude_text}"
+    )
 
 
 def build_core_views(core: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """生成核心对比和四张指标卡。
 
-    功能说明：只基于核心估算最终值组装差距、倍率、状态与页面展示值，不执行任何估算。
+    功能说明：只基于核心估算最终值组装差值、差距幅度、状态与页面展示值，不执行任何估算。
     参数 core：估算模块输出的核心分析对象。
     返回值：完整核心对比数组和四张指标卡数组。
     """
@@ -60,7 +73,12 @@ def build_core_views(core: dict[str, Any]) -> tuple[list[dict[str, Any]], list[d
                 "competitor_value": competitor_value,
                 "gap": self_value - competitor_value if self_value is not None and competitor_value is not None else None,
                 "gap_pct_point": (self_value - competitor_value) * 100 if metric.unit == "%" and self_value is not None and competitor_value is not None else None,
-                "ratio": self_value / competitor_value if self_value and competitor_value else None,
+                "gap_rate_pct": (
+                    None
+                    if metric.unit == "%"
+                    else relative_gap_pct(self_value, competitor_value)
+                ),
+                "gap_mode": "percentage_point" if metric.unit == "%" else "relative",
                 "judgement": "本品领先" if status == "advantage" else "本品落后",
             }
         )
@@ -75,8 +93,17 @@ def build_core_views(core: dict[str, Any]) -> tuple[list[dict[str, Any]], list[d
                 "unit": metric.unit,
                 "self_value": card_self,
                 "competitor_value": card_competitor,
-                "gap_abs_text": format_number(abs((self_value or 0) - (competitor_value or 0)) * (100 if metric.unit == "%" else 1)),
-                "ratio_text": ratio_label(self_value, competitor_value),
+                "gap_value": (
+                    (self_value - competitor_value) * (100 if metric.unit == "%" else 1)
+                    if self_value is not None and competitor_value is not None
+                    else None
+                ),
+                "gap_rate_pct": (
+                    None
+                    if metric.unit == "%"
+                    else relative_gap_pct(self_value, competitor_value)
+                ),
+                "gap_mode": "percentage_point" if metric.unit == "%" else "relative",
                 "gap_text": gap_text(metric.label, self_value, competitor_value),
                 "status": status,
                 "priority": "高" if status == "warning" else "低",
@@ -111,6 +138,35 @@ def _traffic_highlight_gap(item: dict[str, Any]) -> str:
     return gap_text("访客数", item["self_visitors"], item["competitor_visitors"])
 
 
+def _highlight_gap_fields(
+    metric_label: str,
+    self_value: float | None,
+    competitor_value: float | None,
+    gap_mode: str = "relative",
+) -> dict[str, Any]:
+    """生成来源重点卡统一使用的差值字段。
+
+    功能说明：为重点卡补充指标名称、带方向差值、差距幅度和计算模式。
+    参数 metric_label：差值对应的业务指标名称。
+    参数 self_value：本品指标值。
+    参数 competitor_value：竞品指标值。
+    参数 gap_mode：relative 表示相对差距幅度，percentage_point 表示百分点差。
+    返回值：可直接合并到重点卡的数据字段。
+    """
+
+    comparable = self_value is not None and competitor_value is not None
+    return {
+        "metric_label": metric_label,
+        "gap_value": self_value - competitor_value if comparable else None,
+        "gap_rate_pct": (
+            relative_gap_pct(self_value, competitor_value)
+            if comparable and gap_mode == "relative"
+            else None
+        ),
+        "gap_mode": gap_mode,
+    }
+
+
 def build_tabs(traffic: list[dict[str, Any]], keywords: dict[str, Any], profile: dict[str, Any]) -> list[dict[str, Any]]:
     """生成网页直接消费的三个分析 Tab。
 
@@ -129,6 +185,11 @@ def build_tabs(traffic: list[dict[str, Any]], keywords: dict[str, Any], profile:
                 "self_value": item["self_visitors"],
                 "competitor_value": item["competitor_visitors"],
                 "unit": "",
+                **_highlight_gap_fields(
+                    "访客",
+                    item["self_visitors"],
+                    item["competitor_visitors"],
+                ),
                 "gap_text": _traffic_highlight_gap(item),
                 "status": "advantage" if item["visitor_gap"] >= 0 else "warning",
             }
@@ -168,6 +229,11 @@ def build_tabs(traffic: list[dict[str, Any]], keywords: dict[str, Any], profile:
                 "self_value": item["self_visitors"],
                 "competitor_value": item["competitor_visitors"],
                 "unit": "",
+                **_highlight_gap_fields(
+                    "访客",
+                    item["self_visitors"],
+                    item["competitor_visitors"],
+                ),
                 "gap_text": f"{item['opportunity']} | 访客差距 {format_number(item['visitor_gap'])} | 成交差距 {format_number(item['gmv_gap'])}",
                 "status": "warning" if item["opportunity"] in {"补词机会", "访客落后", "成交落后"} else "advantage",
             }
@@ -187,6 +253,12 @@ def build_tabs(traffic: list[dict[str, Any]], keywords: dict[str, Any], profile:
                 "self_value": item["self_rate"],
                 "competitor_value": item["competitor_rate"],
                 "unit": "%",
+                **_highlight_gap_fields(
+                    "成交客户占比",
+                    item["self_rate"],
+                    item["competitor_rate"],
+                    "percentage_point",
+                ),
                 "gap_text": f"{item['judgement']} | 差距 {abs(item['gap_rate']):.2f}pct",
                 "status": "warning" if item["judgement"] == "本品落后" else "advantage",
             }

@@ -157,11 +157,33 @@ def validate_contract(data: dict[str, Any], allow_empty: bool = False) -> None:
         for field in ("label", "headline", "highlights", "columns", "rows", "notes"):
             if field not in tab:
                 raise ValueError(f"Tab {tab_id} 缺少字段：{field}")
+        for item in tab["highlights"]:
+            for field in (
+                "metric_label",
+                "self_value",
+                "competitor_value",
+                "gap_value",
+                "gap_rate_pct",
+                "gap_mode",
+            ):
+                if field not in item:
+                    raise ValueError(f"Tab {tab_id} 重点卡缺少字段：{field}")
     if not allow_empty:
         if len(data["core_metrics"]) != 4:
             raise ValueError("正式结果必须包含四张核心指标卡")
         for item in data["core_metrics"]:
-            for field in ("id", "label", "unit", "self_value", "competitor_value", "gap_text", "status"):
+            for field in (
+                "id",
+                "label",
+                "unit",
+                "self_value",
+                "competitor_value",
+                "gap_value",
+                "gap_rate_pct",
+                "gap_mode",
+                "gap_text",
+                "status",
+            ):
                 if field not in item:
                     raise ValueError(f"核心指标卡缺少字段：{field}")
         for item in data["competitor_core_conversions"]:

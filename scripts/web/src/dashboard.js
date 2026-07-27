@@ -110,63 +110,100 @@ function formatValue(value, unit = "") {
 }
 
 /**
- * 功能说明：计算重点卡的带方向差值。
- * 参数 item：包含本品值、竞品值和单位的重点数据。
- * 返回值：带正负方向和展示单位的差值文本。
+ * 功能说明：格式化只在负数前保留减号的展示值。
+ * 参数 value：待格式化数值。
+ * 参数 unit：数值后的展示单位。
+ * 返回值：固定两位小数的展示文本，正数不带加号。
  */
-function formatHighlightGap(item) {
-  const selfValue = typeof item.self_value === "number" ? item.self_value : 0;
-  const competitorValue = typeof item.competitor_value === "number" ? item.competitor_value : 0;
-  const gap = selfValue - competitorValue;
-  const sign = gap > 0 ? "+" : "";
-  const unit = item.unit === "%" ? "pct" : (item.unit || "");
-  return `${sign}${gap.toFixed(2)}${unit}`;
-}
-
-/**
- * 功能说明：计算重点卡的强弱倍率或独有状态。
- * 参数 item：包含本品值和竞品值的重点数据。
- * 返回值：倍率、独有状态或无可比标识。
- */
-function formatHighlightRatio(item) {
-  const selfValue = typeof item.self_value === "number" ? item.self_value : 0;
-  const competitorValue = typeof item.competitor_value === "number" ? item.competitor_value : 0;
-  if (selfValue > 0 && competitorValue > 0) {
-    return `${(Math.max(selfValue, competitorValue) / Math.min(selfValue, competitorValue)).toFixed(2)}x`;
-  }
-  if (selfValue > 0) {
-    return "本品独有";
-  }
-  if (competitorValue > 0) {
-    return "竞品独有";
-  }
-  return "-";
-}
-
-/**
- * 功能说明：把核心指标差值压缩为带方向符号的纯数字。
- * 参数 item：核心指标卡数据。
- * 返回值：领先为正数、落后为负数的简短差值文本。
- */
-function formatMetricGap(item) {
-  if (item.gap_abs_text == null || item.gap_abs_text === "") {
+function formatSignedValue(value, unit = "") {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
     return "-";
   }
-  const rawValue = String(item.gap_abs_text).replaceAll(",", "").replace(/^[+-]/, "");
-  const value = Number(rawValue);
-  const sign = item.status === "warning" ? "-" : "+";
-  const unit = item.id === "conversion_rate" ? "pct" : "";
-  return Number.isFinite(value) ? `${sign}${value.toFixed(2)}${unit}` : "-";
+  const normalized = Math.abs(value) < 0.005 ? 0 : value;
+  return `${normalized.toFixed(2)}${unit}`;
 }
 
 /**
- * 功能说明：从核心指标倍率说明中提取纯倍率数字。
- * 参数 item：核心指标卡数据。
- * 返回值：不包含本品或竞品说明的倍率文本。
+ * 功能说明：展示重点卡差值对应的指标名称和带方向数值。
+ * 参数 item：包含指标名、本品值、竞品值和差值模式的重点数据。
+ * 返回值：明确指标名称的差值、独有状态或数据不足标识。
  */
-function formatMetricRatio(item) {
-  const match = String(item.ratio_text || "").match(/(\d+(?:\.\d+)?)x/i);
-  return match ? `${Number(match[1]).toFixed(2)}x` : "-";
+function formatHighlightGap(item) {
+  const metricLabel = item.metric_label || "指标";
+  const hasSelfValue = typeof item.self_value === "number";
+  const hasCompetitorValue = typeof item.competitor_value === "number";
+  if (!hasSelfValue || !hasCompetitorValue) {
+    if (hasSelfValue) {
+      return `${metricLabel}差值 本品独有`;
+    }
+    if (hasCompetitorValue) {
+      return `${metricLabel}差值 竞品独有`;
+    }
+    return `${metricLabel}差值 -`;
+  }
+  const gap = typeof item.gap_value === "number"
+    ? item.gap_value
+    : item.self_value - item.competitor_value;
+  const unit = item.gap_mode === "percentage_point" ? "pct" : (item.unit || "");
+  return `${metricLabel}差值 ${formatSignedValue(gap, unit)}`;
+}
+
+/**
+ * 功能说明：展示重点卡相对竞品的差距幅度。
+ * 参数 item：包含本品值、竞品值和差距幅度的重点数据。
+ * 返回值：百分比幅度文本；百分点模式不重复展示。
+ */
+function formatHighlightAmplitude(item) {
+  if (item.gap_mode === "percentage_point") {
+    return "";
+  }
+  const fallbackRate = (
+    typeof item.self_value === "number"
+    && typeof item.competitor_value === "number"
+    && item.competitor_value !== 0
+  )
+    ? (item.self_value - item.competitor_value) / item.competitor_value * 100
+    : null;
+  const rate = typeof item.gap_rate_pct === "number" ? item.gap_rate_pct : fallbackRate;
+  return `幅度 ${formatSignedValue(rate, "%")}`;
+}
+
+/**
+ * 功能说明：展示核心指标的带方向差值。
+ * 参数 item：核心指标卡数据。
+ * 返回值：包含差值名称和单位的展示文本。
+ */
+function formatMetricGap(item) {
+  const fallbackGap = (
+    typeof item.self_value === "number"
+    && typeof item.competitor_value === "number"
+  )
+    ? item.self_value - item.competitor_value
+    : null;
+  const value = typeof item.gap_value === "number" ? item.gap_value : fallbackGap;
+  const unit = item.id === "conversion_rate" ? "pct" : "";
+  const label = item.id === "conversion_rate" ? "转化差值" : "差值";
+  return `${label} ${formatSignedValue(value, unit)}`;
+}
+
+/**
+ * 功能说明：展示核心指标相对竞品的差距幅度。
+ * 参数 item：包含本品值、竞品值和差距幅度的核心指标卡。
+ * 返回值：百分比幅度文本；成交转化率不重复展示。
+ */
+function formatMetricAmplitude(item) {
+  if (item.id === "conversion_rate" || item.gap_mode === "percentage_point") {
+    return "";
+  }
+  const fallbackRate = (
+    typeof item.self_value === "number"
+    && typeof item.competitor_value === "number"
+    && item.competitor_value !== 0
+  )
+    ? (item.self_value - item.competitor_value) / item.competitor_value * 100
+    : null;
+  const rate = typeof item.gap_rate_pct === "number" ? item.gap_rate_pct : fallbackRate;
+  return `幅度 ${formatSignedValue(rate, "%")}`;
 }
 
 /**
@@ -212,7 +249,9 @@ function renderTabs() {
     <section class="tab-section">
       <p class="section-title">优势与劣势</p>
       <div class="insight-grid">
-        ${highlights.map((item) => `
+        ${highlights.map((item) => {
+          const amplitudeText = formatHighlightAmplitude(item);
+          return `
           <article class="insight-card ${item.status === "warning" ? "warning" : "advantage"}">
             <div class="insight-card-label">
               <p class="insight-type">${item.status === "warning" ? "劣势" : "优势"}</p>
@@ -220,11 +259,14 @@ function renderTabs() {
             </div>
             <div class="insight-compare ${item.status === "warning" ? "warning" : "advantage"}">
               <span>${escapeHtml(formatHighlightGap(item))}</span>
-              <span class="insight-compare-divider" aria-hidden="true"></span>
-              <span>${escapeHtml(formatHighlightRatio(item))}</span>
+              ${amplitudeText ? `
+                <span class="insight-compare-divider" aria-hidden="true"></span>
+                <span>${escapeHtml(amplitudeText)}</span>
+              ` : ""}
             </div>
           </article>
-        `).join("") || '<p class="empty-inline">当前周期暂无重点数据</p>'}
+        `;
+        }).join("") || '<p class="empty-inline">当前周期暂无重点数据</p>'}
       </div>
     </section>
     <section class="tab-section">
@@ -493,6 +535,7 @@ export function renderDashboard(data, activeMetricId = "") {
   metrics.innerHTML = metricItems.map((item) => {
     const selfText = formatValue(item.self_value, item.unit);
     const competitorText = formatValue(item.competitor_value, item.unit);
+    const amplitudeText = formatMetricAmplitude(item);
     const statusClass = item.status === "warning" ? "warning" : "advantage";
     return `
       <button class="metric-card status-${statusClass} ${item.id === dashboardState.activeMetricId ? "active" : ""}" type="button" data-metric-id="${escapeHtml(item.id)}" aria-pressed="${item.id === dashboardState.activeMetricId}">
@@ -500,8 +543,10 @@ export function renderDashboard(data, activeMetricId = "") {
           <p class="metric-title">${escapeHtml(item.label || "-")}</p>
           <div class="metric-gap">
             <span>${escapeHtml(formatMetricGap(item))}</span>
-            <span class="metric-gap-divider" aria-hidden="true"></span>
-            <span>${escapeHtml(formatMetricRatio(item))}</span>
+            ${amplitudeText ? `
+              <span class="metric-gap-divider" aria-hidden="true"></span>
+              <span>${escapeHtml(amplitudeText)}</span>
+            ` : ""}
           </div>
         </div>
         <div class="metric-values">

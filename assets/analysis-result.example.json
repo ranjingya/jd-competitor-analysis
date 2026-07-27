@@ -24,13 +24,13 @@
     "confidence": "medium",
     "summary": "本品成交金额、访客数领先。",
     "weakness_summary": "本品成交转化率、成交客单价落后，需要优先优化。",
-    "generated_at": "2026-07-13T14:40:11"
+    "generated_at": "2026-07-27T16:46:51"
   },
   "source_files": [
     {
       "role": "self_real",
       "label": "本品真实 SPU 数据",
-      "file_name": "kk-spu真实数据2026-06-01_2026-06-07.xlsx",
+      "file_name": "经营状况-商品明细周报-1237272340312707072_sFIxIf74.zip!经营状况-商品明细周报-2026-06-01至2026-06-07-全部-全部-汇总-SPU.xlsx",
       "sheet_name": "经营状况-商品明细周报",
       "required_level": "core",
       "status": "ready",
@@ -39,7 +39,7 @@
     {
       "role": "core",
       "label": "竞品核心数据对比",
-      "file_name": "竞品数据对比2026-06-01_2026-06-07.xlsx",
+      "file_name": "sah58368208_竞品对比_核心指标_离线_汇总下载_2026-06-01_2026-06-07.xlsx",
       "sheet_name": "sah58368208_竞品对比_核心指标_离线_汇总下载",
       "required_level": "core",
       "status": "ready",
@@ -48,7 +48,7 @@
     {
       "role": "traffic",
       "label": "流量来源对比",
-      "file_name": "流量来源对比2026-06-01_2026-06-07.xlsx",
+      "file_name": "sah58368208_竞品对比_流量来源_离线_汇总下载_2026-06-01_2026-06-07.xlsx",
       "sheet_name": "sah58368208_竞品对比_流量来源_离线_汇总下载",
       "required_level": "core",
       "status": "ready",
@@ -57,7 +57,7 @@
     {
       "role": "keywords",
       "label": "引流关键词对比",
-      "file_name": "引流关键词对比2026-06-01_2026-06-07.xlsx",
+      "file_name": "sah58368208_竞品对比_关键词榜单_离线_汇总下载_2026-06-01_2026-06-07.xlsx",
       "sheet_name": "sah58368208_竞品对比_关键词榜单_离线_汇总下载",
       "required_level": "complete",
       "status": "ready",
@@ -66,7 +66,7 @@
     {
       "role": "customer_profile",
       "label": "成交客户画像对比",
-      "file_name": "成交客户对比2026-06-01_2026-06-07.xlsx",
+      "file_name": "sah58368208_竞品对比_客群对比_成交客户画像_离线_汇总下载_2026-06-01_2026-06-07.xlsx",
       "sheet_name": "sah58368208_竞品对比_客群对比_成交客户画像_离线",
       "required_level": "complete",
       "status": "ready",
@@ -75,7 +75,7 @@
     {
       "role": "promotion",
       "label": "推广数据对比",
-      "file_name": "推广数据对比2026-06-01_2026-06-07.xlsx",
+      "file_name": "sah58368208_竞品对比-广告流量对比_汇总下载_2026-06-01_2026-06-07.xlsx",
       "sheet_name": "sah58368208_竞品对比-广告流量对比_汇总下载",
       "required_level": "enhancement",
       "status": "ready",
@@ -87,7 +87,7 @@
       "metric_id": "gmv",
       "metric_label": "成交金额",
       "actual_value": 119037.0,
-      "range_text": "￥10.00万 ~ ￥25.00万",
+      "range_text": "￥10万 ~ ￥25万",
       "range_low": 100000.0,
       "range_high": 250000.0,
       "position_p": 0.12691333333333332,
@@ -104,7 +104,7 @@
       "metric_id": "sold_units",
       "metric_label": "成交商品件数",
       "actual_value": 2318.0,
-      "range_text": "2000.00 ~ 4000.00",
+      "range_text": "2,000 ~ 4,000",
       "range_low": 2000.0,
       "range_high": 4000.0,
       "position_p": 0.159,
@@ -121,7 +121,7 @@
       "metric_id": "orders",
       "metric_label": "成交单量",
       "actual_value": 1947.0,
-      "range_text": "1000.00 ~ 2000.00",
+      "range_text": "1,000 ~ 2,000",
       "range_low": 1000.0,
       "range_high": 2000.0,
       "position_p": 0.947,
@@ -138,7 +138,7 @@
       "metric_id": "views",
       "metric_label": "浏览量",
       "actual_value": 60192.0,
-      "range_text": "6.00万 ~ 8.00万",
+      "range_text": "6万 ~ 8万",
       "range_low": 60000.0,
       "range_high": 80000.0,
       "position_p": 0.0096,
@@ -155,7 +155,7 @@
       "metric_id": "visitors",
       "metric_label": "访客数",
       "actual_value": 16753.0,
-      "range_text": "1.00万 ~ 2.00万",
+      "range_text": "1万 ~ 2万",
       "range_low": 10000.0,
       "range_high": 20000.0,
       "position_p": 0.6753,
@@ -172,7 +172,7 @@
       "metric_id": "cart_users",
       "metric_label": "加购人数",
       "actual_value": 2478.0,
-      "range_text": "2000.00 ~ 4000.00",
+      "range_text": "2,000 ~ 4,000",
       "range_low": 2000.0,
       "range_high": 4000.0,
       "position_p": 0.239,
@@ -189,7 +189,7 @@
       "metric_id": "conversion_rate",
       "metric_label": "成交转化率",
       "actual_value": 0.1106,
-      "range_text": "10.00% ~ 15.00%",
+      "range_text": "10% ~ 15%",
       "range_low": 0.1,
       "range_high": 0.15,
       "position_p": 0.21200000000000002,
@@ -206,7 +206,7 @@
       "metric_id": "customer_price",
       "metric_label": "成交客单价",
       "actual_value": 64.24,
-      "range_text": "￥50.00 ~ ￥100.00",
+      "range_text": "￥50 ~ ￥100",
       "range_low": 50.0,
       "range_high": 100.0,
       "position_p": 0.2847999999999999,
@@ -224,7 +224,7 @@
     {
       "metric_id": "gmv",
       "metric_label": "成交金额",
-      "range_text": "￥6.00万 ~ ￥8.00万",
+      "range_text": "￥6万 ~ ￥8万",
       "range_low": 60000.0,
       "range_high": 80000.0,
       "median_candidate": 70000.0,
@@ -251,7 +251,7 @@
     {
       "metric_id": "sold_units",
       "metric_label": "成交商品件数",
-      "range_text": "600.00 ~ 800.00",
+      "range_text": "600 ~ 800",
       "range_low": 600.0,
       "range_high": 800.0,
       "median_candidate": 700.0,
@@ -278,7 +278,7 @@
     {
       "metric_id": "orders",
       "metric_label": "成交单量",
-      "range_text": "600.00 ~ 800.00",
+      "range_text": "600 ~ 800",
       "range_low": 600.0,
       "range_high": 800.0,
       "median_candidate": 700.0,
@@ -303,7 +303,7 @@
     {
       "metric_id": "views",
       "metric_label": "浏览量",
-      "range_text": "2.00万 ~ 4.00万",
+      "range_text": "2万 ~ 4万",
       "range_low": 20000.0,
       "range_high": 40000.0,
       "median_candidate": 30000.0,
@@ -328,7 +328,7 @@
     {
       "metric_id": "visitors",
       "metric_label": "访客数",
-      "range_text": "2000.00 ~ 4000.00",
+      "range_text": "2,000 ~ 4,000",
       "range_low": 2000.0,
       "range_high": 4000.0,
       "median_candidate": 3000.0,
@@ -353,7 +353,7 @@
     {
       "metric_id": "cart_users",
       "metric_label": "加购人数",
-      "range_text": "1000.00 ~ 2000.00",
+      "range_text": "1,000 ~ 2,000",
       "range_low": 1000.0,
       "range_high": 2000.0,
       "median_candidate": 1500.0,
@@ -378,7 +378,7 @@
     {
       "metric_id": "conversion_rate",
       "metric_label": "成交转化率",
-      "range_text": "15.00% ~ 20.00%",
+      "range_text": "15% ~ 20%",
       "range_low": 0.15,
       "range_high": 0.2,
       "median_candidate": 0.175,
@@ -403,7 +403,7 @@
     {
       "metric_id": "customer_price",
       "metric_label": "成交客单价",
-      "range_text": "￥100.00 ~ ￥200.00",
+      "range_text": "￥100 ~ ￥200",
       "range_low": 100.0,
       "range_high": 200.0,
       "median_candidate": 150.0,
@@ -435,9 +435,10 @@
       "unit": "",
       "self_value": 119037.0,
       "competitor_value": 63339.051883685686,
-      "gap_abs_text": "55697.95",
-      "ratio_text": "本品 1.88x",
-      "gap_text": "本品领先 55697.95 | 本品 1.88x",
+      "gap_value": 55697.948116314314,
+      "gap_rate_pct": 87.93618859119756,
+      "gap_mode": "relative",
+      "gap_text": "本品领先 | 差值 55697.95 | 差距幅度 87.94%",
       "status": "advantage",
       "priority": "低"
     },
@@ -447,9 +448,10 @@
       "unit": "",
       "self_value": 16753.0,
       "competitor_value": 3350.6,
-      "gap_abs_text": "13402.40",
-      "ratio_text": "本品 5.00x",
-      "gap_text": "本品领先 13402.40 | 本品 5.00x",
+      "gap_value": 13402.4,
+      "gap_rate_pct": 400.0,
+      "gap_mode": "relative",
+      "gap_text": "本品领先 | 差值 13402.40 | 差距幅度 400.00%",
       "status": "advantage",
       "priority": "低"
     },
@@ -459,9 +461,10 @@
       "unit": "%",
       "self_value": 11.06,
       "competitor_value": 16.06,
-      "gap_abs_text": "5.00",
-      "ratio_text": "竞品 1.45x",
-      "gap_text": "本品落后 5.00pct | 竞品 1.45x",
+      "gap_value": -4.999999999999999,
+      "gap_rate_pct": null,
+      "gap_mode": "percentage_point",
+      "gap_text": "本品落后 | 转化差值 -5.00pct",
       "status": "warning",
       "priority": "高"
     },
@@ -471,9 +474,10 @@
       "unit": "",
       "self_value": 64.24,
       "competitor_value": 117.70730954320199,
-      "gap_abs_text": "53.47",
-      "ratio_text": "竞品 1.83x",
-      "gap_text": "本品落后 53.47 | 竞品 1.83x",
+      "gap_value": -53.46730954320199,
+      "gap_rate_pct": -45.42395009341195,
+      "gap_mode": "relative",
+      "gap_text": "本品落后 | 差值 -53.47 | 差距幅度 -45.42%",
       "status": "warning",
       "priority": "高"
     }
@@ -486,7 +490,8 @@
       "competitor_value": 63339.051883685686,
       "gap": 55697.948116314314,
       "gap_pct_point": null,
-      "ratio": 1.8793618859119756,
+      "gap_rate_pct": 87.93618859119756,
+      "gap_mode": "relative",
       "judgement": "本品领先"
     },
     {
@@ -496,7 +501,8 @@
       "competitor_value": 789.4,
       "gap": 1528.6,
       "gap_pct_point": null,
-      "ratio": 2.9364073980238157,
+      "gap_rate_pct": 193.64073980238155,
+      "gap_mode": "relative",
       "judgement": "本品领先"
     },
     {
@@ -506,7 +512,8 @@
       "competitor_value": 789.4,
       "gap": 1157.6,
       "gap_pct_point": null,
-      "ratio": 2.4664302001520144,
+      "gap_rate_pct": 146.64302001520142,
+      "gap_mode": "relative",
       "judgement": "本品领先"
     },
     {
@@ -516,7 +523,8 @@
       "competitor_value": 20192.0,
       "gap": 40000.0,
       "gap_pct_point": null,
-      "ratio": 2.9809825673534074,
+      "gap_rate_pct": 198.09825673534073,
+      "gap_mode": "relative",
       "judgement": "本品领先"
     },
     {
@@ -526,7 +534,8 @@
       "competitor_value": 3350.6,
       "gap": 13402.4,
       "gap_pct_point": null,
-      "ratio": 5.0,
+      "gap_rate_pct": 400.0,
+      "gap_mode": "relative",
       "judgement": "本品领先"
     },
     {
@@ -536,7 +545,8 @@
       "competitor_value": 1239.0,
       "gap": 1239.0,
       "gap_pct_point": null,
-      "ratio": 2.0,
+      "gap_rate_pct": 100.0,
+      "gap_mode": "relative",
       "judgement": "本品领先"
     },
     {
@@ -546,7 +556,8 @@
       "competitor_value": 0.1606,
       "gap": -0.04999999999999999,
       "gap_pct_point": -4.999999999999999,
-      "ratio": 0.6886674968866751,
+      "gap_rate_pct": null,
+      "gap_mode": "percentage_point",
       "judgement": "本品落后"
     },
     {
@@ -556,7 +567,8 @@
       "competitor_value": 117.70730954320199,
       "gap": -53.46730954320199,
       "gap_pct_point": null,
-      "ratio": 0.5457604990658805,
+      "gap_rate_pct": -45.42395009341195,
+      "gap_mode": "relative",
       "judgement": "本品落后"
     }
   ],
@@ -7046,61 +7058,6 @@
         ]
       },
       {
-        "dimension": "年龄",
-        "items": [
-          {
-            "dimension": "年龄",
-            "name": "36-45岁",
-            "self_rate": 55.169999999999995,
-            "competitor_rate": 58.379999999999995,
-            "gap_rate": -3.210000000000001,
-            "self_estimated_customers": 1022.3000999999999,
-            "competitor_estimated_customers": 314.14649296799996,
-            "judgement": "本品落后"
-          },
-          {
-            "dimension": "年龄",
-            "name": "26-35岁",
-            "self_rate": 39.86,
-            "competitor_rate": 33.84,
-            "gap_rate": 6.019999999999996,
-            "self_estimated_customers": 738.6058,
-            "competitor_estimated_customers": 182.09519222400002,
-            "judgement": "本品领先"
-          },
-          {
-            "dimension": "年龄",
-            "name": "46-55岁",
-            "self_rate": 3.5000000000000004,
-            "competitor_rate": 5.34,
-            "gap_rate": -1.8399999999999994,
-            "self_estimated_customers": 64.855,
-            "competitor_estimated_customers": 28.734879624,
-            "judgement": "本品落后"
-          },
-          {
-            "dimension": "年龄",
-            "name": "16-25岁",
-            "self_rate": 0.44,
-            "competitor_rate": 0.45999999999999996,
-            "gap_rate": -0.019999999999999962,
-            "self_estimated_customers": 8.1532,
-            "competitor_estimated_customers": 2.475289256,
-            "judgement": "基本持平"
-          },
-          {
-            "dimension": "年龄",
-            "name": "56岁以上",
-            "self_rate": 1.04,
-            "competitor_rate": 1.9799999999999998,
-            "gap_rate": -0.9399999999999997,
-            "self_estimated_customers": 19.2712,
-            "competitor_estimated_customers": 10.654505927999999,
-            "judgement": "基本持平"
-          }
-        ]
-      },
-      {
         "dimension": "城市",
         "items": [
           {
@@ -10104,6 +10061,61 @@
             "judgement": "无完整口径"
           }
         ]
+      },
+      {
+        "dimension": "年龄",
+        "items": [
+          {
+            "dimension": "年龄",
+            "name": "36-45岁",
+            "self_rate": 55.169999999999995,
+            "competitor_rate": 58.379999999999995,
+            "gap_rate": -3.210000000000001,
+            "self_estimated_customers": 1022.3000999999999,
+            "competitor_estimated_customers": 314.14649296799996,
+            "judgement": "本品落后"
+          },
+          {
+            "dimension": "年龄",
+            "name": "26-35岁",
+            "self_rate": 39.86,
+            "competitor_rate": 33.84,
+            "gap_rate": 6.019999999999996,
+            "self_estimated_customers": 738.6058,
+            "competitor_estimated_customers": 182.09519222400002,
+            "judgement": "本品领先"
+          },
+          {
+            "dimension": "年龄",
+            "name": "46-55岁",
+            "self_rate": 3.5000000000000004,
+            "competitor_rate": 5.34,
+            "gap_rate": -1.8399999999999994,
+            "self_estimated_customers": 64.855,
+            "competitor_estimated_customers": 28.734879624,
+            "judgement": "本品落后"
+          },
+          {
+            "dimension": "年龄",
+            "name": "16-25岁",
+            "self_rate": 0.44,
+            "competitor_rate": 0.45999999999999996,
+            "gap_rate": -0.019999999999999962,
+            "self_estimated_customers": 8.1532,
+            "competitor_estimated_customers": 2.475289256,
+            "judgement": "基本持平"
+          },
+          {
+            "dimension": "年龄",
+            "name": "56岁以上",
+            "self_rate": 1.04,
+            "competitor_rate": 1.9799999999999998,
+            "gap_rate": -0.9399999999999997,
+            "self_estimated_customers": 19.2712,
+            "competitor_estimated_customers": 10.654505927999999,
+            "judgement": "基本持平"
+          }
+        ]
       }
     ],
     "notes": [
@@ -10137,7 +10149,11 @@
           "self_value": 15000.0,
           "competitor_value": 3000.0,
           "unit": "",
-          "gap_text": "本品领先 12000.00 | 本品 5.00x",
+          "metric_label": "访客",
+          "gap_value": 12000.0,
+          "gap_rate_pct": 400.0,
+          "gap_mode": "relative",
+          "gap_text": "本品领先 | 差值 12000.00 | 差距幅度 400.00%",
           "status": "advantage"
         },
         {
@@ -10145,7 +10161,11 @@
           "self_value": 2.5,
           "competitor_value": 7.5,
           "unit": "",
-          "gap_text": "本品落后 5.00 | 竞品 3.00x",
+          "metric_label": "访客",
+          "gap_value": -5.0,
+          "gap_rate_pct": -66.66666666666666,
+          "gap_mode": "relative",
+          "gap_text": "本品落后 | 差值 -5.00 | 差距幅度 -66.67%",
           "status": "warning"
         }
       ],
@@ -12962,6 +12982,10 @@
           "self_value": 1500.0,
           "competitor_value": 300.0,
           "unit": "",
+          "metric_label": "访客",
+          "gap_value": 1200.0,
+          "gap_rate_pct": 400.0,
+          "gap_mode": "relative",
           "gap_text": "本品领先 | 访客差距 1200.00 | 成交差距 8000.00",
           "status": "advantage"
         },
@@ -12970,6 +12994,10 @@
           "self_value": 30.0,
           "competitor_value": 300.0,
           "unit": "",
+          "metric_label": "访客",
+          "gap_value": -270.0,
+          "gap_rate_pct": -90.0,
+          "gap_mode": "relative",
           "gap_text": "访客落后 | 访客差距 -270.00 | 成交差距 -6900.00",
           "status": "warning"
         }
@@ -17553,6 +17581,10 @@
           "self_value": 39.86,
           "competitor_value": 33.84,
           "unit": "%",
+          "metric_label": "成交客户占比",
+          "gap_value": 6.019999999999996,
+          "gap_rate_pct": null,
+          "gap_mode": "percentage_point",
           "gap_text": "本品领先 | 差距 6.02pct",
           "status": "advantage"
         },
@@ -17561,6 +17593,10 @@
           "self_value": 13.03,
           "competitor_value": 27.08,
           "unit": "%",
+          "metric_label": "成交客户占比",
+          "gap_value": -14.049999999999999,
+          "gap_rate_pct": null,
+          "gap_mode": "percentage_point",
           "gap_text": "本品落后 | 差距 14.05pct",
           "status": "warning"
         }
@@ -17931,56 +17967,6 @@
           "gap_rate": 0.029999999999999916,
           "self_estimated_customers": 8.8944,
           "competitor_estimated_customers": 2.4214786200000002,
-          "judgement": "基本持平"
-        },
-        {
-          "dimension": "年龄",
-          "name": "36-45岁",
-          "self_rate": 55.169999999999995,
-          "competitor_rate": 58.379999999999995,
-          "gap_rate": -3.210000000000001,
-          "self_estimated_customers": 1022.3000999999999,
-          "competitor_estimated_customers": 314.14649296799996,
-          "judgement": "本品落后"
-        },
-        {
-          "dimension": "年龄",
-          "name": "26-35岁",
-          "self_rate": 39.86,
-          "competitor_rate": 33.84,
-          "gap_rate": 6.019999999999996,
-          "self_estimated_customers": 738.6058,
-          "competitor_estimated_customers": 182.09519222400002,
-          "judgement": "本品领先"
-        },
-        {
-          "dimension": "年龄",
-          "name": "46-55岁",
-          "self_rate": 3.5000000000000004,
-          "competitor_rate": 5.34,
-          "gap_rate": -1.8399999999999994,
-          "self_estimated_customers": 64.855,
-          "competitor_estimated_customers": 28.734879624,
-          "judgement": "本品落后"
-        },
-        {
-          "dimension": "年龄",
-          "name": "16-25岁",
-          "self_rate": 0.44,
-          "competitor_rate": 0.45999999999999996,
-          "gap_rate": -0.019999999999999962,
-          "self_estimated_customers": 8.1532,
-          "competitor_estimated_customers": 2.475289256,
-          "judgement": "基本持平"
-        },
-        {
-          "dimension": "年龄",
-          "name": "56岁以上",
-          "self_rate": 1.04,
-          "competitor_rate": 1.9799999999999998,
-          "gap_rate": -0.9399999999999997,
-          "self_estimated_customers": 19.2712,
-          "competitor_estimated_customers": 10.654505927999999,
           "judgement": "基本持平"
         },
         {
@@ -20982,6 +20968,56 @@
           "self_estimated_customers": 2.0383,
           "competitor_estimated_customers": null,
           "judgement": "无完整口径"
+        },
+        {
+          "dimension": "年龄",
+          "name": "36-45岁",
+          "self_rate": 55.169999999999995,
+          "competitor_rate": 58.379999999999995,
+          "gap_rate": -3.210000000000001,
+          "self_estimated_customers": 1022.3000999999999,
+          "competitor_estimated_customers": 314.14649296799996,
+          "judgement": "本品落后"
+        },
+        {
+          "dimension": "年龄",
+          "name": "26-35岁",
+          "self_rate": 39.86,
+          "competitor_rate": 33.84,
+          "gap_rate": 6.019999999999996,
+          "self_estimated_customers": 738.6058,
+          "competitor_estimated_customers": 182.09519222400002,
+          "judgement": "本品领先"
+        },
+        {
+          "dimension": "年龄",
+          "name": "46-55岁",
+          "self_rate": 3.5000000000000004,
+          "competitor_rate": 5.34,
+          "gap_rate": -1.8399999999999994,
+          "self_estimated_customers": 64.855,
+          "competitor_estimated_customers": 28.734879624,
+          "judgement": "本品落后"
+        },
+        {
+          "dimension": "年龄",
+          "name": "16-25岁",
+          "self_rate": 0.44,
+          "competitor_rate": 0.45999999999999996,
+          "gap_rate": -0.019999999999999962,
+          "self_estimated_customers": 8.1532,
+          "competitor_estimated_customers": 2.475289256,
+          "judgement": "基本持平"
+        },
+        {
+          "dimension": "年龄",
+          "name": "56岁以上",
+          "self_rate": 1.04,
+          "competitor_rate": 1.9799999999999998,
+          "gap_rate": -0.9399999999999997,
+          "self_estimated_customers": 19.2712,
+          "competitor_estimated_customers": 10.654505927999999,
+          "judgement": "基本持平"
         }
       ],
       "notes": [
@@ -20995,24 +21031,23 @@
       "source_label": "流量来源",
       "target": "站内场域",
       "status": "warning",
-      "evidence": "本品访客 15000.00、成交金额 175000.00，均领先竞品；但转化率 12.50%，低于竞品 17.50%。",
+      "evidence": "站内场域本品访客 15000.00、成交金额 175000.00，均高于竞品准真实估算值 3000.00 和 70000.00；但本品转化率 12.50%，低于竞品 17.50%。",
       "actions": [
-        "保留现有流量规模，把优化重点放在到手价、主图首屏和评价承接，不先追加站内预算。",
-        "分别建立单变量对照，判断 5.00pct 转化差距主要来自点击后流失还是支付前流失。"
+        "保留当前站内流量规模，把优化重点放到商品首屏信息、到手利益表达和下单路径的承接损耗。",
+        "按搜索、推荐和购物车拆分点击后至支付前的流失环节，使用单变量测试确认转化差距来源。"
       ],
-      "validation": "转化率高于 12.50%，同时访客和成交金额不低于当前基线。"
+      "validation": "在下一周周期复核站内转化率是否高于当前 12.50%，同时访客不低于 15000.00、成交金额不低于 175000.00。"
     },
     {
-      "source_id": "keywords",
-      "source_label": "关键词",
-      "target": "宝宝防晒帽空顶",
+      "source_id": "customer_profile",
+      "source_label": "客户画像",
+      "target": "省份：北京",
       "status": "warning",
-      "evidence": "通用词“宝宝防晒帽空顶”仅出现在竞品当前披露范围，竞品准真实估算访客 2.50、成交金额 300.00；本品数据未披露，不按 0 处理。",
+      "evidence": "北京画像本品成交客户占比 13.03%，低于竞品 27.08%；本品估算成交客户 241.45 人，高于竞品 145.72 人，属于占比结构短板。",
       "actions": [
-        "把该通用需求词作为独立测试对象，核对本品标题、主图首屏和详情页是否具备对应的品类与属性表达。",
-        "测试期间单独记录该词访客和成交，不使用任何竞品品牌、商标或专属型号。"
+        "补充北京画像的访客、转化率、客单价和退款表现，区分整体成交规模带来的占比稀释与真实效率问题。"
       ],
-      "validation": "下一周周期能够单独识别该词的本品访客和成交金额，并与当前竞品准真实估算基线 2.50 和 300.00 对比。"
+      "validation": "下一周复核北京占比是否高于当前 13.03%，同时确认绝对成交人数不低于 241.45 人并比较成交效率。"
     }
   ],
   "risks": [
