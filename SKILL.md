@@ -21,7 +21,7 @@ description: 京东自营竞品分析通用工作流。用于读取日、周、�
 2. 读取 `references/estimation.md`，以同周期本品 P 候选为主，结合成交公式、流量来源和渠道层级约束生成竞品准真实估算值及置信度。
 3. 读取 `assets/product-images.json`，再按 `references/analysis-result.md` 生成并校验 `analysis_result.json`；基础分析阶段保持 `ai_recommendations` 为空数组。
 4. 批量模式分别扫描 `day`、`week`、`month` 目录，每周期独立生成两份 JSON，并在全部周期完成后原子写入 `report-index.json`。
-5. 逐一读取完整 `analysis_result.json` 与 `references/ai-recommendations.md`，在 `scripts/output/` 之外生成临时建议 JSON，通过 `scripts/main.py apply-ai` 写回 0–5 条证据充分的劣势建议，再读取正式报告确认写回成功。
+5. 逐一读取完整 `analysis_result.json` 与 `references/ai-recommendations.md`，在 `scripts/output/` 之外生成临时建议 JSON，通过 `scripts/main.py apply-ai` 写回 2–5 条证据充分的劣势建议，并优先覆盖不同差距来源，再读取正式报告确认写回成功。
 6. 删除本次建议 JSON 和临时目录，确认 `scripts/output/` 只包含 `report-index.json`、`day/`、`week/`、`month/` 及其正式报告文件。
 7. 按 `references/dashboard.md` 启动 Vite 看板，确认报告索引可访问，再检查日、周、月切换、周期选择、首屏、三个差距来源 Tab、AI 劣势建议和风险提示。
 8. 原始 ZIP、XLSX 和工作表全程只读；估算只在分析脚本中完成；AI 劣势建议只由 Skill 生成；网页只消费 JSON，不执行估算或拼接建议。

@@ -130,9 +130,12 @@ def validate_contract(data: dict[str, Any], allow_empty: bool = False) -> None:
         raise ValueError("risks 必须是字符串数组")
     if not isinstance(data["ai_recommendations"], list):
         raise ValueError("ai_recommendations 必须是数组")
-    if len(data["ai_recommendations"]) > 5:
-        raise ValueError("ai_recommendations 最多包含 5 项")
+    recommendation_count = len(data["ai_recommendations"])
+    if recommendation_count == 1 or recommendation_count > 5:
+        raise ValueError("ai_recommendations 在基础分析阶段为空，正式 AI 分析后必须包含 2–5 项")
     for item in data["ai_recommendations"]:
+        if not isinstance(item, dict):
+            raise ValueError("AI 劣势建议必须是对象数组")
         for field in ("source_id", "source_label", "target", "status", "evidence", "actions", "validation"):
             if field not in item:
                 raise ValueError(f"AI 劣势建议缺少字段：{field}")
@@ -140,6 +143,13 @@ def validate_contract(data: dict[str, Any], allow_empty: bool = False) -> None:
             raise ValueError("AI 劣势建议 status 必须为 warning")
         if not isinstance(item["actions"], list) or not item["actions"]:
             raise ValueError("AI 劣势建议 actions 必须是非空数组")
+    if recommendation_count >= 2:
+        recommendation_sources = {
+            item["source_id"]
+            for item in data["ai_recommendations"]
+        }
+        if len(recommendation_sources) < 2:
+            raise ValueError("正式 AI 劣势建议必须覆盖至少两个不同来源")
     tab_map = {tab.get("id"): tab for tab in data["tabs"]}
     if set(tab_map) != {"traffic", "keywords", "customer_profile"}:
         raise ValueError(f"tabs 必须包含 traffic、keywords、customer_profile，当前={sorted(tab_map)}")

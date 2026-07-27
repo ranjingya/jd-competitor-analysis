@@ -170,7 +170,7 @@
 
 ## `ai_recommendations[]`
 
-基础分析流程只初始化空数组。Skill 读取完整分析结果和 [ai-recommendations.md](ai-recommendations.md) 后生成 0–5 条证据充分的劣势建议，再通过 `scripts/main.py apply-ai` 写回。独立建议 JSON 是位于 `scripts/output/` 之外的临时输入，写回确认后立即清理，不属于最终结果契约。
+基础分析流程只初始化空数组。Skill 读取完整分析结果和 [ai-recommendations.md](ai-recommendations.md) 后生成 2–5 条证据充分的劣势建议，完整报告至少覆盖两个不同来源，再通过 `scripts/main.py apply-ai` 写回。独立建议 JSON 是位于 `scripts/output/` 之外的临时输入，写回确认后立即清理，不属于最终结果契约。
 
 每项至少包含：
 
@@ -182,7 +182,7 @@
 - `actions`：1–3 条基于完整上下文独立判断的动作。
 - `validation`：使用当前基线定义的验收条件。
 
-没有证据充分的劣势时数组为空。网页只展示该数组，不根据数值、Tab 或固定句库生成建议。
+空数组仅用于基础分析阶段。正式 AI 分析完成后数组包含多条劣势建议。网页只展示该数组，不根据数值、Tab 或固定句库生成建议。
 
 ## 缺失与审计约定
 

@@ -32,8 +32,8 @@ def validate_recommendations(items: Any) -> list[dict[str, Any]]:
     返回值：通过校验的建议数组。
     """
 
-    if not isinstance(items, list) or len(items) > 5:
-        raise ValueError("AI 劣势建议必须是包含 0–5 项的数组")
+    if not isinstance(items, list) or not 2 <= len(items) <= 5:
+        raise ValueError("AI 劣势建议必须是包含 2–5 项的数组")
     for index, item in enumerate(items, start=1):
         if not isinstance(item, dict):
             raise ValueError(f"第 {index} 项 AI 劣势建议必须是对象")
@@ -51,6 +51,9 @@ def validate_recommendations(items: Any) -> list[dict[str, Any]]:
             raise ValueError(f"第 {index} 项 AI 劣势建议存在空文本字段")
         if any(not isinstance(action, str) or not action.strip() for action in item["actions"]):
             raise ValueError(f"第 {index} 项 AI 劣势建议 actions 存在空动作")
+    represented_sources = {item["source_id"] for item in items}
+    if len(represented_sources) < 2:
+        raise ValueError("AI 劣势建议必须覆盖至少两个不同来源")
     LOGGER.info("AI 劣势建议结构校验通过：%s 项", len(items))
     return items
 
