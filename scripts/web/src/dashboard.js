@@ -134,18 +134,18 @@ function formatHighlightGap(item) {
   const hasCompetitorValue = typeof item.competitor_value === "number";
   if (!hasSelfValue || !hasCompetitorValue) {
     if (hasSelfValue) {
-      return `${metricLabel}差值 本品独有`;
+      return `${metricLabel} 本品独有`;
     }
     if (hasCompetitorValue) {
-      return `${metricLabel}差值 竞品独有`;
+      return `${metricLabel} 竞品独有`;
     }
-    return `${metricLabel}差值 -`;
+    return `${metricLabel} -`;
   }
   const gap = typeof item.gap_value === "number"
     ? item.gap_value
     : item.self_value - item.competitor_value;
   const unit = item.gap_mode === "percentage_point" ? "pct" : (item.unit || "");
-  return `${metricLabel}差值 ${formatSignedValue(gap, unit)}`;
+  return `${metricLabel} ${formatSignedValue(gap, unit)}`;
 }
 
 /**
@@ -165,7 +165,7 @@ function formatHighlightAmplitude(item) {
     ? (item.self_value - item.competitor_value) / item.competitor_value * 100
     : null;
   const rate = typeof item.gap_rate_pct === "number" ? item.gap_rate_pct : fallbackRate;
-  return `幅度 ${formatSignedValue(rate, "%")}`;
+  return typeof rate === "number" ? formatSignedValue(rate, "%") : "";
 }
 
 /**
@@ -182,8 +182,7 @@ function formatMetricGap(item) {
     : null;
   const value = typeof item.gap_value === "number" ? item.gap_value : fallbackGap;
   const unit = item.id === "conversion_rate" ? "pct" : "";
-  const label = item.id === "conversion_rate" ? "转化差值" : "差值";
-  return `${label} ${formatSignedValue(value, unit)}`;
+  return formatSignedValue(value, unit);
 }
 
 /**
@@ -203,7 +202,7 @@ function formatMetricAmplitude(item) {
     ? (item.self_value - item.competitor_value) / item.competitor_value * 100
     : null;
   const rate = typeof item.gap_rate_pct === "number" ? item.gap_rate_pct : fallbackRate;
-  return `幅度 ${formatSignedValue(rate, "%")}`;
+  return typeof rate === "number" ? formatSignedValue(rate, "%") : "";
 }
 
 /**
