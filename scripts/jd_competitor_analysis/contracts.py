@@ -72,7 +72,7 @@ def empty_contract() -> dict[str, Any]:
 def validate_contract(data: dict[str, Any], allow_empty: bool = False) -> None:
     """校验最终分析 JSON。
 
-    功能说明：检查顶层模块、周期字段、核心指标、三个 Tab 和 AI 建议结构，失败时阻止写出。
+    功能说明：检查顶层模块、周期字段、核心指标、三个 Tab 和 AI 劣势建议结构，失败时阻止写出。
     参数 data：待校验的分析结果字典。
     参数 allow_empty：是否允许指标和明细为空，用于空结构模板。
     返回值：无；契约不完整时抛出 ValueError。
@@ -130,12 +130,16 @@ def validate_contract(data: dict[str, Any], allow_empty: bool = False) -> None:
         raise ValueError("risks 必须是字符串数组")
     if not isinstance(data["ai_recommendations"], list):
         raise ValueError("ai_recommendations 必须是数组")
+    if len(data["ai_recommendations"]) > 5:
+        raise ValueError("ai_recommendations 最多包含 5 项")
     for item in data["ai_recommendations"]:
         for field in ("source_id", "source_label", "target", "status", "evidence", "actions", "validation"):
             if field not in item:
-                raise ValueError(f"AI 建议缺少字段：{field}")
+                raise ValueError(f"AI 劣势建议缺少字段：{field}")
+        if item["status"] != "warning":
+            raise ValueError("AI 劣势建议 status 必须为 warning")
         if not isinstance(item["actions"], list) or not item["actions"]:
-            raise ValueError("AI 建议 actions 必须是非空数组")
+            raise ValueError("AI 劣势建议 actions 必须是非空数组")
     tab_map = {tab.get("id"): tab for tab in data["tabs"]}
     if set(tab_map) != {"traffic", "keywords", "customer_profile"}:
         raise ValueError(f"tabs 必须包含 traffic、keywords、customer_profile，当前={sorted(tab_map)}")

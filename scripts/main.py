@@ -34,15 +34,15 @@ def parse_args() -> argparse.Namespace:
     返回值：包含子命令、处理函数和业务参数的命名空间。
     """
 
-    parser = argparse.ArgumentParser(description="读取京东竞品数据，生成分析结果或写入 AI 建议。")
+    parser = argparse.ArgumentParser(description="读取京东竞品数据，生成分析结果或写入 AI 劣势建议。")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     analyze_parser = subparsers.add_parser("analyze", help="生成单周期或多周期竞品分析。")
     _add_analysis_arguments(analyze_parser)
     analyze_parser.set_defaults(handler=run_analysis)
 
-    apply_parser = subparsers.add_parser("apply-ai", help="把 Skill 生成的 AI 建议写入分析结果。")
-    apply_parser.add_argument("--recommendations", type=Path, required=True, help="AI 建议输入 JSON 路径。")
+    apply_parser = subparsers.add_parser("apply-ai", help="把 Skill 生成的 AI 劣势建议写入分析结果。")
+    apply_parser.add_argument("--recommendations", type=Path, required=True, help="AI 劣势建议输入 JSON 路径。")
     apply_parser.add_argument("--log-level", default="INFO", help="日志级别。")
     apply_parser.set_defaults(handler=lambda args: apply_recommendations(args.recommendations))
     return parser.parse_args()

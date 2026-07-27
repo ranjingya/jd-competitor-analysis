@@ -269,12 +269,14 @@ function renderTabs() {
 
 function renderAiRecommendations() {
   const target = document.querySelector("#ai-recommendations");
-  const suggestions = (dashboardState.data?.ai_recommendations || []).slice(0, 5);
+  const suggestions = (dashboardState.data?.ai_recommendations || [])
+    .filter((item) => item.status === "warning")
+    .slice(0, 5);
   target.innerHTML = suggestions.map((item) => {
     const actions = item.actions || [];
     return `
-      <section class="ai-recommendation-card ${item.status === "warning" ? "warning" : "advantage"}">
-        <p class="ai-recommendation-type">${escapeHtml(item.source_label || "AI 建议")} · ${escapeHtml(item.target || "-")}</p>
+      <section class="ai-recommendation-card warning">
+        <p class="ai-recommendation-type">${escapeHtml(item.source_label || "AI 劣势建议")} · ${escapeHtml(item.target || "-")}</p>
         <p class="ai-recommendation-primary-action">${escapeHtml(actions[0] || "查看完整分析后确定动作")}</p>
         <details class="ai-recommendation-details">
           <summary>查看依据与验收</summary>
@@ -288,7 +290,7 @@ function renderAiRecommendations() {
         </details>
       </section>
     `;
-  }).join("") || '<p class="empty-inline">当前报告尚未生成 AI 建议，请运行 Skill 的建议分析步骤。</p>';
+  }).join("") || '<p class="empty-inline">当前报告暂无可展示的 AI 劣势建议。</p>';
 }
 
 function compactNumber(value) {

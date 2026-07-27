@@ -4,6 +4,7 @@ dist/
 竞品分析数据/
 output/
 reports/
+backups/
 .env
 __pycache__/
 *.py[cod]

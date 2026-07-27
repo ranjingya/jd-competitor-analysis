@@ -2,9 +2,9 @@
 
 ## 定位
 
-`analysis_result.json` 保存当前周期的准真实估算值、差距、审计信息、AI 建议和风险，是 Vite 看板与人工复核共同使用的最终数据契约。
+`analysis_result.json` 保存当前周期的准真实估算值、差距、审计信息、AI 劣势建议和风险，是 Vite 看板与人工复核共同使用的最终数据契约。
 
-本文档是标准化事实到分析结果的字段映射和最终 JSON 结构的唯一规范。输入事实见 [normalized-data.md](normalized-data.md)，计算规则见 [estimation.md](estimation.md)，AI 建议规则见 [ai-recommendations.md](ai-recommendations.md)，页面消费规则见 [dashboard.md](dashboard.md)。
+本文档是标准化事实到分析结果的字段映射和最终 JSON 结构的唯一规范。输入事实见 [normalized-data.md](normalized-data.md)，计算规则见 [estimation.md](estimation.md)，AI 劣势建议规则见 [ai-recommendations.md](ai-recommendations.md)，页面消费规则见 [dashboard.md](dashboard.md)。
 
 可执行样例位于 `assets/analysis-result.example.json`；空结构位于 `assets/analysis-result.template.json`。
 
@@ -14,7 +14,7 @@
 - [元信息与审计映射](#元信息与审计映射)
 - [核心审计结构](#核心审计结构)
 - [分析模块映射](#分析模块映射)
-- [AI 建议](#ai_recommendations)
+- [AI 劣势建议](#ai_recommendations)
 - [缺失与审计约定](#缺失与审计约定)
 
 ## 顶层结构
@@ -33,7 +33,7 @@
 | `customer_profile` | object | 完整看板必需 | 性别、年龄、省份、城市画像对比。 |
 | `promotion` | object | 必须 | 推广模块稳定容器；缺失时以 `available=false` 表示。 |
 | `tabs` | array | 必须 | 三个差距来源 Tab 的直接渲染数据。 |
-| `ai_recommendations` | array | 必须 | Skill 生成的结构化 AI 建议；基础分析阶段为空数组。 |
+| `ai_recommendations` | array | 必须 | Skill 生成的结构化 AI 劣势建议；基础分析阶段为空数组。 |
 | `risks` | array | 必须 | 缺失、冲突、降级和口径风险。 |
 
 顶层字段保持稳定。数据不足时保留对应字段，使用空数组、空对象或字段内 `null` 表达，并在 `risks[]` 记录原因。
@@ -170,19 +170,19 @@
 
 ## `ai_recommendations[]`
 
-基础分析流程只初始化空数组。Skill 读取完整分析结果和 [ai-recommendations.md](ai-recommendations.md) 后生成建议，再通过 `scripts/main.py apply-ai` 写回。独立建议 JSON 是位于 `scripts/output/` 之外的临时输入，写回确认后立即清理，不属于最终结果契约。
+基础分析流程只初始化空数组。Skill 读取完整分析结果和 [ai-recommendations.md](ai-recommendations.md) 后生成 0–5 条证据充分的劣势建议，再通过 `scripts/main.py apply-ai` 写回。独立建议 JSON 是位于 `scripts/output/` 之外的临时输入，写回确认后立即清理，不属于最终结果契约。
 
 每项至少包含：
 
 - `source_id`：`traffic`、`keywords` 或 `customer_profile`。
 - `source_label`：页面展示的差距来源名称。
 - `target`：建议针对的具体渠道、关键词或画像项。
-- `status`：`warning`、`advantage` 或 `neutral`。
+- `status`：固定为 `warning`。
 - `evidence`：直接引用本周期实际值、竞品准真实估算值和差距，不写动作。
 - `actions`：1–3 条基于完整上下文独立判断的动作。
 - `validation`：使用当前基线定义的验收条件。
 
-网页只展示该数组，不根据数值、Tab 或固定句库生成建议。
+没有证据充分的劣势时数组为空。网页只展示该数组，不根据数值、Tab 或固定句库生成建议。
 
 ## 缺失与审计约定
 
@@ -191,5 +191,5 @@
 3. 关键词或画像缺失时保留对应对象和 Tab，使用空数组并写入 `risks[]`。
 4. 本品值始终标记为真实值，竞品值始终标记为准真实估算值。
 5. 关键结果保留 `source`、`basis` 或 `method`、`confidence`、`checks` 或 `warnings`。
-6. 网页不执行区间解析、候选选择、公式校正或 AI 建议生成。
+6. 网页不执行区间解析、候选选择、公式校正或 AI 劣势建议生成。
 7. 不使用示例数据补齐缺失模块。

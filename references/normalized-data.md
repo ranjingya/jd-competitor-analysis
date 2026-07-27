@@ -2,7 +2,7 @@
 
 ## 定位
 
-`normalized_data.json` 是单个商品对、单个粒度、单个周期的事实快照。它保存任务参数、输入文件定位结果和从工作簿选出的原始业务行，不保存准真实估算值、差距判断、AI 建议或页面配置。
+`normalized_data.json` 是单个商品对、单个粒度、单个周期的事实快照。它保存任务参数、输入文件定位结果和从工作簿选出的原始业务行，不保存准真实估算值、差距判断、AI 劣势建议或页面配置。
 
 本文档是 Excel 字段映射和标准化 JSON 契约的唯一规范。原始数据的目录、文件格式、数据角色和周期规则见 [input-contract.md](input-contract.md)，估算规则见 [estimation.md](estimation.md)，最终分析结构见 [analysis-result.md](analysis-result.md)。
 

@@ -1,4 +1,4 @@
-"""校验并写入 Skill 生成的结构化 AI 建议。"""
+"""校验并写入 Skill 生成的结构化 AI 劣势建议。"""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from .output_paths import analysis_path_from_period_key
 
 LOGGER = logging.getLogger(__name__)
 ALLOWED_SOURCES = {"traffic", "keywords", "customer_profile"}
-ALLOWED_STATUSES = {"warning", "advantage", "neutral"}
+REQUIRED_STATUS = "warning"
 REQUIRED_FIELDS = {
     "source_id",
     "source_label",
@@ -25,33 +25,33 @@ REQUIRED_FIELDS = {
 
 
 def validate_recommendations(items: Any) -> list[dict[str, Any]]:
-    """校验 AI 建议结构。
+    """校验 AI 劣势建议结构。
 
-    功能说明：检查建议数量、来源、状态、证据、动作和验收条件，阻止不完整内容写入正式报告。
+    功能说明：检查劣势建议数量、来源、状态、证据、动作和验收条件，阻止不完整内容写入正式报告。
     参数 items：Skill 生成的建议数组。
     返回值：通过校验的建议数组。
     """
 
-    if not isinstance(items, list) or not 1 <= len(items) <= 5:
-        raise ValueError("AI 建议必须是包含 1–5 项的数组")
+    if not isinstance(items, list) or len(items) > 5:
+        raise ValueError("AI 劣势建议必须是包含 0–5 项的数组")
     for index, item in enumerate(items, start=1):
         if not isinstance(item, dict):
-            raise ValueError(f"第 {index} 项 AI 建议必须是对象")
+            raise ValueError(f"第 {index} 项 AI 劣势建议必须是对象")
         missing = sorted(REQUIRED_FIELDS - set(item))
         if missing:
-            raise ValueError(f"第 {index} 项 AI 建议缺少字段：{missing}")
+            raise ValueError(f"第 {index} 项 AI 劣势建议缺少字段：{missing}")
         if item["source_id"] not in ALLOWED_SOURCES:
-            raise ValueError(f"第 {index} 项 AI 建议来源无效：{item['source_id']}")
-        if item["status"] not in ALLOWED_STATUSES:
-            raise ValueError(f"第 {index} 项 AI 建议状态无效：{item['status']}")
+            raise ValueError(f"第 {index} 项 AI 劣势建议来源无效：{item['source_id']}")
+        if item["status"] != REQUIRED_STATUS:
+            raise ValueError(f"第 {index} 项 AI 劣势建议状态必须为 warning：{item['status']}")
         if not isinstance(item["actions"], list) or not 1 <= len(item["actions"]) <= 3:
-            raise ValueError(f"第 {index} 项 AI 建议 actions 必须包含 1–3 条动作")
+            raise ValueError(f"第 {index} 项 AI 劣势建议 actions 必须包含 1–3 条动作")
         text_fields = ("source_label", "target", "evidence", "validation")
         if any(not isinstance(item[field], str) or not item[field].strip() for field in text_fields):
-            raise ValueError(f"第 {index} 项 AI 建议存在空文本字段")
+            raise ValueError(f"第 {index} 项 AI 劣势建议存在空文本字段")
         if any(not isinstance(action, str) or not action.strip() for action in item["actions"]):
-            raise ValueError(f"第 {index} 项 AI 建议 actions 存在空动作")
-    LOGGER.info("AI 建议结构校验通过：%s 项", len(items))
+            raise ValueError(f"第 {index} 项 AI 劣势建议 actions 存在空动作")
+    LOGGER.info("AI 劣势建议结构校验通过：%s 项", len(items))
     return items
 
 
@@ -67,7 +67,7 @@ def apply_recommendations(recommendations_path: Path) -> None:
     analysis_path = analysis_path_from_period_key(str(payload.get("period_key") or ""))
     if not analysis_path.is_file():
         raise FileNotFoundError(f"固定输出目录中不存在分析结果：{analysis_path}")
-    LOGGER.info("开始写入 AI 建议：%s", analysis_path)
+    LOGGER.info("开始写入 AI 劣势建议：%s", analysis_path)
     analysis = read_json(analysis_path)
     expected_period = analysis.get("meta", {}).get("period_key")
     if payload.get("period_key") != expected_period:
@@ -75,4 +75,4 @@ def apply_recommendations(recommendations_path: Path) -> None:
     analysis["ai_recommendations"] = validate_recommendations(payload.get("ai_recommendations"))
     validate_contract(analysis)
     write_json(analysis_path, analysis)
-    LOGGER.info("AI 建议写入完成：%s", analysis_path)
+    LOGGER.info("AI 劣势建议写入完成：%s", analysis_path)
