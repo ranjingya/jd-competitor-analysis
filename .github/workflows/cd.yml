@@ -16,9 +16,18 @@ env:
 jobs:
 
   build-and-push:
-    name: Build and push to ghcr
+    name: Build and push ${{ matrix.service }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    strategy:
+      matrix:
+        include:
+          - service: web
+            context: ./web
+            image: jd-competitor-analysis-web
+          - service: backend
+            context: ./backend
+            image: jd-competitor-analysis-backend
 
     steps:
       - name: Checkout repository
@@ -46,11 +55,11 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v7
         with:
-          context: ./scripts/web
+          context: ${{ matrix.context }}
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ github.repository }}:latest
-            ${{ env.REGISTRY }}/${{ github.repository }}:${{ steps.image-tag.outputs.tag }}
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }}:latest
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }}:${{ steps.image-tag.outputs.tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -72,9 +81,8 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           passphrase: ${{ secrets.SSH_PRIVATE_KEY_PASSPHRASE }}
-          source: scripts/web/docker-compose.yaml
+          source: docker-compose.yaml
           target: ${{ vars.DEPLOY_DIR }}
-          strip_components: 2
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.2.5
@@ -93,7 +101,7 @@ jobs:
             echo "$GHCR_TOKEN" | docker login ghcr.io --username "$GHCR_USERNAME" --password-stdin
             trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
             cd "${{ vars.DEPLOY_DIR }}"
-            mkdir -p reports
-            docker compose pull jd-competitor-analysis
-            docker compose up -d --remove-orphans jd-competitor-analysis
+            mkdir -p data reports
+            docker compose pull jd-competitor-analysis-web jd-competitor-analysis-backend
+            docker compose up -d --remove-orphans jd-competitor-analysis-web jd-competitor-analysis-backend
             docker image prune -f
