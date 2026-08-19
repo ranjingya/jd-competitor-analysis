@@ -27,6 +27,8 @@ StarRocks + 飞书映射
 
 ## MVP 只使用三张表
 
+完整字段、约束和数据流见 [database-design.md](database-design.md)。
+
 ### `analysis_datasets`
 
 保存某一天、某个商品对的标准化数据。
