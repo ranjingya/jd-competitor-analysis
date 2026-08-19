@@ -6,6 +6,7 @@ import argparse
 import logging
 from pathlib import Path
 
+from app.jobs.daily_analysis import run_warehouse_daily_analysis
 from jd_competitor_analysis.lark_mapping import run_lark_mapping_check
 from jd_competitor_analysis.pipeline import run_analysis
 from jd_competitor_analysis.recommendations import apply_recommendations
@@ -79,6 +80,19 @@ def parse_args() -> argparse.Namespace:
     )
     daily_check_parser.add_argument("--log-level", default="INFO", help="日志级别。")
     daily_check_parser.set_defaults(handler=run_warehouse_daily_check)
+
+    daily_run_parser = subparsers.add_parser("warehouse-daily-run", help="执行日数据分析并写入 Backend 数据库。")
+    daily_run_parser.add_argument("--env-file", type=Path, help="环境变量文件，默认读取项目根目录的 .env。")
+    daily_run_parser.add_argument("--date", required=True, help="业务日期，格式为 YYYY-MM-DD。")
+    daily_run_parser.add_argument(
+        "--compare-number",
+        action="append",
+        default=[],
+        help="可重复指定商品对；未提供时读取飞书商品对表。",
+    )
+    daily_run_parser.add_argument("--title", help="可选看板标题。")
+    daily_run_parser.add_argument("--log-level", default="INFO", help="日志级别。")
+    daily_run_parser.set_defaults(handler=run_warehouse_daily_analysis)
     return parser.parse_args()
 
 

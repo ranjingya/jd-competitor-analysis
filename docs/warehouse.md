@@ -116,6 +116,18 @@ uv run --project backend python backend/cli.py warehouse-daily-check `
 
 该命令只输出商品对解析结果和各来源记录数量，不输出连接密码或完整业务数据。
 
+执行指定日期的正式分析并写入 `backend.db`：
+
+```powershell
+uv run --project backend python backend/cli.py warehouse-daily-run `
+  --date 2026-08-17 `
+  --compare-number 100174558585+100112260075
+```
+
+可重复提供 `--compare-number`。不提供时，程序从 `LARK_PAIR_TABLE_ID` 对应的商品对表读取全部候选，再以当天核心指标表为准跳过无数据组合。
+
+商品对表和 SPU/SKU 映射表都需要向飞书应用开放只读权限。用户账号能够读取多维表，不代表 Bot 应用身份自动拥有相同权限。
+
 ## 读取边界
 
 - StarRocks 和飞书多维表操作均只读，按日期和商品标识过滤。
