@@ -54,7 +54,6 @@ def load_product_images(path: Path = PRODUCT_IMAGES_PATH) -> dict[str, dict[str,
             "name": name.strip() if isinstance(name, str) and name.strip() else None,
             "image_url": image_url,
         }
-        LOGGER.info("商品主图素材已加载：id=%s，has_image=%s", product_id, bool(image_url))
     LOGGER.info("商品主图素材读取完成：count=%s", len(products))
     return products
 
