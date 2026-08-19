@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import logging
 import re
-import sys
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Iterable
@@ -13,9 +12,7 @@ from typing import Any, Iterable
 from sqlalchemy import bindparam, text
 from sqlalchemy.engine import Engine
 
-from .lark_mapping import LarkBaseMappingClient, SkuMapping, load_lark_base_config
 from .warehouse import _quote_table_name
-from .warehouse import create_warehouse_engine, load_warehouse_config
 
 
 LOGGER = logging.getLogger(__name__)
@@ -273,46 +270,3 @@ def read_self_sku_daily(
     result = [latest_by_sku[sku_id] for sku_id in map(str, selected_sku_ids) if sku_id in latest_by_sku]
     LOGGER.info("本品 SKU 日数据读取完成：date=%s，rows=%s", selected_date, len(result))
     return result
-
-
-def run_warehouse_daily_check(args: Any) -> None:
-    """执行正式日数据来源检查。
-
-    功能说明：按指定日期和商品对顺序读取五张竞品表，从飞书多维表获取本品 SKU 映射后检查本品日明细；
-    显式 SKU 参数仅作为独立排查时的覆盖值。
-    参数 args：命令行参数，包含 env_file、date、compare_number 和可选 sku_id。
-    返回值：无；来源数量摘要写入标准输出。
-    """
-
-    config = load_warehouse_config(args.env_file)
-    engine = create_warehouse_engine(config)
-    product_pair = ProductPair.parse(args.compare_number)
-    try:
-        competitor_sources = read_competitor_sources(engine, product_pair, args.date)
-        mappings: list[SkuMapping] = []
-        if args.sku_id:
-            sku_ids = [str(sku_id) for sku_id in args.sku_id]
-            LOGGER.warning("使用命令行 SKU ID 覆盖飞书映射：sku_count=%s", len(sku_ids))
-        else:
-            lark_config = load_lark_base_config(args.env_file)
-            mappings = LarkBaseMappingClient(lark_config).list_spu_sku_mappings(product_pair.self_spu)
-            if not mappings:
-                raise ValueError(f"飞书多维表中没有找到本品 SPU 映射：{product_pair.self_spu}")
-            sku_ids = [mapping.sku_id for mapping in mappings]
-        self_rows = read_self_sku_daily(engine, args.date, sku_ids)
-        summary = {
-            "date": parse_report_date(args.date).isoformat(),
-            "compare_number": product_pair.compare_number,
-            "self_spu": product_pair.self_spu,
-            "competitor_spu": product_pair.competitor_spu,
-            "competitor_sources": {
-                source_id: len(rows) for source_id, rows in competitor_sources.items()
-            },
-            "mapping_source": "manual" if args.sku_id else "lark_base",
-            "mapped_sku_count": len(sku_ids),
-            "self_sku_rows": len(self_rows),
-            "self_sku_ids": [row["sku_id"] for row in self_rows],
-        }
-        sys.stdout.write(json.dumps(summary, ensure_ascii=False, indent=2) + "\n")
-    finally:
-        engine.dispose()

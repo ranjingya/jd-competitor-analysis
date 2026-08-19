@@ -10,7 +10,7 @@ from jd_competitor_analysis.lark_mapping import run_lark_mapping_check
 from jd_competitor_analysis.pipeline import run_analysis
 from jd_competitor_analysis.recommendations import apply_recommendations
 from jd_competitor_analysis.warehouse import run_warehouse_probe
-from jd_competitor_analysis.warehouse_sources import run_warehouse_daily_check
+from jd_competitor_analysis.warehouse_daily import run_warehouse_daily_check
 
 
 def _add_analysis_arguments(parser: argparse.ArgumentParser) -> None:

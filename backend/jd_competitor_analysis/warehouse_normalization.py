@@ -7,8 +7,9 @@ import math
 import re
 from typing import Any, Callable, Iterable
 
+from .lark_mapping import SkuMapping
 from .sources import clean_identifier, clean_text
-from .warehouse_sources import COMPETITOR_TABLES, ProductPair, parse_report_date
+from .warehouse_sources import COMPETITOR_TABLES, SELF_SKU_TABLE, ProductPair, parse_report_date
 
 
 LOGGER = logging.getLogger(__name__)
@@ -40,6 +41,20 @@ TRAFFIC_METRICS = (
     ("gmv", "成交金额", "currency"),
     ("conversion_rate", "成交转化率", "ratio"),
     ("buyers", "成交客户数", "count"),
+)
+SELF_ADDITIVE_METRICS = (
+    ("page_views", "pv"),
+    ("visitors", "uv"),
+    ("buyers", "transaction_user"),
+    ("orders", "transaction_order"),
+    ("units_sold", "transaction_product"),
+    ("gmv", "transaction_amount"),
+    ("add_to_cart_users", "cart_user"),
+)
+SELF_METRIC_IDS = tuple(metric_id for metric_id, _ in SELF_ADDITIVE_METRICS) + (
+    "conversion_rate",
+    "average_order_value",
+    "search_clicks",
 )
 
 Normalizer = Callable[[list[dict[str, Any]]], dict[str, Any]]
@@ -428,4 +443,238 @@ def normalize_competitor_sources(
         "quality": {"status": overall_status, "issues": issues},
     }
     LOGGER.info("五张竞品表标准化完成：date=%s，status=%s", selected_date, overall_status)
+    return result
+
+
+def _actual_number(value: Any) -> int | float | None:
+    """把本品数仓数值转换为可写入 JSON 的有限数。"""
+
+    if value is None or clean_text(value) == "":
+        return None
+    try:
+        number = float(str(value).replace(",", ""))
+    except (TypeError, ValueError):
+        return None
+    return _compact_number(number) if math.isfinite(number) else None
+
+
+def _safe_ratio(numerator: int | float | None, denominator: int | float | None) -> float | None:
+    """计算非零分母的比例。"""
+
+    if numerator is None or denominator in {None, 0}:
+        return None
+    return float(numerator) / float(denominator)
+
+
+def _empty_self_metrics() -> dict[str, int | float | None]:
+    """生成本品 SKU 固定指标空结构。"""
+
+    return {metric_id: None for metric_id in SELF_METRIC_IDS}
+
+
+def _self_sku_metrics(row: dict[str, Any] | None) -> dict[str, int | float | None]:
+    """转换一条本品 SKU 数仓记录。"""
+
+    if row is None:
+        return _empty_self_metrics()
+    metrics = {
+        metric_id: _actual_number(row.get(source_field))
+        for metric_id, source_field in SELF_ADDITIVE_METRICS
+    }
+    metrics["conversion_rate"] = _safe_ratio(metrics["buyers"], metrics["visitors"])
+    metrics["average_order_value"] = _safe_ratio(metrics["gmv"], metrics["buyers"])
+    metrics["search_clicks"] = None
+    return metrics
+
+
+def _sum_available(records: list[dict[str, Any]], metric_id: str) -> int | float | None:
+    """汇总至少一个有效值的本品 SKU 指标。"""
+
+    values = [record["metrics"][metric_id] for record in records if record["metrics"][metric_id] is not None]
+    if not values:
+        return None
+    total = sum(float(value) for value in values)
+    return _compact_number(total)
+
+
+def _aggregate_spu_metrics(records: list[dict[str, Any]]) -> dict[str, int | float | None]:
+    """按业务加总口径生成本品 SPU 日指标。"""
+
+    metrics = {
+        metric_id: _sum_available(records, metric_id)
+        for metric_id, _ in SELF_ADDITIVE_METRICS
+    }
+    metrics["conversion_rate"] = _safe_ratio(metrics["buyers"], metrics["visitors"])
+    metrics["average_order_value"] = _safe_ratio(metrics["gmv"], metrics["buyers"])
+    metrics["search_clicks"] = None
+    return metrics
+
+
+def normalize_self_product(
+    product_pair: ProductPair,
+    report_date: str,
+    mappings: list[SkuMapping],
+    sku_rows: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """标准化本品 SKU 并汇总为 SPU 日数据。
+
+    功能说明：保留飞书映射中的全部 SKU，以 SKU ID 匹配数仓日记录，加总数量和金额类指标，重新计算 SPU 转化率与客单价。
+    参数 product_pair：当前本品与竞品 SPU 商品对。
+    参数 report_date：业务日期，格式为 `YYYY-MM-DD`。
+    参数 mappings：飞书多维表返回的本品 SPU/SKU 五字段映射。
+    参数 sku_rows：`read_self_sku_daily` 返回的本品 SKU 日记录。
+    返回值：包含 SKU 构成、SKU 日记录、SPU 日指标和质量状态的本品对象。
+    """
+
+    selected_date = parse_report_date(report_date).isoformat()
+    LOGGER.info(
+        "开始标准化本品 SKU：date=%s，spu=%s，mapped=%s，rows=%s",
+        selected_date,
+        product_pair.self_spu,
+        len(mappings),
+        len(sku_rows),
+    )
+    mappings_by_sku: dict[str, SkuMapping] = {}
+    for mapping in mappings:
+        if mapping.spu_id != product_pair.self_spu:
+            raise ValueError(
+                f"SKU 映射属于其他 SPU：期望 {product_pair.self_spu}，实际 {mapping.spu_id}"
+            )
+        if mapping.sku_id in mappings_by_sku and mappings_by_sku[mapping.sku_id] != mapping:
+            raise ValueError(f"存在冲突的本品 SKU 映射：{mapping.sku_id}")
+        mappings_by_sku[mapping.sku_id] = mapping
+
+    rows_by_sku: dict[str, dict[str, Any]] = {}
+    issues: list[dict[str, str]] = []
+    for row in sku_rows:
+        sku_id = clean_identifier(row.get("sku_id"))
+        if sku_id not in mappings_by_sku:
+            issues.append({"code": "unexpected_sku_row", "message": f"数仓返回了映射外的 SKU：{sku_id or '空'}"})
+            continue
+        if sku_id in rows_by_sku:
+            issues.append({"code": "duplicate_sku_row", "message": f"数仓返回了重复的 SKU 日记录：{sku_id}"})
+            continue
+        rows_by_sku[sku_id] = row
+
+    ordered_mappings = sorted(mappings_by_sku.values(), key=lambda item: int(item.sku_id))
+    sku_components = [
+        {
+            "spu_id": mapping.spu_id,
+            "sku_id": mapping.sku_id,
+            "barcode_69": mapping.barcode_69,
+            "product_name": mapping.product_name,
+            "specification": mapping.specification,
+        }
+        for mapping in ordered_mappings
+    ]
+    sku_daily_records = []
+    missing_sku_ids = []
+    partial_sku_ids = []
+    for mapping in ordered_mappings:
+        row = rows_by_sku.get(mapping.sku_id)
+        metrics = _self_sku_metrics(row)
+        if row is None:
+            data_status = "missing"
+            missing_sku_ids.append(mapping.sku_id)
+        elif any(metrics[metric_id] is None for metric_id, _ in SELF_ADDITIVE_METRICS):
+            data_status = "partial"
+            partial_sku_ids.append(mapping.sku_id)
+        else:
+            data_status = "ready"
+        sku_daily_records.append(
+            {
+                "sku_id": mapping.sku_id,
+                "data_status": data_status,
+                "metrics": metrics,
+            }
+        )
+
+    if not ordered_mappings:
+        status = "unavailable"
+        issues.append({"code": "no_sku_mappings", "message": "飞书多维表中没有本品 SKU 映射"})
+    elif not rows_by_sku:
+        status = "unavailable"
+        issues.append({"code": "no_sku_daily_rows", "message": "本品全部映射 SKU 均没有当天数仓记录"})
+    elif missing_sku_ids or partial_sku_ids or issues:
+        status = "partial"
+    else:
+        status = "ready"
+    if missing_sku_ids:
+        issues.append(
+            {"code": "missing_sku_rows", "message": f"有 {len(missing_sku_ids)} 个映射 SKU 缺少当天数仓记录"}
+        )
+    if partial_sku_ids:
+        issues.append(
+            {"code": "partial_sku_rows", "message": f"有 {len(partial_sku_ids)} 个 SKU 的加总字段不完整"}
+        )
+
+    result = {
+        "spu_id": product_pair.self_spu,
+        "source": {
+            "mapping": "lark_base",
+            "daily_table": SELF_SKU_TABLE,
+            "report_date": selected_date,
+        },
+        "sku_components": sku_components,
+        "sku_daily_records": sku_daily_records,
+        "spu_daily_metrics": _aggregate_spu_metrics(sku_daily_records),
+        "quality": {
+            "status": status,
+            "mapped_sku_count": len(ordered_mappings),
+            "warehouse_sku_count": len(rows_by_sku),
+            "ready_sku_count": sum(item["data_status"] == "ready" for item in sku_daily_records),
+            "missing_sku_ids": missing_sku_ids,
+            "partial_sku_ids": partial_sku_ids,
+            "issues": issues,
+        },
+    }
+    LOGGER.info("本品 SKU 标准化完成：spu=%s，status=%s", product_pair.self_spu, status)
+    return result
+
+
+def normalize_daily_dataset(
+    raw_sources: dict[str, list[dict[str, Any]]],
+    product_pair: ProductPair,
+    report_date: str,
+    mappings: list[SkuMapping],
+    sku_rows: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """组装一份完整的标准化日数据集。
+
+    功能说明：统一转换五张竞品表和本品 SKU/SPU 数据，并根据核心竞品来源与本品完整性生成整体质量状态。
+    参数 raw_sources：按五个来源 ID 分组的竞品数仓原始记录。
+    参数 product_pair：当前本品与竞品 SPU 商品对。
+    参数 report_date：业务日期，格式为 `YYYY-MM-DD`。
+    参数 mappings：飞书多维表返回的本品 SPU/SKU 五字段映射。
+    参数 sku_rows：本品 SKU 日数据行。
+    返回值：可直接持久化到 `analysis_datasets.payload_json` 的完整事实对象。
+    """
+
+    competitor_data = normalize_competitor_sources(raw_sources, product_pair, report_date)
+    self_product = normalize_self_product(product_pair, report_date, mappings, sku_rows)
+    statuses = [competitor_data["quality"]["status"], self_product["quality"]["status"]]
+    if "invalid" in statuses or self_product["quality"]["status"] == "unavailable":
+        overall_status = "invalid"
+    elif all(status == "ready" for status in statuses):
+        overall_status = "ready"
+    else:
+        overall_status = "partial"
+    issues = [
+        *competitor_data["quality"]["issues"],
+        *({"source": "self_product", **issue} for issue in self_product["quality"]["issues"]),
+    ]
+    result = {
+        "schema_version": competitor_data["schema_version"],
+        "report_date": competitor_data["report_date"],
+        "pair": competitor_data["pair"],
+        "self_product": self_product,
+        "sources": competitor_data["sources"],
+        "quality": {"status": overall_status, "issues": issues},
+    }
+    LOGGER.info(
+        "完整日数据组装完成：date=%s，compare_number=%s，status=%s",
+        result["report_date"],
+        product_pair.compare_number,
+        overall_status,
+    )
     return result
