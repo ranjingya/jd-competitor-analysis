@@ -23,6 +23,18 @@ description: 领取京东竞品分析后端的待处理任务，基于后端提�
 
 ## 领取与回传
 
+先查看最近任务及其 ID、生成时间、状态和商品对：
+
+```bash
+python <Skill目录>/scripts/task_client.py list
+```
+
+只查看待处理任务：
+
+```bash
+python <Skill目录>/scripts/task_client.py list --status pending
+```
+
 领取任务：
 
 ```bash

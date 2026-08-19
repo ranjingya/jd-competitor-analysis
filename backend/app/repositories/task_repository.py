@@ -101,8 +101,52 @@ class TaskRepository:
                     source_hash,
                 )
                 return str(existing["analysis_id"])
-        LOGGER.info("AI 分析任务已创建：analysis_id=%s", task_id)
+        LOGGER.info(
+            "AI 分析任务已创建：analysis_id=%s，dataset_id=%s，created_at=%s",
+            task_id,
+            dataset_id,
+            now,
+        )
         return task_id
+
+    def list_recent(self, status: str | None = None, limit: int = 20) -> list[dict[str, Any]]:
+        """读取最近的 AI 任务摘要。
+
+        功能说明：按生成时间倒序读取任务及关联商品对，供人工确认任务状态和来源；不返回任务正文、租约令牌或分析结果。
+        参数 status：可选任务状态；为空时读取全部状态。
+        参数 limit：最多返回的任务数量。
+        返回值：包含任务标识、商品对、状态和时间的摘要列表。
+        """
+
+        conditions = "WHERE task.status = ?" if status else ""
+        parameters: tuple[Any, ...] = (status, limit) if status else (limit,)
+        with self.database.connection() as connection:
+            rows = connection.execute(
+                f"""
+                SELECT
+                    task.analysis_id,
+                    task.dataset_id,
+                    dataset.report_date,
+                    dataset.compare_number,
+                    dataset.self_spu,
+                    dataset.competitor_spu,
+                    task.status,
+                    task.worker_id,
+                    task.attempt_count,
+                    task.created_at,
+                    task.updated_at,
+                    task.lease_expires_at,
+                    task.completed_at,
+                    task.error_message
+                FROM analysis_tasks AS task
+                JOIN analysis_datasets AS dataset ON dataset.dataset_id = task.dataset_id
+                {conditions}
+                ORDER BY task.created_at DESC, task.analysis_id DESC
+                LIMIT ?
+                """,
+                parameters,
+            ).fetchall()
+        return [dict(row) for row in rows]
 
     def claim(self, worker_id: str, lease_seconds: int) -> dict[str, Any] | None:
         """原子领取一条待分析任务。
@@ -131,10 +175,21 @@ class TaskRepository:
             )
             row = connection.execute(
                 """
-                SELECT analysis_id, dataset_id, source_hash, payload_json
-                FROM analysis_tasks
-                WHERE status = 'pending'
-                ORDER BY created_at, analysis_id
+                SELECT
+                    task.analysis_id,
+                    task.dataset_id,
+                    task.source_hash,
+                    task.payload_json,
+                    task.created_at,
+                    task.attempt_count,
+                    dataset.report_date,
+                    dataset.compare_number,
+                    dataset.self_spu,
+                    dataset.competitor_spu
+                FROM analysis_tasks AS task
+                JOIN analysis_datasets AS dataset ON dataset.dataset_id = task.dataset_id
+                WHERE task.status = 'pending'
+                ORDER BY task.created_at, task.analysis_id
                 LIMIT 1
                 """
             ).fetchone()
@@ -151,10 +206,25 @@ class TaskRepository:
                 (worker_id, lease_token, lease_expires_at, now_text, row["analysis_id"]),
             )
             connection.commit()
-            LOGGER.info("AI 分析任务已领取：analysis_id=%s，worker_id=%s", row["analysis_id"], worker_id)
+            LOGGER.info(
+                "AI 分析任务已领取：analysis_id=%s，created_at=%s，report_date=%s，"
+                "compare_number=%s，worker_id=%s，lease_expires_at=%s",
+                row["analysis_id"],
+                row["created_at"],
+                row["report_date"],
+                row["compare_number"],
+                worker_id,
+                lease_expires_at,
+            )
             return {
                 "analysis_id": row["analysis_id"],
                 "dataset_id": row["dataset_id"],
+                "report_date": row["report_date"],
+                "compare_number": row["compare_number"],
+                "self_spu": row["self_spu"],
+                "competitor_spu": row["competitor_spu"],
+                "created_at": row["created_at"],
+                "attempt_count": row["attempt_count"] + 1,
                 "source_hash": row["source_hash"],
                 "payload": json.loads(row["payload_json"]),
                 "lease_token": lease_token,

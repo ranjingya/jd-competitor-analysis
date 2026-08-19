@@ -1,4 +1,4 @@
-"""测试 AI 任务接口的空队列语义。"""
+"""测试 AI 任务列表和空队列接口语义。"""
 
 from __future__ import annotations
 
@@ -8,14 +8,26 @@ from pathlib import Path
 
 from fastapi import Response, status
 
-from app.api.analysis_tasks import claim_task
+from app.api.analysis_tasks import claim_task, list_tasks
 from app.config import Settings
 from app.repositories.task_repository import TaskRepository
 from app.schemas import ClaimRequest
 
 
 class AnalysisTaskApiTest(unittest.TestCase):
-    """验证任务接口在空队列时返回标准 204 响应。"""
+    """验证任务列表和空队列响应。"""
+
+    def test_list_returns_empty_task_summary(self) -> None:
+        """空数据库应返回可直接展示的空任务列表。"""
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repository = TaskRepository(Path(temp_dir) / "backend.db")
+            repository.initialize()
+
+            response = list_tasks(None, 20, repository)
+
+        self.assertEqual(response.count, 0)
+        self.assertEqual(response.tasks, [])
 
     def test_claim_returns_empty_response_when_queue_is_empty(self) -> None:
         """空队列不得触发响应模型校验错误。"""

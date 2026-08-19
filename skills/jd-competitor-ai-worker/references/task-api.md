@@ -1,5 +1,16 @@
 # AI 任务接口
 
+## 任务列表
+
+运行 `task_client.py list` 可以按生成时间倒序查看最近任务。列表包含任务 ID、生成时间、数据日期、商品对、状态、领取者、领取次数、租约到期时间、完成时间和失败原因，不包含任务正文、租约令牌或 AI 结果。
+
+可用状态如下：
+
+- `pending`：等待领取。
+- `processing`：已经领取，租约有效期见 `lease_expires_at`。
+- `completed`：AI 结果已经回传并合并。
+- `failed`：AI 分析失败，原因见 `error_message`。
+
 ## 任务输入
 
 领取成功后，客户端保存以下结构：
@@ -9,6 +20,12 @@
   "task": {
     "analysis_id": "任务 ID",
     "dataset_id": "标准化数据集 ID",
+    "report_date": "数据日期",
+    "compare_number": "本品 SPU+竞品 SPU",
+    "self_spu": "本品 SPU",
+    "competitor_spu": "竞品 SPU",
+    "created_at": "任务生成时间",
+    "attempt_count": 1,
     "source_hash": "输入数据哈希",
     "lease_token": "本次租约令牌",
     "lease_expires_at": "租约到期时间",
@@ -64,6 +81,7 @@
 ## 状态与重试
 
 - 后端没有任务时，领取命令写出 `{ "task": null }`。
+- 领取日志会明确输出任务 ID、生成时间、数据日期、商品对、领取次数和租约到期时间。
 - 领取后任务进入 `processing`，只能使用当前租约提交。
 - 租约到期后任务可以被重新领取；不要继续提交旧租约结果。
 - 相同任务和相同结果可以重复回传，后端按幂等完成处理。

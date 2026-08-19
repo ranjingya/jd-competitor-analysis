@@ -67,6 +67,12 @@ class TaskRepositoryTest(unittest.TestCase):
         self.assertIsNotNone(claimed)
         assert claimed is not None
         self.assertEqual(claimed["dataset_id"], self.dataset_id)
+        self.assertEqual(claimed["report_date"], "2026-08-11")
+        self.assertEqual(claimed["compare_number"], "10001+20001")
+        self.assertEqual(claimed["self_spu"], "10001")
+        self.assertEqual(claimed["competitor_spu"], "20001")
+        self.assertEqual(claimed["attempt_count"], 1)
+        self.assertTrue(claimed["created_at"])
         self.assertEqual(claimed["payload"], {"metric": 12})
         result = {
             "summary": "存在流量差距",
@@ -97,6 +103,32 @@ class TaskRepositoryTest(unittest.TestCase):
         self.assertEqual(report_record["status"], "ready")
         self.assertEqual(report_record["report"]["meta"]["summary"], "存在流量差距")
         self.assertEqual(report_record["report"]["ai_findings"], result["findings"])
+
+    def test_list_recent_returns_visible_metadata_and_supports_status_filter(self) -> None:
+        """任务列表应展示生成时间、商品对和状态，并支持状态筛选。"""
+
+        self.repository.enqueue(
+            self.dataset_id,
+            "hash-visible",
+            {"secret_fact": 12},
+            analysis_id="task-visible",
+        )
+
+        pending_tasks = self.repository.list_recent(status="pending", limit=20)
+        completed_tasks = self.repository.list_recent(status="completed", limit=20)
+
+        self.assertEqual(len(pending_tasks), 1)
+        self.assertEqual(completed_tasks, [])
+        task = pending_tasks[0]
+        self.assertEqual(task["analysis_id"], "task-visible")
+        self.assertEqual(task["report_date"], "2026-08-11")
+        self.assertEqual(task["compare_number"], "10001+20001")
+        self.assertEqual(task["status"], "pending")
+        self.assertEqual(task["attempt_count"], 0)
+        self.assertTrue(task["created_at"])
+        self.assertNotIn("payload", task)
+        self.assertNotIn("lease_token", task)
+        self.assertNotIn("result", task)
 
     def test_complete_rejects_wrong_lease(self) -> None:
         """错误租约不得写入 AI 分析结果。"""

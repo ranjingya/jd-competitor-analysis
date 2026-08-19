@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from typing import Literal
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
 from ..auth import require_ai_worker
 from ..config import Settings, get_settings
@@ -12,7 +14,9 @@ from ..schemas import (
     ClaimRequest,
     CompleteTaskRequest,
     FailTaskRequest,
+    TaskListResponse,
     TaskStatusResponse,
+    TaskSummary,
 )
 from .dependencies import get_task_repository
 
@@ -22,6 +26,28 @@ router = APIRouter(
     tags=["analysis-tasks"],
     dependencies=[Depends(require_ai_worker)],
 )
+
+
+@router.get("", response_model=TaskListResponse)
+def list_tasks(
+    task_status: Literal["pending", "processing", "completed", "failed"] | None = Query(
+        default=None,
+        alias="status",
+    ),
+    limit: int = Query(default=20, ge=1, le=100),
+    repository: TaskRepository = Depends(get_task_repository),
+) -> TaskListResponse:
+    """查看最近的 AI 任务。
+
+    功能说明：按生成时间倒序返回任务摘要，可按状态筛选，便于确认任务何时生成、当前状态和对应商品对。
+    参数 task_status：可选任务状态筛选条件。
+    参数 limit：最多返回的任务数量，范围为 1–100。
+    参数 repository：AI 任务持久化仓库。
+    返回值：任务数量及摘要列表，不包含任务正文、租约令牌和 AI 结果。
+    """
+
+    tasks = [TaskSummary.model_validate(item) for item in repository.list_recent(task_status, limit)]
+    return TaskListResponse(count=len(tasks), tasks=tasks)
 
 
 @router.post("/claim", response_model=ClaimedTask, responses={204: {"description": "没有待分析任务"}})

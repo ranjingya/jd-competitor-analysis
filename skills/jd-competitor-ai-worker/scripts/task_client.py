@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 
@@ -79,7 +80,7 @@ def request_json(
     config: ClientConfig,
     method: str,
     path: str,
-    payload: dict[str, Any],
+    payload: dict[str, Any] | None = None,
 ) -> tuple[int, dict[str, Any] | None]:
     """发送带鉴权的 JSON 请求。
 
@@ -87,13 +88,17 @@ def request_json(
     参数 config：已校验的客户端连接参数。
     参数 method：HTTP 方法。
     参数 path：以斜杠开头的 API 相对路径。
-    参数 payload：请求 JSON 对象。
+    参数 payload：可选请求 JSON 对象；GET 请求可为空。
     返回值：HTTP 状态码和可空 JSON 响应。
     """
 
     request = Request(
         url=f"{config.api_url}{path}",
-        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+        data=(
+            json.dumps(payload, ensure_ascii=False).encode("utf-8")
+            if payload is not None
+            else None
+        ),
         method=method,
         headers={
             "Authorization": f"Bearer {config.token}",
@@ -123,6 +128,26 @@ def _read_object(path: Path) -> dict[str, Any]:
     return data
 
 
+def list_tasks(config: ClientConfig, status: str | None, limit: int) -> None:
+    """查看后端任务列表。
+
+    功能说明：按生成时间倒序读取任务摘要，并以 JSON 输出任务 ID、生成时间、状态和商品对等信息。
+    参数 config：客户端连接参数。
+    参数 status：可选任务状态筛选条件。
+    参数 limit：最多返回的任务数量。
+    返回值：无；任务列表输出到标准输出。
+    """
+
+    query = {"limit": limit}
+    if status:
+        query["status"] = status
+    _, response = request_json(config, "GET", f"/analysis-tasks?{urlencode(query)}")
+    if not isinstance(response, dict):
+        raise RuntimeError("后端任务列表响应格式无效")
+    print(json.dumps(response, ensure_ascii=False, indent=2))
+    LOGGER.info("任务列表读取完成：count=%s，status=%s", response.get("count"), status or "all")
+
+
 def claim_task(config: ClientConfig, output_path: Path) -> None:
     """领取任务并写入临时文件。
 
@@ -143,7 +168,20 @@ def claim_task(config: ClientConfig, output_path: Path) -> None:
         json.dumps({"task": task if status_code != 204 else None}, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
-    LOGGER.info("任务领取完成：has_task=%s，output=%s", task is not None, output_path)
+    if task is None:
+        LOGGER.info("当前没有待处理任务：output=%s", output_path)
+        return
+    LOGGER.info(
+        "任务领取完成：analysis_id=%s，created_at=%s，report_date=%s，"
+        "compare_number=%s，attempt_count=%s，lease_expires_at=%s，output=%s",
+        task.get("analysis_id"),
+        task.get("created_at"),
+        task.get("report_date"),
+        task.get("compare_number"),
+        task.get("attempt_count"),
+        task.get("lease_expires_at"),
+        output_path,
+    )
 
 
 def complete_task(config: ClientConfig, task_path: Path, result_path: Path) -> None:
@@ -192,10 +230,18 @@ def fail_task(config: ClientConfig, task_path: Path, error_message: str) -> None
 def parse_args() -> argparse.Namespace:
     """解析任务客户端命令行参数。"""
 
-    parser = argparse.ArgumentParser(description="领取或回传京东竞品 AI 分析任务。")
+    parser = argparse.ArgumentParser(description="查看、领取或回传京东竞品 AI 分析任务。")
     parser.add_argument("--env-file", type=Path, help="本地环境变量文件，默认读取 Skill 目录 .env。")
     parser.add_argument("--log-level", default="INFO", help="日志级别。")
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    list_parser = subparsers.add_parser("list", help="查看最近的任务摘要。")
+    list_parser.add_argument(
+        "--status",
+        choices=("pending", "processing", "completed", "failed"),
+        help="仅显示指定状态的任务。",
+    )
+    list_parser.add_argument("--limit", type=int, default=20, help="最多显示的任务数量，默认 20。")
 
     claim_parser = subparsers.add_parser("claim", help="领取一条待分析任务。")
     claim_parser.add_argument("--output", type=Path, required=True, help="任务临时 JSON 输出路径。")
@@ -213,17 +259,20 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     """执行 AI 任务客户端。
 
-    功能说明：加载配置并根据子命令领取任务、回传结果或上报失败。
+    功能说明：加载配置并根据子命令查看任务、领取任务、回传结果或上报失败。
     返回值：无；成功结果写入文件或后端，错误写入标准错误并返回非零退出码。
     """
 
     args = parse_args()
     logging.basicConfig(
         level=getattr(logging, args.log_level.upper(), logging.INFO),
-        format="%(levelname)s %(name)s - %(message)s",
+        format="%(asctime)s.%(msecs)03d %(levelname)s %(name)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
     )
     config = load_config(args.env_file)
-    if args.command == "claim":
+    if args.command == "list":
+        list_tasks(config, args.status, args.limit)
+    elif args.command == "claim":
         claim_task(config, args.output.expanduser().resolve())
     elif args.command == "complete":
         complete_task(config, args.task.expanduser().resolve(), args.result.expanduser().resolve())
