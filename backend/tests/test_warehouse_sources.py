@@ -67,6 +67,7 @@ class WarehouseSourcesTest(unittest.TestCase):
                         "(id, dt, compare_number, json_data, updated_at) VALUES "
                         "(1, '2026-08-11', '10001+20001', '{\"批次\": \"旧\"}', '2026-08-12 01:00:00'), "
                         "(2, '2026-08-11', '10001+20001', '{\"批次\": \"新\"}', '2026-08-12 02:00:00'), "
+                        "(4, '2026-08-11', '10001+20001', '{\"批次\": \"新2\"}', '2026-08-12 02:00:00'), "
                         "(3, '2026-08-11', '99999+20001', '{\"批次\": \"其他商品\"}', '2026-08-12 03:00:00')"
                     )
                 )
@@ -107,10 +108,11 @@ class WarehouseSourcesTest(unittest.TestCase):
 
         self.assertEqual(set(result), {table.source_id for table in COMPETITOR_TABLES})
         for rows in result.values():
-            self.assertEqual(len(rows), 1)
+            self.assertEqual(len(rows), 2)
+            self.assertEqual([row["id"] for row in rows], [2, 4])
             self.assertEqual(rows[0]["self_spu"], "10001")
             self.assertEqual(rows[0]["competitor_spu"], "20001")
-            self.assertEqual(rows[0]["data"], {"批次": "新"})
+            self.assertEqual([row["data"] for row in rows], [{"批次": "新"}, {"批次": "新2"}])
 
     def test_self_sku_daily_keeps_latest_natural_day_row(self) -> None:
         """本品查询应过滤粒度，并为每个 SKU 选择最新记录。"""

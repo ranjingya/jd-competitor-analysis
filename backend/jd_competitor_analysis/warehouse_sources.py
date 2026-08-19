@@ -153,12 +153,13 @@ def _decode_json_data(table_name: str, row: dict[str, Any]) -> dict[str, Any]:
 
 
 def _latest_load_rows(rows: list[dict[str, Any]], timestamp_field: str) -> list[dict[str, Any]]:
-    """仅保留最新一次同步批次的记录。"""
+    """仅保留最新一次同步批次的记录，并按原始行 ID 升序排列。"""
 
     if not rows:
         return []
     latest_timestamp = max(str(row.get(timestamp_field) or "") for row in rows)
-    return [row for row in rows if str(row.get(timestamp_field) or "") == latest_timestamp]
+    latest_rows = [row for row in rows if str(row.get(timestamp_field) or "") == latest_timestamp]
+    return sorted(latest_rows, key=lambda row: (row.get("id") is None, row.get("id")))
 
 
 def read_competitor_sources(
