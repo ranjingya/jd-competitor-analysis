@@ -42,7 +42,7 @@ GET  /api/reports/{granularity}/{period}
 
 ## 持久化
 
-- `data/backend.db`：标准化数据集、AI 任务状态和最终看板报告。
+- `data/backend.db`：标准化数据集、AI 执行状态和最终看板报告。
 - StarRocks：业务事实来源，不保存应用的 AI 执行状态。
 
 服务器通过 Docker volume 持久化 `data/`。Web 容器不直接挂载或读取该目录，只通过 Backend API 获取报告。

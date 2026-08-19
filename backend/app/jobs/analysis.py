@@ -1,4 +1,4 @@
-"""编排数仓事实计算与 AI 任务创建。"""
+"""编排数仓事实、基础报告和内部 AI 执行记录。"""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from typing import Any
 
 from ..repositories.dataset_repository import DatasetRepository
 from ..repositories.report_repository import ReportRepository
-from ..repositories.task_repository import TaskEnqueueResult, TaskRepository
+from ..repositories.task_repository import TaskRepository, TaskStartResult
 
 
 LOGGER = logging.getLogger(__name__)
@@ -60,34 +60,39 @@ def persist_base_report(
     return report_id
 
 
-def enqueue_ai_analysis(
+def start_ai_analysis(
     repository: TaskRepository,
     report_id: str,
     dataset_id: str,
     payload: dict[str, Any],
-) -> TaskEnqueueResult:
-    """为确定性分析结果创建 AI 任务。
+    model: str,
+) -> TaskStartResult:
+    """为确定性分析结果启动内部 AI 执行。
 
-    功能说明：对后端生成的结构化事实计算稳定哈希并写入任务仓库，供 Mac Codex 主动领取。
-    参数 repository：AI 任务持久化仓库。
-    参数 report_id：任务最终更新的唯一报告 ID。
+    功能说明：对后端生成的结构化事实计算稳定哈希并写入任务仓库，判断是否需要调用当前模型。
+    参数 repository：AI 执行记录持久化仓库。
+    参数 report_id：AI 结果最终更新的唯一报告 ID。
     参数 dataset_id：AI 输入所属的标准化数据集 ID。
     参数 payload：已经完成 SKU→SPU、周期聚合和确定性指标计算的事实数据。
-    返回值：任务 ID 和本次是否创建新任务。
+    参数 model：本次使用的 DeepSeek 模型标识。
+    返回值：执行记录 ID 与本次是否需要调用模型。
     """
 
     started_at = perf_counter()
     serialized = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     source_hash = hashlib.sha256(serialized.encode("utf-8")).hexdigest()
-    result = repository.enqueue(
+    result = repository.start(
         report_id=report_id,
         dataset_id=dataset_id,
         source_hash=source_hash,
         payload=payload,
+        model=model,
     )
     LOGGER.info(
-        "确定性分析结果已进入 AI 队列：analysis_id=%s，source_hash=%s，耗时=%.3fs",
+        "内部 AI 执行已准备：analysis_id=%s，model=%s，execute=%s，source_hash=%s，耗时=%.3fs",
         result.analysis_id,
+        model,
+        result.should_execute,
         source_hash,
         perf_counter() - started_at,
     )

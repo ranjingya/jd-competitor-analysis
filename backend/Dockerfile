@@ -10,6 +10,7 @@ RUN uv sync --frozen --no-dev
 COPY app ./app
 COPY jd_competitor_analysis ./jd_competitor_analysis
 COPY assets ./assets
+COPY cli.py ./cli.py
 
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \

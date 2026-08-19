@@ -1,4 +1,4 @@
-"""测试 AI 分析任务的持久化和租约约束。"""
+"""测试后端内部 AI 执行记录。"""
 
 from __future__ import annotations
 
@@ -10,21 +10,20 @@ from pathlib import Path
 from app.database import Database
 from app.repositories.dataset_repository import DatasetRepository
 from app.repositories.report_repository import ReportRepository
-from app.repositories.task_repository import TaskConflictError, TaskRepository
+from app.repositories.task_repository import TaskRepository
 
 
 class TaskRepositoryTest(unittest.TestCase):
-    """验证任务领取、完成、幂等和租约冲突。"""
+    """验证内部 AI 执行的完成、重试和版本替换。"""
 
     def setUp(self) -> None:
-        """为每个测试创建独立数据库。"""
+        """创建独立数据库及有效基础报告。"""
 
         self.temporary_directory = tempfile.TemporaryDirectory()
-        database_path = Path(self.temporary_directory.name) / "backend.db"
-        self.database = Database(database_path)
-        dataset_repository = DatasetRepository(self.database)
-        dataset_repository.initialize()
-        self.dataset_id = dataset_repository.store(
+        self.database = Database(Path(self.temporary_directory.name) / "backend.db")
+        datasets = DatasetRepository(self.database)
+        datasets.initialize()
+        self.dataset_id = datasets.store(
             {
                 "report_date": "2026-08-11",
                 "pair": {
@@ -36,48 +35,17 @@ class TaskRepositoryTest(unittest.TestCase):
             },
             dataset_id="dataset-1",
         )
-        self.report_repository = ReportRepository(self.database)
         report_path = Path(__file__).resolve().parents[1] / "assets" / "analysis-result.example.json"
-        base_report = json.loads(report_path.read_text(encoding="utf-8"))
-        base_report["ai_recommendations"] = []
-        self.report_id = self.report_repository.upsert(
+        self.base_report = json.loads(report_path.read_text(encoding="utf-8"))
+        self.base_report["ai_recommendations"] = []
+        self.reports = ReportRepository(self.database)
+        self.report_id = self.reports.upsert(
             self.dataset_id,
-            base_report,
+            self.base_report,
             report_id="report-1",
         )
         self.repository = TaskRepository(self.database)
-
-    def tearDown(self) -> None:
-        """清理测试数据库。"""
-
-        self.temporary_directory.cleanup()
-
-    def test_claim_and_complete_are_persistent_and_idempotent(self) -> None:
-        """任务应被领取、完成，并允许相同结果重复提交。"""
-
-        enqueue_result = self.repository.enqueue(
-            self.report_id,
-            self.dataset_id,
-            "hash-1",
-            {"metric": 12},
-            analysis_id="task-1",
-        )
-        claimed = self.repository.claim("mac-worker", lease_seconds=300)
-
-        self.assertEqual(enqueue_result.analysis_id, "task-1")
-        self.assertTrue(enqueue_result.created)
-        self.assertIsNotNone(claimed)
-        assert claimed is not None
-        self.assertEqual(claimed["dataset_id"], self.dataset_id)
-        self.assertEqual(claimed["report_id"], self.report_id)
-        self.assertEqual(claimed["report_date"], "2026-08-11")
-        self.assertEqual(claimed["compare_number"], "10001+20001")
-        self.assertEqual(claimed["self_spu"], "10001")
-        self.assertEqual(claimed["competitor_spu"], "20001")
-        self.assertEqual(claimed["attempt_count"], 1)
-        self.assertTrue(claimed["created_at"])
-        self.assertEqual(claimed["payload"], {"metric": 12})
-        result = {
+        self.result = {
             "summary": "存在流量差距",
             "findings": [
                 {
@@ -89,214 +57,87 @@ class TaskRepositoryTest(unittest.TestCase):
             ],
             "recommendations": [],
         }
-        self.repository.complete(
-            enqueue_result.analysis_id,
-            claimed["source_hash"],
-            claimed["lease_token"],
-            result,
-        )
-        self.repository.complete(
-            enqueue_result.analysis_id,
-            claimed["source_hash"],
-            claimed["lease_token"],
-            result,
-        )
-        self.assertIsNone(self.repository.claim("mac-worker", lease_seconds=300))
-        report_record = self.report_repository.get_record(self.report_id)
-        self.assertEqual(report_record["status"], "ready")
-        self.assertEqual(report_record["report"]["meta"]["summary"], "存在流量差距")
-        self.assertEqual(report_record["report"]["ai_findings"], result["findings"])
 
-    def test_list_recent_returns_visible_metadata_and_supports_status_filter(self) -> None:
-        """任务列表应展示生成时间、商品对和状态，并支持状态筛选。"""
+    def tearDown(self) -> None:
+        """清理测试数据库。"""
 
-        self.repository.enqueue(
+        self.temporary_directory.cleanup()
+
+    def test_start_and_complete_merge_report(self) -> None:
+        """新执行应直接进入 processing，完成后合并报告。"""
+
+        started = self.repository.start(
             self.report_id,
             self.dataset_id,
-            "hash-visible",
-            {"secret_fact": 12},
-            analysis_id="task-visible",
+            "hash-1",
+            {"metric": 12},
+            "deepseek-v4-pro",
+            analysis_id="task-1",
+        )
+        self.repository.complete(started.analysis_id, self.result)
+
+        task = self.repository.list_recent("completed", 20)[0]
+        report = self.reports.get_record(self.report_id)
+        self.assertTrue(started.should_execute)
+        self.assertEqual(task["model"], "deepseek-v4-pro")
+        self.assertEqual(task["attempt_count"], 1)
+        self.assertEqual(report["status"], "ready")
+        self.assertEqual(report["report"]["meta"]["summary"], "存在流量差距")
+
+    def test_completed_same_input_is_reused(self) -> None:
+        """相同输入已完成时不应再次调用模型。"""
+
+        first = self.repository.start(
+            self.report_id, self.dataset_id, "same-hash", {"metric": 1}, "deepseek-v4-pro"
+        )
+        self.repository.complete(first.analysis_id, self.result)
+        second = self.repository.start(
+            self.report_id, self.dataset_id, "same-hash", {"metric": 1}, "deepseek-v4-pro"
         )
 
-        pending_tasks = self.repository.list_recent(status="pending", limit=20)
-        completed_tasks = self.repository.list_recent(status="completed", limit=20)
+        self.assertEqual(second.analysis_id, first.analysis_id)
+        self.assertFalse(second.should_execute)
 
-        self.assertEqual(len(pending_tasks), 1)
-        self.assertEqual(completed_tasks, [])
-        task = pending_tasks[0]
-        self.assertEqual(task["analysis_id"], "task-visible")
-        self.assertEqual(task["report_date"], "2026-08-11")
-        self.assertEqual(task["compare_number"], "10001+20001")
-        self.assertEqual(task["status"], "pending")
-        self.assertEqual(task["attempt_count"], 0)
-        self.assertTrue(task["created_at"])
-        self.assertNotIn("payload", task)
-        self.assertNotIn("lease_token", task)
-        self.assertNotIn("result", task)
+    def test_failed_same_input_retries_same_record(self) -> None:
+        """相同输入失败后应复用记录并增加尝试次数。"""
 
-    def test_complete_rejects_wrong_lease(self) -> None:
-        """错误租约不得写入 AI 分析结果。"""
-
-        self.repository.enqueue(
-            self.report_id,
-            self.dataset_id,
-            "hash-2",
-            {"metric": 8},
-            analysis_id="task-2",
+        first = self.repository.start(
+            self.report_id, self.dataset_id, "retry-hash", {"metric": 2}, "deepseek-v4-pro"
         )
-        claimed = self.repository.claim("mac-worker", lease_seconds=300)
-        assert claimed is not None
-
-        with self.assertRaisesRegex(TaskConflictError, "租约无效"):
-            self.repository.complete(
-                "task-2",
-                claimed["source_hash"],
-                "wrong-lease",
-                {"summary": "无效结果"},
-            )
-
-    def test_enqueue_reuses_same_source_hash(self) -> None:
-        """相同数据版本不得重复创建 AI 分析任务。"""
-
-        first_id = self.repository.enqueue(
-            self.report_id,
-            self.dataset_id,
-            "same-hash",
-            {"metric": 1},
-            analysis_id="task-first",
-        )
-        second_id = self.repository.enqueue(
-            self.report_id,
-            self.dataset_id,
-            "same-hash",
-            {"metric": 1},
-            analysis_id="task-second",
+        self.repository.fail(first.analysis_id, "模型超时")
+        second = self.repository.start(
+            self.report_id, self.dataset_id, "retry-hash", {"metric": 2}, "deepseek-v4-pro"
         )
 
-        self.assertEqual(first_id.analysis_id, "task-first")
-        self.assertTrue(first_id.created)
-        self.assertEqual(second_id.analysis_id, "task-first")
-        self.assertFalse(second_id.created)
+        task = self.repository.list_recent("processing", 20)[0]
+        self.assertEqual(second.analysis_id, first.analysis_id)
+        self.assertTrue(second.should_execute)
+        self.assertEqual(task["attempt_count"], 2)
+        self.assertIsNone(task["error_message"])
 
-    def test_new_input_expires_old_task_and_rejects_old_lease(self) -> None:
-        """同一报告的新输入应替代旧任务，旧租约不得继续回传。"""
+    def test_new_input_expires_completed_record(self) -> None:
+        """同一报告的新输入应使旧执行过期。"""
 
-        self.repository.enqueue(
-            self.report_id,
-            self.dataset_id,
-            "old-hash",
-            {"version": "old"},
-            analysis_id="task-old",
+        first = self.repository.start(
+            self.report_id, self.dataset_id, "old-hash", {"version": 1}, "deepseek-v4-pro"
         )
-        old_task = self.repository.claim("mac-worker", lease_seconds=300)
-        assert old_task is not None
-
-        new_result = self.repository.enqueue(
-            self.report_id,
-            self.dataset_id,
-            "new-hash",
-            {"version": "new"},
-            analysis_id="task-new",
+        self.repository.complete(first.analysis_id, self.result)
+        current = self.repository.start(
+            self.report_id, self.dataset_id, "new-hash", {"version": 2}, "deepseek-v4-pro"
         )
 
-        with self.assertRaisesRegex(TaskConflictError, "expired"):
-            self.repository.complete(
-                "task-old",
-                old_task["source_hash"],
-                old_task["lease_token"],
-                {"summary": "迟到结果", "findings": [], "recommendations": []},
-            )
-        new_task = self.repository.claim("mac-worker", lease_seconds=300)
-        assert new_task is not None
-        self.assertEqual(new_result.analysis_id, "task-new")
-        self.assertEqual(new_task["analysis_id"], "task-new")
-        self.assertEqual(self.repository.list_recent("expired", 20)[0]["analysis_id"], "task-old")
-
-    def test_new_input_expires_previously_completed_task(self) -> None:
-        """已完成任务遇到同一报告的新输入时也应转为 expired。"""
-
-        self.repository.enqueue(
-            self.report_id,
-            self.dataset_id,
-            "completed-hash",
-            {"version": "completed"},
-            analysis_id="task-completed",
-        )
-        completed_task = self.repository.claim("mac-worker", lease_seconds=300)
-        assert completed_task is not None
-        self.repository.complete(
-            "task-completed",
-            completed_task["source_hash"],
-            completed_task["lease_token"],
-            {"summary": "旧结论", "findings": [], "recommendations": []},
-        )
-
-        current = self.repository.enqueue(
-            self.report_id,
-            self.dataset_id,
-            "current-hash",
-            {"version": "current"},
-            analysis_id="task-current",
-        )
-
-        self.assertEqual(current.analysis_id, "task-current")
-        self.assertEqual(
-            self.repository.list_recent("expired", 20)[0]["analysis_id"],
-            "task-completed",
-        )
-        self.assertEqual(
-            self.repository.list_recent("pending", 20)[0]["analysis_id"],
-            "task-current",
-        )
+        self.assertNotEqual(current.analysis_id, first.analysis_id)
+        self.assertEqual(self.repository.list_recent("expired", 20)[0]["analysis_id"], first.analysis_id)
 
     def test_fail_marks_report_ai_failed(self) -> None:
-        """AI 失败时任务和所属报告应同步进入失败状态。"""
+        """模型失败时报告应同步标记为 ai_failed。"""
 
-        self.repository.enqueue(
-            self.report_id,
-            self.dataset_id,
-            "hash-failed",
-            {"metric": 3},
-            analysis_id="task-failed",
+        started = self.repository.start(
+            self.report_id, self.dataset_id, "failed-hash", {"metric": 3}, "deepseek-v4-pro"
         )
-        claimed = self.repository.claim("mac-worker", lease_seconds=300)
-        assert claimed is not None
+        self.repository.fail(started.analysis_id, "分析证据不足")
 
-        self.repository.fail("task-failed", claimed["lease_token"], "分析证据不足")
-
-        self.assertEqual(self.report_repository.get_record(self.report_id)["status"], "ai_failed")
-
-    def test_invalid_ai_result_rolls_back_task_and_report(self) -> None:
-        """报告合并失败时任务完成状态也必须回滚。"""
-
-        self.repository.enqueue(
-            self.report_id,
-            self.dataset_id,
-            "hash-invalid-result",
-            {"metric": 4},
-            analysis_id="task-invalid-result",
-        )
-        claimed = self.repository.claim("mac-worker", lease_seconds=300)
-        assert claimed is not None
-
-        with self.assertRaisesRegex(ValueError, "缺少字段"):
-            self.repository.complete(
-                "task-invalid-result",
-                claimed["source_hash"],
-                claimed["lease_token"],
-                {
-                    "summary": "无效结果",
-                    "findings": [{"source_id": "traffic"}],
-                    "recommendations": [],
-                },
-            )
-
-        with self.database.connection() as connection:
-            task_status = connection.execute(
-                "SELECT status FROM analysis_tasks WHERE analysis_id = 'task-invalid-result'"
-            ).fetchone()["status"]
-        self.assertEqual(task_status, "processing")
-        self.assertEqual(self.report_repository.get_record(self.report_id)["status"], "pending_ai")
+        self.assertEqual(self.reports.get_record(self.report_id)["status"], "ai_failed")
 
 
 if __name__ == "__main__":

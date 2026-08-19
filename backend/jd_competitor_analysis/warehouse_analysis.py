@@ -256,7 +256,7 @@ def build_ai_task_payload(
     参数 dataset_id：标准化数据集 ID。
     参数 dataset：完整标准化日数据集。
     参数 report：固定公式生成的基础报告。
-    返回值：供 Mac Codex 读取的只读结构化事实。
+    返回值：供后端 DeepSeek 分析器读取的只读结构化事实。
     """
 
     deterministic_report = copy.deepcopy(report)

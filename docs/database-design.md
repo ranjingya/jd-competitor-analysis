@@ -160,10 +160,10 @@ CREATE TABLE IF NOT EXISTS analysis_tasks (
     analysis_id TEXT PRIMARY KEY,
     report_id TEXT NOT NULL REFERENCES reports(report_id) ON DELETE CASCADE,
     dataset_id TEXT NOT NULL REFERENCES analysis_datasets(dataset_id) ON DELETE CASCADE,
+    model TEXT NOT NULL,
     source_hash TEXT NOT NULL,
     payload_json TEXT NOT NULL,
     result_json TEXT,
-    model TEXT NOT NULL,
     status TEXT NOT NULL,
     attempt_count INTEGER NOT NULL DEFAULT 0,
     error_message TEXT,
@@ -189,7 +189,7 @@ CREATE TABLE IF NOT EXISTS analysis_tasks (
   → 合并更新 reports，状态 ready
 ```
 
-`quality_status=invalid` 的数据集允许保存以便排查，但不创建正式报告和 AI 任务。`quality_status=partial` 的数据集可以继续处理。部分字段未披露时保留 `masked/null` 事实；只有整块来源不可用时，才把缺失模块和对应风险写入任务事实与报告。
+`quality_status=invalid` 的数据集允许保存以便排查，但不创建正式报告和 AI 执行记录。`quality_status=partial` 的数据集可以继续处理。部分字段未披露时保留 `masked/null` 事实；只有整块来源不可用时，才把缺失模块和对应风险写入 AI 输入事实与报告。
 
 ## MVP 不建立的表
 

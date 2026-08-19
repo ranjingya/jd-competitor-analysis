@@ -8,6 +8,16 @@
 
 项目根目录的 `.env` 保存实际连接参数且不进入版本控制，`.env.example` 保存可提交的字段模板。
 
+正式日分析还需要配置 DeepSeek：
+
+```dotenv
+DEEPSEEK_API_KEY=<API Key>
+DEEPSEEK_BASE_URL=https://api.deepseek.com
+DEEPSEEK_MODEL=deepseek-v4-pro
+DEEPSEEK_TIMEOUT_SECONDS=300
+DEEPSEEK_MAX_ATTEMPTS=2
+```
+
 项目数仓为 StarRocks，使用 MySQL 协议连接：
 
 ```dotenv
@@ -125,6 +135,13 @@ uv run --project backend python backend/cli.py warehouse-daily-run `
 ```
 
 可重复提供 `--compare-number`。不提供时，程序从 `LARK_PAIR_TABLE_ID` 对应的商品对表读取全部候选，再以当天核心指标表为准跳过无数据组合。
+
+服务器定时任务可使用昨天作为业务日期：
+
+```bash
+docker compose exec -T jd-competitor-analysis-backend \
+  python /app/cli.py warehouse-daily-run --yesterday
+```
 
 商品对表和 SPU/SKU 映射表都需要向飞书应用开放只读权限。用户账号能够读取多维表，不代表 Bot 应用身份自动拥有相同权限。
 

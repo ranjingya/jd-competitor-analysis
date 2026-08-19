@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -34,6 +35,28 @@ def dataset_payload(status: str = "partial") -> dict[str, object]:
     }
 
 
+def report_payload() -> dict[str, object]:
+    """读取可通过最终报告契约校验的基础报告。"""
+
+    report_path = Path(__file__).resolve().parents[1] / "assets" / "analysis-result.example.json"
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    report["ai_recommendations"] = []
+    return report
+
+
+def ai_analyzer() -> Mock:
+    """创建返回有效 AI 结构的测试分析器。"""
+
+    analyzer = Mock()
+    analyzer.model = "deepseek-v4-pro"
+    analyzer.analyze.return_value = {
+        "summary": "AI 总结",
+        "findings": [],
+        "recommendations": [],
+    }
+    return analyzer
+
+
 class DailyAnalysisJobTest(unittest.TestCase):
     """验证单商品对写入和批量跳过规则。"""
 
@@ -62,11 +85,12 @@ class DailyAnalysisJobTest(unittest.TestCase):
         analyze_dataset: Mock,
         build_task_payload: Mock,
     ) -> None:
-        """有效数据应依次写入数据集、报告和 AI 任务。"""
+        """有效数据应依次写入数据集、报告和 AI 执行记录。"""
 
         build_dataset.return_value = dataset_payload()
-        analyze_dataset.return_value = {"meta": {"title": "日报"}, "ai_recommendations": []}
+        analyze_dataset.return_value = report_payload()
         build_task_payload.return_value = {"facts": {"metric": 1}}
+        analyzer = ai_analyzer()
 
         result = process_daily_pair(
             Mock(),
@@ -76,14 +100,12 @@ class DailyAnalysisJobTest(unittest.TestCase):
             self.datasets,
             self.reports,
             self.tasks,
+            analyzer,
             product_images={},
         )
-        claimed = self.tasks.claim("test-worker", lease_seconds=300)
 
-        self.assertEqual(result["status"], "pending_ai")
-        self.assertIsNotNone(claimed)
-        assert claimed is not None
-        self.assertEqual(claimed["dataset_id"], result["dataset_id"])
+        self.assertEqual(result["status"], "ready")
+        self.assertEqual(self.tasks.list_recent("completed", 20)[0]["dataset_id"], result["dataset_id"])
         self.assertEqual(self.reports.get_record(result["report_id"])["dataset_id"], result["dataset_id"])
 
     @patch("app.jobs.daily_analysis.build_ai_task_payload")
@@ -101,10 +123,7 @@ class DailyAnalysisJobTest(unittest.TestCase):
         second_dataset = dataset_payload()
         second_dataset["revision"] = 2
         build_dataset.side_effect = [first_dataset, second_dataset]
-        analyze_dataset.side_effect = [
-            {"meta": {"title": "旧版本"}, "ai_recommendations": []},
-            {"meta": {"title": "新版本"}, "ai_recommendations": []},
-        ]
+        analyze_dataset.side_effect = [report_payload(), report_payload()]
         build_task_payload.side_effect = [
             {"facts": {"version": 1}},
             {"facts": {"version": 2}},
@@ -118,6 +137,7 @@ class DailyAnalysisJobTest(unittest.TestCase):
             self.datasets,
             self.reports,
             self.tasks,
+            ai_analyzer(),
             product_images={},
         )
         second = process_daily_pair(
@@ -128,6 +148,7 @@ class DailyAnalysisJobTest(unittest.TestCase):
             self.datasets,
             self.reports,
             self.tasks,
+            ai_analyzer(),
             product_images={},
         )
 
@@ -138,7 +159,7 @@ class DailyAnalysisJobTest(unittest.TestCase):
             first["analysis_id"],
         )
         self.assertEqual(
-            self.tasks.list_recent("pending", 20)[0]["analysis_id"],
+            self.tasks.list_recent("completed", 20)[0]["analysis_id"],
             second["analysis_id"],
         )
         self.assertEqual(
@@ -166,11 +187,12 @@ class DailyAnalysisJobTest(unittest.TestCase):
             self.datasets,
             self.reports,
             self.tasks,
+            ai_analyzer(),
         )
 
         self.assertEqual(result["status"], "invalid")
         self.assertIsNone(result["report_id"])
-        self.assertIsNone(self.tasks.claim("test-worker", lease_seconds=300))
+        self.assertEqual(self.tasks.list_recent(), [])
         analyze_dataset.assert_not_called()
 
     @patch("app.jobs.daily_analysis.process_daily_pair")
@@ -181,7 +203,7 @@ class DailyAnalysisJobTest(unittest.TestCase):
             LookupError("核心指标表没有商品对日数据"),
             {
                 "compare_number": "10002+20002",
-                "status": "pending_ai",
+                "status": "ready",
                 "quality_status": "ready",
                 "dataset_id": "dataset-2",
                 "report_id": "report-2",
@@ -194,9 +216,10 @@ class DailyAnalysisJobTest(unittest.TestCase):
             [self.pair, ProductPair.parse("10002+20002")],
             "2026-08-18",
             self.database,
+            ai_analyzer(),
         )
 
-        self.assertEqual([item["status"] for item in results], ["skipped", "pending_ai"])
+        self.assertEqual([item["status"] for item in results], ["skipped", "ready"])
         self.assertEqual(process_pair.call_count, 2)
 
     @patch("app.jobs.daily_analysis.process_daily_pair")
@@ -214,6 +237,7 @@ class DailyAnalysisJobTest(unittest.TestCase):
                 [self.pair],
                 "2026-08-18",
                 self.database,
+                ai_analyzer(),
             )
 
         self.assertEqual(results[0]["message"], "数仓查询并发已达到上限 3，请稍后重试")

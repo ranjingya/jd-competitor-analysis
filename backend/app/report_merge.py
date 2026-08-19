@@ -36,7 +36,7 @@ def validate_findings(items: Any) -> list[dict[str, Any]]:
 
 
 def validate_ai_result(result: dict[str, Any]) -> dict[str, Any]:
-    """校验 Mac AI 回传的生成内容。
+    """校验模型生成内容。
 
     功能说明：只接受总结、发现和建议三个 AI 字段；有建议时沿用正式建议约束，证据不足时允许空建议。
     参数 result：通过 API 基础 Schema 后的 AI 结果对象。
@@ -66,7 +66,7 @@ def merge_ai_result(report: dict[str, Any], result: dict[str, Any]) -> dict[str,
 
     功能说明：保留固定公式摘要用于审计，用 AI 总结更新看板摘要，并写入 AI 发现和建议后校验最终报告契约。
     参数 report：Backend 固定公式生成的基础看板报告。
-    参数 result：Mac AI 只回传的总结、发现和建议。
+    参数 result：DeepSeek 只生成的总结、发现和建议。
     返回值：可直接保存到 `reports.report_json` 的完整报告。
     """
 

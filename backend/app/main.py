@@ -8,7 +8,6 @@ from typing import AsyncIterator
 
 from fastapi import FastAPI
 
-from .api.analysis_tasks import router as analysis_tasks_router
 from .api.dependencies import get_database
 from .api.reports import router as reports_router
 
@@ -37,7 +36,6 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(title="京东竞品分析 API", lifespan=lifespan)
 app.include_router(reports_router)
-app.include_router(analysis_tasks_router)
 
 
 @app.get("/healthz", tags=["system"])

@@ -110,17 +110,22 @@ class DatabaseTest(unittest.TestCase):
                     "SELECT report_date, self_spu, competitor_spu FROM reports"
                 ).fetchone()
                 tasks = migrated.execute(
-                    "SELECT analysis_id, report_id, status FROM analysis_tasks ORDER BY analysis_id"
+                    "SELECT analysis_id, report_id, model, status FROM analysis_tasks ORDER BY analysis_id"
                 ).fetchall()
+                task_columns = {
+                    row["name"] for row in migrated.execute("PRAGMA table_info(analysis_tasks)")
+                }
 
         self.assertEqual(tuple(report), ("2026-08-17", "10001", "20001"))
         self.assertEqual(
             [tuple(row) for row in tasks],
             [
-                ("task-new", "report-1", "completed"),
-                ("task-old", "report-1", "expired"),
+                ("task-new", "report-1", "codex-mac", "completed"),
+                ("task-old", "report-1", "codex-mac", "expired"),
             ],
         )
+        self.assertNotIn("lease_token", task_columns)
+        self.assertNotIn("worker_id", task_columns)
 
 
 if __name__ == "__main__":

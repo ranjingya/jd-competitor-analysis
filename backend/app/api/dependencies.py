@@ -6,9 +6,7 @@ from functools import lru_cache
 
 from ..config import get_settings
 from ..database import Database
-from ..repositories.dataset_repository import DatasetRepository
 from ..repositories.report_repository import ReportRepository
-from ..repositories.task_repository import TaskRepository
 
 
 @lru_cache(maxsize=1)
@@ -19,21 +17,7 @@ def get_database() -> Database:
 
 
 @lru_cache(maxsize=1)
-def get_dataset_repository() -> DatasetRepository:
-    """返回共享标准化数据集仓库。"""
-
-    return DatasetRepository(get_database())
-
-
-@lru_cache(maxsize=1)
 def get_report_repository() -> ReportRepository:
     """返回共享报告仓库。"""
 
     return ReportRepository(get_database())
-
-
-@lru_cache(maxsize=1)
-def get_task_repository() -> TaskRepository:
-    """返回共享任务仓库。"""
-
-    return TaskRepository(get_database())

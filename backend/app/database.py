@@ -36,7 +36,7 @@ class Database:
     def initialize(self) -> None:
         """初始化 Backend 三张业务表。
 
-        功能说明：创建标准化数据集、AI 任务、报告表及必要索引；已存在对象保持不变。
+        功能说明：创建标准化数据集、AI 执行记录、报告表及必要索引；已有数据库执行兼容迁移。
         返回值：无。
         """
 
@@ -76,13 +76,11 @@ class Database:
                         REFERENCES reports(report_id) ON DELETE CASCADE,
                     dataset_id TEXT NOT NULL
                         REFERENCES analysis_datasets(dataset_id) ON DELETE CASCADE,
+                    model TEXT NOT NULL,
                     source_hash TEXT NOT NULL,
                     payload_json TEXT NOT NULL,
                     result_json TEXT,
                     status TEXT NOT NULL,
-                    worker_id TEXT,
-                    lease_token TEXT,
-                    lease_expires_at TEXT,
                     attempt_count INTEGER NOT NULL DEFAULT 0,
                     error_message TEXT,
                     created_at TEXT NOT NULL,
@@ -167,6 +165,13 @@ class Database:
             report_columns
         ) or "report_id" not in task_columns:
             self._rebuild_legacy_task_and_report_tables(connection)
+            task_columns = self._column_names(connection, "analysis_tasks")
+        if "model" not in task_columns or {
+            "worker_id",
+            "lease_token",
+            "lease_expires_at",
+        }.intersection(task_columns):
+            self._rebuild_internal_ai_task_table(connection)
 
         duplicate_reports = connection.execute(
             """
@@ -231,7 +236,7 @@ class Database:
             connection.executemany(
                 """
                 UPDATE analysis_tasks
-                SET status = 'expired', lease_token = NULL, lease_expires_at = NULL, updated_at = ?
+                SET status = 'expired', updated_at = ?
                 WHERE analysis_id = ?
                 """,
                 [(now, analysis_id) for analysis_id in stale_task_ids],
@@ -300,13 +305,11 @@ class Database:
                     REFERENCES reports_migrated(report_id) ON DELETE CASCADE,
                 dataset_id TEXT NOT NULL
                     REFERENCES analysis_datasets(dataset_id) ON DELETE CASCADE,
+                model TEXT NOT NULL,
                 source_hash TEXT NOT NULL,
                 payload_json TEXT NOT NULL,
                 result_json TEXT,
                 status TEXT NOT NULL,
-                worker_id TEXT,
-                lease_token TEXT,
-                lease_expires_at TEXT,
                 attempt_count INTEGER NOT NULL DEFAULT 0,
                 error_message TEXT,
                 created_at TEXT NOT NULL,
@@ -315,23 +318,28 @@ class Database:
             );
 
             INSERT INTO analysis_tasks_migrated (
-                analysis_id, report_id, dataset_id, source_hash, payload_json,
-                result_json, status, worker_id, lease_token, lease_expires_at,
+                analysis_id, report_id, dataset_id, model, source_hash, payload_json,
+                result_json, status,
                 attempt_count, error_message, created_at, updated_at, completed_at
             )
             SELECT
                 task.analysis_id,
                 report.report_id,
                 task.dataset_id,
+                'codex-mac',
                 task.source_hash,
                 task.payload_json,
                 task.result_json,
-                task.status,
-                task.worker_id,
-                task.lease_token,
-                task.lease_expires_at,
+                CASE
+                    WHEN task.status IN ('pending', 'processing') THEN 'failed'
+                    ELSE task.status
+                END,
                 task.attempt_count,
-                task.error_message,
+                CASE
+                    WHEN task.status IN ('pending', 'processing')
+                    THEN COALESCE(task.error_message, '架构迁移时终止的旧 AI 任务')
+                    ELSE task.error_message
+                END,
                 task.created_at,
                 task.updated_at,
                 task.completed_at
@@ -357,6 +365,62 @@ class Database:
             DROP TABLE analysis_tasks;
             DROP TABLE reports;
             ALTER TABLE reports_migrated RENAME TO reports;
+            ALTER TABLE analysis_tasks_migrated RENAME TO analysis_tasks;
+            """,
+        )
+
+    @staticmethod
+    def _rebuild_internal_ai_task_table(connection: sqlite3.Connection) -> None:
+        """将 Mac Worker 任务表迁移为后端内部 AI 执行记录。
+
+        功能说明：保留历史输入、结果和状态，补充模型标识；迁移时仍在等待或处理的任务标记为 failed，供后端下次运行重试。
+        参数 connection：当前数据库连接。
+        返回值：无。
+        """
+
+        Database._execute_migration_script(
+            connection,
+            """
+            CREATE TABLE analysis_tasks_migrated (
+                analysis_id TEXT PRIMARY KEY,
+                report_id TEXT NOT NULL
+                    REFERENCES reports(report_id) ON DELETE CASCADE,
+                dataset_id TEXT NOT NULL
+                    REFERENCES analysis_datasets(dataset_id) ON DELETE CASCADE,
+                model TEXT NOT NULL,
+                source_hash TEXT NOT NULL,
+                payload_json TEXT NOT NULL,
+                result_json TEXT,
+                status TEXT NOT NULL,
+                attempt_count INTEGER NOT NULL DEFAULT 0,
+                error_message TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                completed_at TEXT
+            );
+
+            INSERT INTO analysis_tasks_migrated (
+                analysis_id, report_id, dataset_id, model, source_hash,
+                payload_json, result_json, status, attempt_count, error_message,
+                created_at, updated_at, completed_at
+            )
+            SELECT
+                analysis_id, report_id, dataset_id, 'codex-mac', source_hash,
+                payload_json, result_json,
+                CASE
+                    WHEN status IN ('pending', 'processing') THEN 'failed'
+                    ELSE status
+                END,
+                attempt_count,
+                CASE
+                    WHEN status IN ('pending', 'processing')
+                    THEN COALESCE(error_message, '架构迁移时终止的旧 AI 任务')
+                    ELSE error_message
+                END,
+                created_at, updated_at, completed_at
+            FROM analysis_tasks;
+
+            DROP TABLE analysis_tasks;
             ALTER TABLE analysis_tasks_migrated RENAME TO analysis_tasks;
             """,
         )
