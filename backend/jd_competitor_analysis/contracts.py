@@ -64,6 +64,7 @@ def empty_contract() -> dict[str, Any]:
             "notes": [],
         },
         "tabs": build_tabs([], empty_keywords, empty_profile),
+        "ai_findings": [],
         "ai_recommendations": [],
         "risks": [],
     }
@@ -91,6 +92,7 @@ def validate_contract(data: dict[str, Any], allow_empty: bool = False) -> None:
         "customer_profile",
         "promotion",
         "tabs",
+        "ai_findings",
         "ai_recommendations",
         "risks",
     }
@@ -128,6 +130,8 @@ def validate_contract(data: dict[str, Any], allow_empty: bool = False) -> None:
             raise ValueError(f"analysis_result.meta.{product_field}.image_url 必须是 HTTPS 地址或 null")
     if not isinstance(data["risks"], list) or any(not isinstance(item, str) for item in data["risks"]):
         raise ValueError("risks 必须是字符串数组")
+    if not isinstance(data["ai_findings"], list):
+        raise ValueError("ai_findings 必须是数组")
     if not isinstance(data["ai_recommendations"], list):
         raise ValueError("ai_recommendations 必须是数组")
     recommendation_count = len(data["ai_recommendations"])

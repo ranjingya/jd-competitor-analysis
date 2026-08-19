@@ -21,7 +21,8 @@ StarRocks 日数据
   → AI pending 任务
   → Mac Codex 领取并分析
   → Backend 校验数据哈希和租约
-  → 保存 AI 分析结果
+  → 原子保存 AI 结果并合并基础报告
+  → 报告状态更新为 ready
   → Web 通过 /api 展示
 ```
 
@@ -36,7 +37,7 @@ POST /api/analysis-tasks/{analysis_id}/complete
 POST /api/analysis-tasks/{analysis_id}/fail
 ```
 
-AI 任务接口要求 Bearer Token。领取操作原子设置租约，完成操作同时校验 `analysis_id`、`source_hash` 和 `lease_token`。
+AI 任务接口要求 Bearer Token。领取操作原子设置租约，完成操作同时校验 `analysis_id`、`source_hash` 和 `lease_token`。Mac 只提交 `summary`、`findings` 和 `recommendations`；Backend 在同一数据库事务中保存原始 AI 结果、合并完整报告并更新报告状态。
 
 ## 持久化
 

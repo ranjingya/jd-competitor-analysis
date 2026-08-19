@@ -53,7 +53,7 @@ def complete_task(
 ) -> TaskStatusResponse:
     """校验租约并保存 Codex 分析结果。
 
-    功能说明：校验任务 ID、数据哈希和有效租约，幂等保存结构化 AI 结果。
+    功能说明：校验任务 ID、数据哈希和有效租约，幂等保存 AI 生成内容并由 Backend 合并完整报告。
     参数 analysis_id：需要完成的任务 ID。
     参数 request：数据哈希、租约令牌和 AI 分析结果。
     参数 repository：AI 任务持久化仓库。
@@ -71,6 +71,8 @@ def complete_task(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在") from error
     except TaskConflictError as error:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)) from error
     return TaskStatusResponse(analysis_id=analysis_id, status="completed")
 
 

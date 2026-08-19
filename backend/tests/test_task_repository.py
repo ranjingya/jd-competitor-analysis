@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import json
 import tempfile
 import unittest
 from pathlib import Path
 
+from app.database import Database
 from app.repositories.dataset_repository import DatasetRepository
+from app.repositories.report_repository import ReportRepository
 from app.repositories.task_repository import TaskConflictError, TaskRepository
 
 
@@ -18,7 +21,8 @@ class TaskRepositoryTest(unittest.TestCase):
 
         self.temporary_directory = tempfile.TemporaryDirectory()
         database_path = Path(self.temporary_directory.name) / "backend.db"
-        dataset_repository = DatasetRepository(database_path)
+        self.database = Database(database_path)
+        dataset_repository = DatasetRepository(self.database)
         dataset_repository.initialize()
         self.dataset_id = dataset_repository.store(
             {
@@ -32,7 +36,16 @@ class TaskRepositoryTest(unittest.TestCase):
             },
             dataset_id="dataset-1",
         )
-        self.repository = TaskRepository(database_path)
+        self.report_repository = ReportRepository(self.database)
+        report_path = Path(__file__).resolve().parents[1] / "assets" / "analysis-result.example.json"
+        base_report = json.loads(report_path.read_text(encoding="utf-8"))
+        base_report["ai_recommendations"] = []
+        self.report_id = self.report_repository.upsert(
+            self.dataset_id,
+            base_report,
+            report_id="report-1",
+        )
+        self.repository = TaskRepository(self.database)
 
     def tearDown(self) -> None:
         """清理测试数据库。"""
@@ -55,7 +68,18 @@ class TaskRepositoryTest(unittest.TestCase):
         assert claimed is not None
         self.assertEqual(claimed["dataset_id"], self.dataset_id)
         self.assertEqual(claimed["payload"], {"metric": 12})
-        result = {"summary": "存在流量差距", "findings": [], "recommendations": []}
+        result = {
+            "summary": "存在流量差距",
+            "findings": [
+                {
+                    "source_id": "traffic",
+                    "target": "搜索渠道",
+                    "judgement": "访客存在差距",
+                    "evidence": "本品访客低于竞品估算值",
+                }
+            ],
+            "recommendations": [],
+        }
         self.repository.complete(
             analysis_id,
             claimed["source_hash"],
@@ -69,6 +93,10 @@ class TaskRepositoryTest(unittest.TestCase):
             result,
         )
         self.assertIsNone(self.repository.claim("mac-worker", lease_seconds=300))
+        report_record = self.report_repository.get_record(self.report_id)
+        self.assertEqual(report_record["status"], "ready")
+        self.assertEqual(report_record["report"]["meta"]["summary"], "存在流量差距")
+        self.assertEqual(report_record["report"]["ai_findings"], result["findings"])
 
     def test_complete_rejects_wrong_lease(self) -> None:
         """错误租约不得写入 AI 分析结果。"""
@@ -108,6 +136,53 @@ class TaskRepositoryTest(unittest.TestCase):
 
         self.assertEqual(first_id, "task-first")
         self.assertEqual(second_id, "task-first")
+
+    def test_fail_marks_report_ai_failed(self) -> None:
+        """AI 失败时任务和所属报告应同步进入失败状态。"""
+
+        self.repository.enqueue(
+            self.dataset_id,
+            "hash-failed",
+            {"metric": 3},
+            analysis_id="task-failed",
+        )
+        claimed = self.repository.claim("mac-worker", lease_seconds=300)
+        assert claimed is not None
+
+        self.repository.fail("task-failed", claimed["lease_token"], "分析证据不足")
+
+        self.assertEqual(self.report_repository.get_record(self.report_id)["status"], "ai_failed")
+
+    def test_invalid_ai_result_rolls_back_task_and_report(self) -> None:
+        """报告合并失败时任务完成状态也必须回滚。"""
+
+        self.repository.enqueue(
+            self.dataset_id,
+            "hash-invalid-result",
+            {"metric": 4},
+            analysis_id="task-invalid-result",
+        )
+        claimed = self.repository.claim("mac-worker", lease_seconds=300)
+        assert claimed is not None
+
+        with self.assertRaisesRegex(ValueError, "缺少字段"):
+            self.repository.complete(
+                "task-invalid-result",
+                claimed["source_hash"],
+                claimed["lease_token"],
+                {
+                    "summary": "无效结果",
+                    "findings": [{"source_id": "traffic"}],
+                    "recommendations": [],
+                },
+            )
+
+        with self.database.connection() as connection:
+            task_status = connection.execute(
+                "SELECT status FROM analysis_tasks WHERE analysis_id = 'task-invalid-result'"
+            ).fetchone()["status"]
+        self.assertEqual(task_status, "processing")
+        self.assertEqual(self.report_repository.get_record(self.report_id)["status"], "pending_ai")
 
 
 if __name__ == "__main__":

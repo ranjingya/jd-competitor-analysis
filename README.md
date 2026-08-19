@@ -65,3 +65,4 @@ Skill 不连接 StarRocks，也不重新计算业务指标。接口路径直接�
 - AI 任务包含数据集关联、租约、数据哈希和幂等完成约束。
 - StarRocks 连接探测和原 Excel 分析逻辑保留在 Backend。
 - `warehouse-daily-run` 可以把数仓日数据、固定公式报告和待处理 AI 任务写入统一数据库。
+- AI 完成接口只接收生成内容，由 Backend 原子合并基础报告并更新报告状态。

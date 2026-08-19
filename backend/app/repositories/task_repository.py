@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from ..database import Database
+from ..report_merge import merge_ai_result
 
 
 LOGGER = logging.getLogger(__name__)
@@ -174,7 +175,7 @@ class TaskRepository:
     ) -> None:
         """完成已领取任务。
 
-        功能说明：校验任务版本和有效租约后原子保存 AI 结果；相同结果的重复提交视为成功。
+        功能说明：校验任务版本和有效租约后，在同一事务中保存 AI 原始结果、合并基础报告并将报告标记为 ready；相同结果的重复提交视为成功。
         参数 analysis_id：待完成的任务 ID。
         参数 source_hash：领取任务时返回的数据版本哈希。
         参数 lease_token：领取任务时返回的租约令牌。
@@ -195,10 +196,12 @@ class TaskRepository:
                 raise FileNotFoundError(analysis_id)
             if row["status"] == "completed":
                 if row["source_hash"] == source_hash and row["result_json"] == result_json:
+                    self._merge_report(connection, row["dataset_id"], result, now_text)
                     connection.commit()
                     return
                 raise TaskConflictError("任务已经完成，不能覆盖已有 AI 结果")
             self._validate_active_lease(row, source_hash, lease_token, now_text)
+            self._merge_report(connection, row["dataset_id"], result, now_text)
             connection.execute(
                 """
                 UPDATE analysis_tasks
@@ -220,7 +223,7 @@ class TaskRepository:
     def fail(self, analysis_id: str, lease_token: str, error_message: str) -> None:
         """记录已领取任务失败。
 
-        功能说明：校验当前租约后保存失败原因，避免不完整 AI 结果进入正式报告。
+        功能说明：校验当前租约后保存失败原因，并将对应基础报告标记为 ai_failed，避免不完整 AI 结果进入正式报告。
         参数 analysis_id：失败任务 ID。
         参数 lease_token：领取任务时返回的租约令牌。
         参数 error_message：本次分析失败的可排查原因。
@@ -238,6 +241,12 @@ class TaskRepository:
             if row is None:
                 raise FileNotFoundError(analysis_id)
             self._validate_active_lease(row, row["source_hash"], lease_token, now_text)
+            report_update = connection.execute(
+                "UPDATE reports SET status = 'ai_failed', updated_at = ? WHERE dataset_id = ?",
+                (now_text, row["dataset_id"]),
+            )
+            if report_update.rowcount != 1:
+                raise TaskConflictError("任务所属基础报告不存在")
             connection.execute(
                 """
                 UPDATE analysis_tasks
@@ -254,6 +263,28 @@ class TaskRepository:
             raise
         finally:
             connection.close()
+
+    @staticmethod
+    def _merge_report(
+        connection: sqlite3.Connection,
+        dataset_id: str,
+        result: dict[str, Any],
+        updated_at: str,
+    ) -> None:
+        """在当前事务中合并并更新任务所属报告。"""
+
+        report_row = connection.execute(
+            "SELECT report_json FROM reports WHERE dataset_id = ?",
+            (dataset_id,),
+        ).fetchone()
+        if report_row is None:
+            raise TaskConflictError("任务所属基础报告不存在")
+        report = json.loads(report_row["report_json"])
+        merged = merge_ai_result(report, result)
+        connection.execute(
+            "UPDATE reports SET status = 'ready', report_json = ?, updated_at = ? WHERE dataset_id = ?",
+            (json.dumps(merged, ensure_ascii=False, sort_keys=True), updated_at, dataset_id),
+        )
 
     @staticmethod
     def _validate_active_lease(

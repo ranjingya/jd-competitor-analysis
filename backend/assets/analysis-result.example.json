@@ -21025,6 +21025,7 @@
       ]
     }
   ],
+  "ai_findings": [],
   "ai_recommendations": [
     {
       "source_id": "traffic",

@@ -43,12 +43,23 @@
       "evidence": "本品、竞品和差距",
       "actions": ["具体动作"],
       "validation": "后续复核指标和方向"
+    },
+    {
+      "source_id": "keywords",
+      "source_label": "引流关键词",
+      "target": "具体关键词",
+      "status": "warning",
+      "evidence": "本品、竞品和差距",
+      "actions": ["具体动作"],
+      "validation": "后续复核指标和方向"
     }
   ]
 }
 ```
 
 顶层只允许表达 AI 生成的总结、发现和建议。任务 ID、数据哈希和租约由客户端从任务文件读取并随请求提交，不手工复制到结果文件。
+
+证据不足时 `recommendations` 使用空数组；生成建议时必须包含 2–5 项并覆盖至少两个来源。Backend 保存 AI 原始结果，并将总结、发现和建议合并到基础报告；Mac 不读取或回传完整报告。
 
 ## 状态与重试
 

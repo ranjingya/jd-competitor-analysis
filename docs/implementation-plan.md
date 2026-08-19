@@ -116,7 +116,7 @@ updated_at
 - [ ] Mac Codex 领取一条任务。
 - [ ] AI 根据后端提供的结构化事实生成分析和建议。
 - [ ] AI 将结果回传 Backend。
-- [ ] Backend 保存 AI 结果并生成完整报告。
+- [x] Backend 保存 AI 结果并生成完整报告。
 - [ ] 错误任务可以标记失败并重新人工触发。
 
 完成标准：不使用模型 API，Mac Codex 可以完成一次真实分析闭环。
@@ -163,4 +163,4 @@ volumes:
 
 ## 下一项工作
 
-给飞书 Bot 开通商品对表只读权限，然后验证不传 `--compare-number` 时能够自动处理全部有效候选。
+使用 Mac Codex 领取现有真实任务，生成 AI 内容并回传 Backend，验证报告状态更新为 `ready`。

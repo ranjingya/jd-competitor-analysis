@@ -54,9 +54,15 @@ class ReportRepositoryTest(unittest.TestCase):
             status="ready",
             report_id="report-other",
         )
+        terminal_id = self.repository.upsert(
+            self.dataset_id,
+            {"meta": {"title": "日报", "summary": "重复生成的基础报告"}},
+            status="pending_ai",
+        )
 
         self.assertEqual(report_id, "report-1")
         self.assertEqual(repeated_id, "report-1")
+        self.assertEqual(terminal_id, "report-1")
         self.assertEqual(self.repository.get("report-1")["meta"]["summary"], "AI 已完成")
         entry = self.repository.read_index()["reports"]["day"][0]
         self.assertEqual(entry["path"], "/api/reports/report-1")

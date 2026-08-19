@@ -11,7 +11,7 @@ from .output_paths import analysis_path_from_period_key
 
 
 LOGGER = logging.getLogger(__name__)
-ALLOWED_SOURCES = {"traffic", "keywords", "customer_profile"}
+ALLOWED_SOURCES = {"traffic", "keywords", "customer_profile", "promotion"}
 REQUIRED_STATUS = "warning"
 REQUIRED_FIELDS = {
     "source_id",

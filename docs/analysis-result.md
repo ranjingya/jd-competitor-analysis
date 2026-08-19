@@ -2,7 +2,7 @@
 
 ## 定位
 
-`analysis_result.json` 保存当前周期的准真实估算值、差距、审计信息、AI 劣势建议和风险，是 Vite 看板与人工复核共同使用的最终数据契约。
+最终报告保存当前周期的准真实估算值、差距、审计信息、AI 发现、AI 劣势建议和风险，是 Vite 看板与人工复核共同使用的数据契约。基础报告中的 `ai_findings` 和 `ai_recommendations` 使用空数组；Mac AI 回传后由 Backend 合并填充。
 
 本文档是标准化事实到分析结果的字段映射和最终 JSON 结构的唯一规范。输入事实见 [normalized-data.md](normalized-data.md)，计算规则见 [estimation.md](estimation.md)，AI 分析规则位于 `skills/jd-competitor-ai-worker/references/analysis-guidelines.md`，页面消费规则见 [dashboard.md](dashboard.md)。
 

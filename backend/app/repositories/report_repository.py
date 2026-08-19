@@ -59,10 +59,17 @@ class ReportRepository:
         now = utc_now_text()
         with self.database.connection() as connection:
             existing = connection.execute(
-                "SELECT report_id FROM reports WHERE dataset_id = ?",
+                "SELECT report_id, status FROM reports WHERE dataset_id = ?",
                 (dataset_id,),
             ).fetchone()
             if existing is not None:
+                if status == "pending_ai" and existing["status"] in {"ready", "ai_failed"}:
+                    LOGGER.info(
+                        "报告已处于 AI 终态，保留现有内容：report_id=%s，status=%s",
+                        existing["report_id"],
+                        existing["status"],
+                    )
+                    return str(existing["report_id"])
                 connection.execute(
                     """
                     UPDATE reports

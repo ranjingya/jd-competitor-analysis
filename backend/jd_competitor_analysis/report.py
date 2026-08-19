@@ -421,6 +421,7 @@ def build_analysis_result(
         "customer_profile": profile,
         "promotion": promotion,
         "tabs": tabs,
+        "ai_findings": [],
         "ai_recommendations": [],
         "risks": list(dict.fromkeys(risks)),
     }
