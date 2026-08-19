@@ -32,25 +32,8 @@ PROFILE_DIMENSION_LABELS = {
     "city": "城市",
     "unknown": "其他",
 }
-AI_KEYWORD_ROW_LIMIT = 60
-AI_PROFILE_COMPLETE_LIMIT = 12
-AI_PROFILE_PARTIAL_LIMIT = 3
-AI_TRAFFIC_FIELDS = (
-    "path",
-    "self_visitors",
-    "competitor_visitors",
-    "self_gmv",
-    "competitor_gmv",
-    "self_conversion_rate",
-    "competitor_conversion_rate",
-    "self_customers",
-    "competitor_customers",
-    "visitor_gap",
-    "gmv_gap",
-    "conversion_gap_pct",
-    "judgement",
-    "estimation_basis",
-)
+AI_EXCLUDED_REPORT_FIELDS = {"tabs", "ai_findings", "ai_recommendations"}
+AI_SOURCE_FILE_FIELDS = ("role", "label", "required_level", "status", "warnings")
 
 
 def _metric_raw(metric: Any) -> Any:
@@ -264,152 +247,32 @@ def analyze_daily_dataset(
     return report
 
 
-def _numeric_magnitude(*values: Any) -> float:
-    """返回一组可选数值中的最大绝对值。"""
+def _full_report_facts(report: dict[str, Any]) -> dict[str, Any]:
+    """构建不丢失业务行的完整准真实值分析事实。
 
-    return max(
-        (abs(float(value)) for value in values if isinstance(value, (int, float))),
-        default=0.0,
-    )
+    功能说明：复制后端确定性报告的全部分析字段，仅移除页面渲染结构、已有 AI 内容、易变时间和图片地址，并将来源信息收敛为分析状态。
+    参数 report：固定公式生成、尚未合并当前 AI 结果的完整基础报告。
+    返回值：可直接保存为 AI 输入快照的完整分析事实。
+    """
 
-
-def _keyword_impact(row: dict[str, Any]) -> tuple[float, float, str]:
-    """生成关键词事实的稳定业务影响排序键。"""
-
-    return (
-        _numeric_magnitude(row.get("self_gmv"), row.get("competitor_gmv"), row.get("gmv_gap")),
-        _numeric_magnitude(
-            row.get("self_visitors"),
-            row.get("competitor_visitors"),
-            row.get("visitor_gap"),
-        ),
-        str(row.get("keyword") or ""),
-    )
-
-
-def _select_keyword_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """按覆盖关系均衡选择高影响关键词。"""
-
-    if len(rows) <= AI_KEYWORD_ROW_LIMIT:
-        return copy.deepcopy(rows)
-    groups: dict[str, list[tuple[int, dict[str, Any]]]] = {}
-    for index, row in enumerate(rows):
-        relation = str(row.get("coverage_relation") or "unknown")
-        groups.setdefault(relation, []).append((index, row))
-    per_group_limit = max(1, AI_KEYWORD_ROW_LIMIT // len(groups))
-    selected_indexes: set[int] = set()
-    for relation in sorted(groups):
-        ranked = sorted(
-            groups[relation],
-            key=lambda item: _keyword_impact(item[1]),
-            reverse=True,
-        )
-        selected_indexes.update(index for index, _ in ranked[:per_group_limit])
-    remaining_slots = AI_KEYWORD_ROW_LIMIT - len(selected_indexes)
-    if remaining_slots > 0:
-        remaining = sorted(
-            (
-                (index, row)
-                for index, row in enumerate(rows)
-                if index not in selected_indexes
-            ),
-            key=lambda item: _keyword_impact(item[1]),
-            reverse=True,
-        )
-        selected_indexes.update(index for index, _ in remaining[:remaining_slots])
-    ranked_indexes = sorted(
-        selected_indexes,
-        key=lambda index: (*_keyword_impact(rows[index]), -index),
-        reverse=True,
-    )
-    return [copy.deepcopy(rows[index]) for index in ranked_indexes]
-
-
-def _profile_item_impact(item: dict[str, Any]) -> tuple[float, float, str]:
-    """生成画像项的稳定差距排序键。"""
-
-    return (
-        _numeric_magnitude(item.get("gap_rate")),
-        _numeric_magnitude(item.get("self_rate"), item.get("competitor_rate")),
-        str(item.get("name") or ""),
-    )
-
-
-def _compact_profile(profile: dict[str, Any]) -> dict[str, Any]:
-    """保留每个画像维度的主要完整差距和少量单侧样本。"""
-
-    dimensions = []
-    for dimension in profile.get("dimensions", []):
-        items = dimension.get("items", [])
-        complete = [
-            item
-            for item in items
-            if item.get("self_rate") is not None and item.get("competitor_rate") is not None
-        ]
-        partial = [item for item in items if item not in complete]
-        selected = sorted(complete, key=_profile_item_impact, reverse=True)[
-            :AI_PROFILE_COMPLETE_LIMIT
-        ]
-        selected.extend(
-            sorted(partial, key=_profile_item_impact, reverse=True)[:AI_PROFILE_PARTIAL_LIMIT]
-        )
-        dimensions.append(
-            {
-                "dimension": dimension.get("dimension"),
-                "total_item_count": len(items),
-                "selected_items": copy.deepcopy(selected),
-            }
-        )
-    return {
-        "dimensions": dimensions,
-        "notes": copy.deepcopy(profile.get("notes", [])),
-    }
-
-
-def _compact_report_facts(report: dict[str, Any]) -> dict[str, Any]:
-    """从完整看板中提取模型真正需要的确定性事实。"""
-
-    meta = report.get("meta", {})
-    keywords = report.get("keywords", {})
-    keyword_rows = keywords.get("rows", [])
-    return {
-        "meta": {
-            key: copy.deepcopy(meta.get(key))
-            for key in (
-                "period",
-                "period_start",
-                "period_end",
-                "granularity",
-                "self_name",
-                "self_spu",
-                "competitor_name",
-                "competitor_spu",
-                "confidence",
-                "summary",
-                "weakness_summary",
-            )
-        },
-        "source_status": [
-            {"role": item.get("role"), "status": item.get("status")}
-            for item in report.get("source_files", [])
-        ],
-        "core_metrics": copy.deepcopy(report.get("core_metrics", [])),
-        "comparison": copy.deepcopy(report.get("comparison", [])),
-        "traffic_sources": [
-            {key: copy.deepcopy(row.get(key)) for key in AI_TRAFFIC_FIELDS}
-            for row in report.get("traffic_sources", [])
-        ],
-        "keywords": {
-            "summary": copy.deepcopy(keywords.get("summary", {})),
-            "coverage": copy.deepcopy(keywords.get("coverage", {})),
-            "total_row_count": len(keyword_rows),
-            "selected_rows": _select_keyword_rows(keyword_rows),
-            "notes": copy.deepcopy(keywords.get("notes", [])),
-        },
-        "customer_profile": _compact_profile(report.get("customer_profile", {})),
-        "promotion": copy.deepcopy(report.get("promotion", {})),
-        "risks": copy.deepcopy(report.get("risks", [])),
-    }
+    facts = copy.deepcopy(report)
+    for field in AI_EXCLUDED_REPORT_FIELDS:
+        facts.pop(field, None)
+    meta = facts.get("meta", {})
+    meta.pop("generated_at", None)
+    for product_field in ("self_product", "competitor_product"):
+        product = meta.get(product_field)
+        if isinstance(product, dict):
+            product.pop("image_url", None)
+    facts["source_files"] = [
+        {
+            field: copy.deepcopy(item.get(field))
+            for field in AI_SOURCE_FILE_FIELDS
+            if field in item
+        }
+        for item in facts.get("source_files", [])
+    ]
+    return facts
 
 
 def build_ai_task_payload(
@@ -419,7 +282,7 @@ def build_ai_task_payload(
 ) -> dict[str, Any]:
     """生成稳定且不包含易变时间的 AI 任务事实。
 
-    功能说明：组合数据集标识、质量、SKU 完整性和精简后的确定性事实，不发送页面展示结构、图片或完整 SKU 明细。
+    功能说明：组合数据集标识、质量、SKU 完整性和完整准真实值分析事实，不筛选任何关键词、画像或流量业务行。
     参数 dataset_id：标准化数据集 ID。
     参数 dataset：完整标准化日数据集。
     参数 report：固定公式生成的基础报告。
@@ -429,7 +292,7 @@ def build_ai_task_payload(
     self_product = dataset["self_product"]
     self_quality = self_product["quality"]
     return {
-        "schema_version": "1.1",
+        "schema_version": "1.2",
         "dataset_id": dataset_id,
         "report_date": dataset["report_date"],
         "pair": dataset["pair"],
@@ -446,5 +309,5 @@ def build_ai_task_payload(
                 "issues": copy.deepcopy(self_quality.get("issues", [])),
             },
         },
-        "analysis_facts": _compact_report_facts(report),
+        "analysis_facts": _full_report_facts(report),
     }

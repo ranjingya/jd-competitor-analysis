@@ -140,10 +140,11 @@ class WarehouseAnalysisTest(unittest.TestCase):
         self.assertNotIn("deterministic_report", first)
         self.assertNotIn("sku_components", first["self_product"])
         self.assertNotIn("tabs", first["analysis_facts"])
-        self.assertNotIn("self_validation", first["analysis_facts"])
+        self.assertIn("self_validation", first["analysis_facts"])
+        self.assertIn("competitor_core_conversions", first["analysis_facts"])
 
-    def test_ai_payload_limits_display_rows_and_removes_images(self) -> None:
-        """AI 输入应限制明细数量，并排除图片和页面重复结构。"""
+    def test_ai_payload_keeps_all_business_rows_and_removes_display_fields(self) -> None:
+        """AI 输入应保留全部业务行，并排除图片和页面重复结构。"""
 
         dataset = daily_dataset()
         report = analyze_daily_dataset(dataset, product_images={})
@@ -165,14 +166,26 @@ class WarehouseAnalysisTest(unittest.TestCase):
             ],
             "notes": [],
         }
+        report["customer_profile"] = {
+            "dimensions": [
+                {
+                    "dimension": "测试维度",
+                    "items": [
+                        {"name": f"画像{index}", "self_rate": index, "competitor_rate": index + 1}
+                        for index in range(80)
+                    ],
+                }
+            ],
+            "notes": [],
+        }
 
         payload = build_ai_task_payload("dataset-1", dataset, report)
         facts = payload["analysis_facts"]
 
-        self.assertEqual(facts["keywords"]["total_row_count"], 120)
-        self.assertEqual(len(facts["keywords"]["selected_rows"]), 60)
+        self.assertEqual(len(facts["keywords"]["rows"]), 120)
+        self.assertEqual(len(facts["customer_profile"]["dimensions"][0]["items"]), 80)
         self.assertNotIn("tabs", facts)
-        self.assertNotIn("self_product", facts["meta"])
+        self.assertNotIn("image_url", facts["meta"]["self_product"])
         self.assertNotIn("barcode_69", str(payload))
         self.assertNotIn("sku_id", str(payload))
 
