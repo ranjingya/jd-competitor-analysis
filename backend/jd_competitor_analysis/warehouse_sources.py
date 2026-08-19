@@ -7,6 +7,7 @@ import logging
 import re
 from dataclasses import dataclass
 from datetime import date
+from time import perf_counter
 from typing import Any, Iterable
 
 from sqlalchemy import bindparam, text
@@ -173,6 +174,7 @@ def read_competitor_sources(
     返回值：按 core_metrics、traffic_sources、traffic_keywords、customer_profiles、promotion 分组的数据。
     """
 
+    started_at = perf_counter()
     selected_date = parse_report_date(report_date)
     datasets: dict[str, list[dict[str, Any]]] = {}
     LOGGER.info(
@@ -182,6 +184,7 @@ def read_competitor_sources(
     )
     with engine.connect() as connection:
         for table in COMPETITOR_TABLES:
+            source_started_at = perf_counter()
             quoted_table = _quote_table_name(engine, table.table_name)
             query = text(
                 f"SELECT id, dt, compare_number, json_data, updated_at "
@@ -213,12 +216,17 @@ def read_competitor_sources(
                 for row in latest_rows
             ]
             LOGGER.info(
-                "竞品来源读取完成：source=%s，table=%s，rows=%s",
+                "竞品来源读取完成：source=%s，table=%s，rows=%s，耗时=%.3fs",
                 table.source_id,
                 table.table_name,
                 len(latest_rows),
+                perf_counter() - source_started_at,
             )
-    LOGGER.info("五张竞品日数据读取完成：date=%s", selected_date)
+    LOGGER.info(
+        "五张竞品日数据读取完成：date=%s，耗时=%.3fs",
+        selected_date,
+        perf_counter() - started_at,
+    )
     return datasets
 
 
@@ -236,6 +244,7 @@ def read_self_sku_daily(
     返回值：每个 SKU 最多一行的标准列明细，SKU ID 统一为字符串。
     """
 
+    started_at = perf_counter()
     selected_date = parse_report_date(report_date)
     selected_sku_ids = normalize_sku_ids(sku_ids)
     quoted_table = _quote_table_name(engine, SELF_SKU_TABLE)
@@ -268,5 +277,10 @@ def read_self_sku_daily(
         if current is None or str(row.get("create_time") or "") > str(current.get("create_time") or ""):
             latest_by_sku[normalized_sku_id] = row
     result = [latest_by_sku[sku_id] for sku_id in map(str, selected_sku_ids) if sku_id in latest_by_sku]
-    LOGGER.info("本品 SKU 日数据读取完成：date=%s，rows=%s", selected_date, len(result))
+    LOGGER.info(
+        "本品 SKU 日数据读取完成：date=%s，rows=%s，耗时=%.3fs",
+        selected_date,
+        len(result),
+        perf_counter() - started_at,
+    )
     return result

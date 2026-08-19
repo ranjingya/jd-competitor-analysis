@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import logging
 from pathlib import Path
+from time import perf_counter
 
 from app.jobs.daily_analysis import run_warehouse_daily_analysis
 from jd_competitor_analysis.lark_mapping import run_lark_mapping_check
@@ -103,14 +104,20 @@ def main() -> None:
     返回值：无；分析结果由对应流程固定写入 `backend/output/`。
     """
 
+    started_at = perf_counter()
     args = parse_args()
     logging.basicConfig(
         level=getattr(logging, args.log_level.upper(), logging.INFO),
-        format="%(levelname)s %(name)s - %(message)s",
+        format="%(asctime)s.%(msecs)03d %(levelname)s %(name)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
     )
     logging.getLogger(__name__).info("开始执行命令：%s", args.command)
     args.handler(args)
-    logging.getLogger(__name__).info("命令执行完成：%s", args.command)
+    logging.getLogger(__name__).info(
+        "命令执行完成：%s，耗时=%.3fs",
+        args.command,
+        perf_counter() - started_at,
+    )
 
 
 if __name__ == "__main__":

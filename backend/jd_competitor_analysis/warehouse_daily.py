@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import sys
+from time import perf_counter
 from typing import Any
 
 from sqlalchemy.engine import Engine
@@ -36,6 +37,7 @@ def build_daily_dataset(
     返回值：可持久化到 `analysis_datasets.payload_json` 的完整标准化日数据。
     """
 
+    started_at = perf_counter()
     LOGGER.info(
         "开始构建完整日数据：date=%s，compare_number=%s",
         report_date,
@@ -60,10 +62,11 @@ def build_daily_dataset(
     )
     result = normalize_daily_dataset(raw_sources, product_pair, report_date, mappings, sku_rows)
     LOGGER.info(
-        "完整日数据构建完成：date=%s，compare_number=%s，status=%s",
+        "完整日数据构建完成：date=%s，compare_number=%s，status=%s，耗时=%.3fs",
         report_date,
         product_pair.compare_number,
         result["quality"]["status"],
+        perf_counter() - started_at,
     )
     return result
 

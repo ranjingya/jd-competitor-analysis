@@ -7,6 +7,7 @@ import logging
 import re
 import sys
 from pathlib import Path
+from time import perf_counter
 from typing import Any, Iterable
 
 from sqlalchemy.engine import Engine
@@ -75,6 +76,7 @@ def process_daily_pair(
     返回值：包含处理状态和三个持久化 ID 的摘要。
     """
 
+    started_at = perf_counter()
     selected_date = parse_report_date(report_date).isoformat()
     LOGGER.info(
         "开始处理商品对：date=%s，compare_number=%s",
@@ -91,9 +93,10 @@ def process_daily_pair(
     quality_status = str(dataset["quality"]["status"])
     if quality_status == "invalid":
         LOGGER.warning(
-            "数据集质量无效，仅保留数据集：dataset_id=%s，compare_number=%s",
+            "数据集质量无效，仅保留数据集：dataset_id=%s，compare_number=%s，耗时=%.3fs",
             dataset_id,
             product_pair.compare_number,
+            perf_counter() - started_at,
         )
         return {
             "compare_number": product_pair.compare_number,
@@ -109,10 +112,11 @@ def process_daily_pair(
     task_payload = build_ai_task_payload(dataset_id, dataset, report)
     analysis_id = enqueue_ai_analysis(task_repository, dataset_id, task_payload)
     LOGGER.info(
-        "商品对日分析入库完成：dataset_id=%s，report_id=%s，analysis_id=%s",
+        "商品对日分析入库完成：dataset_id=%s，report_id=%s，analysis_id=%s，耗时=%.3fs",
         dataset_id,
         report_id,
         analysis_id,
+        perf_counter() - started_at,
     )
     return {
         "compare_number": product_pair.compare_number,
@@ -151,6 +155,7 @@ def process_daily_pairs(
     task_repository = TaskRepository(database)
     results = []
     for product_pair in product_pairs:
+        pair_started_at = perf_counter()
         try:
             result = process_daily_pair(
                 engine,
@@ -164,7 +169,11 @@ def process_daily_pairs(
                 product_images=product_images,
             )
         except LookupError as error:
-            LOGGER.warning("商品对在核心指标表中不存在，跳过：%s", error)
+            LOGGER.warning(
+                "商品对在核心指标表中不存在，跳过：%s，耗时=%.3fs",
+                error,
+                perf_counter() - pair_started_at,
+            )
             result = {
                 "compare_number": product_pair.compare_number,
                 "status": "skipped",
@@ -177,10 +186,11 @@ def process_daily_pairs(
         except Exception as error:
             message, retryable = _processing_error_message(error)
             LOGGER.error(
-                "商品对处理失败%s：compare_number=%s，原因=%s",
+                "商品对处理失败%s：compare_number=%s，原因=%s，耗时=%.3fs",
                 "（可重试）" if retryable else "",
                 product_pair.compare_number,
                 message,
+                perf_counter() - pair_started_at,
             )
             LOGGER.debug(
                 "商品对处理失败堆栈：compare_number=%s",

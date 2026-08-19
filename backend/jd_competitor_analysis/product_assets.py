@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
+from time import perf_counter
 from typing import Any
 from urllib.parse import urlparse
 
@@ -23,6 +24,7 @@ def load_product_images(path: Path = PRODUCT_IMAGES_PATH) -> dict[str, dict[str,
     返回值：键为商品 ID、值包含维护名称和 HTTPS 主图地址的字典。
     """
 
+    started_at = perf_counter()
     LOGGER.info("开始读取商品主图素材：%s", path)
     if not path.is_file():
         LOGGER.warning("商品主图素材文件不存在，报告将使用缺图占位：%s", path)
@@ -54,7 +56,11 @@ def load_product_images(path: Path = PRODUCT_IMAGES_PATH) -> dict[str, dict[str,
             "name": name.strip() if isinstance(name, str) and name.strip() else None,
             "image_url": image_url,
         }
-    LOGGER.info("商品主图素材读取完成：count=%s", len(products))
+    LOGGER.info(
+        "商品主图素材读取完成：count=%s，耗时=%.3fs",
+        len(products),
+        perf_counter() - started_at,
+    )
     return products
 
 

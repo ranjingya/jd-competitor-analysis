@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import math
 import re
+from time import perf_counter
 from typing import Any, Callable, Iterable
 
 from .lark_mapping import SkuMapping
@@ -208,6 +209,7 @@ def normalize_core_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
     返回值：包含来源信息、标准化记录和质量状态的核心指标对象。
     """
 
+    started_at = perf_counter()
     LOGGER.info("开始标准化核心指标：rows=%s", len(rows))
     records = []
     for row in rows:
@@ -222,7 +224,12 @@ def normalize_core_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
     if len(records) > 1:
         issues.append({"code": "multiple_core_records", "message": "核心指标应只有一条记录"})
     result = _wrap_source("core_metrics", rows, records, issues)
-    LOGGER.info("核心指标标准化完成：records=%s，status=%s", len(records), result["quality"]["status"])
+    LOGGER.info(
+        "核心指标标准化完成：records=%s，status=%s，耗时=%.3fs",
+        len(records),
+        result["quality"]["status"],
+        perf_counter() - started_at,
+    )
     return result
 
 
@@ -241,6 +248,7 @@ def normalize_traffic_sources(rows: list[dict[str, Any]]) -> dict[str, Any]:
     返回值：包含来源信息、标准化渠道记录和质量状态的流量来源对象。
     """
 
+    started_at = perf_counter()
     LOGGER.info("开始标准化流量来源：rows=%s", len(rows))
     records = []
     for row in rows:
@@ -257,7 +265,12 @@ def normalize_traffic_sources(rows: list[dict[str, Any]]) -> dict[str, Any]:
             }
         )
     result = _wrap_source("traffic_sources", rows, records)
-    LOGGER.info("流量来源标准化完成：records=%s，status=%s", len(records), result["quality"]["status"])
+    LOGGER.info(
+        "流量来源标准化完成：records=%s，status=%s，耗时=%.3fs",
+        len(records),
+        result["quality"]["status"],
+        perf_counter() - started_at,
+    )
     return result
 
 
@@ -270,6 +283,7 @@ def normalize_traffic_keywords(rows: list[dict[str, Any]], product_pair: Product
     返回值：包含来源信息、标准化关键词记录和质量状态的关键词对象。
     """
 
+    started_at = perf_counter()
     LOGGER.info("开始标准化引流关键词：rows=%s", len(rows))
     records = []
     issues: list[dict[str, str]] = []
@@ -294,7 +308,12 @@ def normalize_traffic_keywords(rows: list[dict[str, Any]], product_pair: Product
             }
         )
     result = _wrap_source("traffic_keywords", rows, records, issues)
-    LOGGER.info("引流关键词标准化完成：records=%s，status=%s", len(records), result["quality"]["status"])
+    LOGGER.info(
+        "引流关键词标准化完成：records=%s，status=%s，耗时=%.3fs",
+        len(records),
+        result["quality"]["status"],
+        perf_counter() - started_at,
+    )
     return result
 
 
@@ -320,6 +339,7 @@ def normalize_customer_profiles(rows: list[dict[str, Any]]) -> dict[str, Any]:
     返回值：包含来源信息、标准化画像记录和质量状态的画像对象。
     """
 
+    started_at = perf_counter()
     LOGGER.info("开始标准化客户画像：rows=%s", len(rows))
     records = []
     issues: list[dict[str, str]] = []
@@ -346,7 +366,12 @@ def normalize_customer_profiles(rows: list[dict[str, Any]]) -> dict[str, Any]:
             }
         )
     result = _wrap_source("customer_profiles", rows, records, issues)
-    LOGGER.info("客户画像标准化完成：records=%s，status=%s", len(records), result["quality"]["status"])
+    LOGGER.info(
+        "客户画像标准化完成：records=%s，status=%s，耗时=%.3fs",
+        len(records),
+        result["quality"]["status"],
+        perf_counter() - started_at,
+    )
     return result
 
 
@@ -373,6 +398,7 @@ def normalize_promotion(rows: list[dict[str, Any]]) -> dict[str, Any]:
     返回值：包含来源信息、标准化推广记录和质量状态的推广对象。
     """
 
+    started_at = perf_counter()
     LOGGER.info("开始标准化推广数据：rows=%s", len(rows))
     records = []
     for row in rows:
@@ -384,7 +410,12 @@ def normalize_promotion(rows: list[dict[str, Any]]) -> dict[str, Any]:
             }
         )
     result = _wrap_source("promotion", rows, records)
-    LOGGER.info("推广数据标准化完成：records=%s，status=%s", len(records), result["quality"]["status"])
+    LOGGER.info(
+        "推广数据标准化完成：records=%s，status=%s，耗时=%.3fs",
+        len(records),
+        result["quality"]["status"],
+        perf_counter() - started_at,
+    )
     return result
 
 
@@ -402,6 +433,7 @@ def normalize_competitor_sources(
     返回值：可写入日数据集 `payload_json` 的竞品事实部分。
     """
 
+    started_at = perf_counter()
     selected_date = parse_report_date(report_date).isoformat()
     LOGGER.info("开始标准化五张竞品表：date=%s，compare_number=%s", selected_date, product_pair.compare_number)
     normalizers: dict[str, Normalizer] = {
@@ -442,7 +474,12 @@ def normalize_competitor_sources(
         "sources": sources,
         "quality": {"status": overall_status, "issues": issues},
     }
-    LOGGER.info("五张竞品表标准化完成：date=%s，status=%s", selected_date, overall_status)
+    LOGGER.info(
+        "五张竞品表标准化完成：date=%s，status=%s，耗时=%.3fs",
+        selected_date,
+        overall_status,
+        perf_counter() - started_at,
+    )
     return result
 
 
@@ -526,6 +563,7 @@ def normalize_self_product(
     返回值：包含 SKU 构成、SKU 日记录、SPU 日指标和质量状态的本品对象。
     """
 
+    started_at = perf_counter()
     selected_date = parse_report_date(report_date).isoformat()
     LOGGER.info(
         "开始标准化本品 SKU：date=%s，spu=%s，mapped=%s，rows=%s",
@@ -628,7 +666,12 @@ def normalize_self_product(
             "issues": issues,
         },
     }
-    LOGGER.info("本品 SKU 标准化完成：spu=%s，status=%s", product_pair.self_spu, status)
+    LOGGER.info(
+        "本品 SKU 标准化完成：spu=%s，status=%s，耗时=%.3fs",
+        product_pair.self_spu,
+        status,
+        perf_counter() - started_at,
+    )
     return result
 
 
@@ -650,6 +693,7 @@ def normalize_daily_dataset(
     返回值：可直接持久化到 `analysis_datasets.payload_json` 的完整事实对象。
     """
 
+    started_at = perf_counter()
     competitor_data = normalize_competitor_sources(raw_sources, product_pair, report_date)
     self_product = normalize_self_product(product_pair, report_date, mappings, sku_rows)
     statuses = [competitor_data["quality"]["status"], self_product["quality"]["status"]]
@@ -672,9 +716,10 @@ def normalize_daily_dataset(
         "quality": {"status": overall_status, "issues": issues},
     }
     LOGGER.info(
-        "完整日数据组装完成：date=%s，compare_number=%s，status=%s",
+        "完整日数据组装完成：date=%s，compare_number=%s，status=%s，耗时=%.3fs",
         result["report_date"],
         product_pair.compare_number,
         overall_status,
+        perf_counter() - started_at,
     )
     return result

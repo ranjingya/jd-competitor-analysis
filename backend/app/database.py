@@ -7,6 +7,7 @@ import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+from time import perf_counter
 from typing import Iterator
 
 
@@ -39,6 +40,7 @@ class Database:
         返回值：无。
         """
 
+        started_at = perf_counter()
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.connection() as connection:
             connection.executescript(
@@ -105,7 +107,11 @@ class Database:
                 ON reports(status, updated_at);
                 """
             )
-        LOGGER.info("Backend 数据库初始化完成：%s", self.path)
+        LOGGER.info(
+            "Backend 数据库初始化完成：%s，耗时=%.3fs",
+            self.path,
+            perf_counter() - started_at,
+        )
 
     def connect(self) -> sqlite3.Connection:
         """创建启用字典行和外键约束的 SQLite 连接。

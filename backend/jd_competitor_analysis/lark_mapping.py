@@ -224,6 +224,7 @@ class LarkBaseMappingClient:
         if self._tenant_access_token and now < self._token_expires_at:
             return self._tenant_access_token
 
+        started_at = time.perf_counter()
         LOGGER.info("开始获取飞书 tenant_access_token")
         result = self._requester(
             "POST",
@@ -247,7 +248,7 @@ class LarkBaseMappingClient:
             expire_seconds = 7200
         self._tenant_access_token = token
         self._token_expires_at = now + max(expire_seconds - 60, 30)
-        LOGGER.info("飞书 tenant_access_token 获取成功")
+        LOGGER.info("飞书 tenant_access_token 获取成功：耗时=%.3fs", time.perf_counter() - started_at)
         return token
 
     def _list_records(
@@ -320,6 +321,7 @@ class LarkBaseMappingClient:
         if not PRODUCT_ID_PATTERN.fullmatch(selected_spu_id):
             raise ValueError(f"SPU ID 必须是正整数：{spu_id}")
 
+        started_at = time.perf_counter()
         field_names = list(MAPPING_FIELDS.values())
         LOGGER.info("开始只读查询飞书 SPU/SKU 映射：spu_id=%s", selected_spu_id)
         records = self._list_records(
@@ -352,7 +354,12 @@ class LarkBaseMappingClient:
             mappings_by_key[key] = mapping
 
         mappings = sorted(mappings_by_key.values(), key=lambda item: int(item.sku_id))
-        LOGGER.info("飞书 SPU/SKU 映射读取完成：spu_id=%s，sku_count=%s", selected_spu_id, len(mappings))
+        LOGGER.info(
+            "飞书 SPU/SKU 映射读取完成：spu_id=%s，sku_count=%s，耗时=%.3fs",
+            selected_spu_id,
+            len(mappings),
+            time.perf_counter() - started_at,
+        )
         return mappings
 
     def list_product_pairs(self) -> list[ProductPairMapping]:
@@ -362,6 +369,7 @@ class LarkBaseMappingClient:
         返回值：按本品和竞品 SPU 排序后的候选商品对。
         """
 
+        started_at = time.perf_counter()
         LOGGER.info("开始只读查询飞书商品对")
         records = self._list_records(
             self._config.pair_table_id,
@@ -388,7 +396,11 @@ class LarkBaseMappingClient:
                 continue
             pairs[(self_spu, competitor_spu)] = ProductPairMapping(self_spu, competitor_spu)
         result = sorted(pairs.values(), key=lambda item: (int(item.self_spu), int(item.competitor_spu)))
-        LOGGER.info("飞书商品对读取完成：pair_count=%s", len(result))
+        LOGGER.info(
+            "飞书商品对读取完成：pair_count=%s，耗时=%.3fs",
+            len(result),
+            time.perf_counter() - started_at,
+        )
         return result
 
 

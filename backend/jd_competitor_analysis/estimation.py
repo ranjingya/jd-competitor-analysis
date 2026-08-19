@@ -6,6 +6,7 @@ import logging
 import re
 from dataclasses import dataclass
 from statistics import fmean
+from time import perf_counter
 from typing import Any
 
 from .sources import clean_text
@@ -458,6 +459,7 @@ def analyze_core(normalized: dict[str, Any], history: PHistory | None = None) ->
     risks: list[str] = []
     p_samples: list[dict[str, Any]] = []
 
+    started_at = perf_counter()
     LOGGER.info("开始核心估算：%s", meta["period_key"])
     for metric in CORE_METRICS:
         actual = to_number(self_row.get(metric.label))
@@ -556,7 +558,12 @@ def analyze_core(normalized: dict[str, Any], history: PHistory | None = None) ->
     report_confidence = _report_confidence(conversions, checks, validation)
     if checks["conflicts"]:
         risks.extend(checks["conflicts"])
-    LOGGER.info("核心估算完成：%s，置信度=%s", meta["period_key"], report_confidence)
+    LOGGER.info(
+        "核心估算完成：%s，置信度=%s，耗时=%.3fs",
+        meta["period_key"],
+        report_confidence,
+        perf_counter() - started_at,
+    )
     return {
         "validation": validation,
         "conversions": conversions,

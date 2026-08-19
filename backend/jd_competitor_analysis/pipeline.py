@@ -6,6 +6,7 @@ import argparse
 import logging
 from datetime import datetime
 from pathlib import Path
+from time import perf_counter
 from typing import Any
 
 from . import OUTPUT_ROOT
@@ -42,6 +43,7 @@ def analyze_normalized(
     返回值：最终分析结果与当前周期新增的有效 P 样本。
     """
 
+    started_at = perf_counter()
     period_key = normalized.get("meta", {}).get("period_key")
     LOGGER.info("开始分析标准化事实：%s", period_key)
     core = analyze_core(normalized, history)
@@ -49,7 +51,7 @@ def analyze_normalized(
     result = build_analysis_result(normalized, core, resolved_product_images)
     result["meta"]["generated_at"] = datetime.now().isoformat(timespec="seconds")
     validate_contract(result)
-    LOGGER.info("标准化事实分析完成：%s", period_key)
+    LOGGER.info("标准化事实分析完成：%s，耗时=%.3fs", period_key, perf_counter() - started_at)
     return result, core["p_samples"]
 
 

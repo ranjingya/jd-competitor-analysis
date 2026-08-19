@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+from time import perf_counter
 from typing import Any
 
 from ..repositories.dataset_repository import DatasetRepository
@@ -24,8 +25,13 @@ def persist_daily_dataset(repository: DatasetRepository, payload: dict[str, Any]
     返回值：新建或已存在的数据集 ID。
     """
 
+    started_at = perf_counter()
     dataset_id = repository.store(payload)
-    LOGGER.info("标准化日数据已持久化：dataset_id=%s", dataset_id)
+    LOGGER.info(
+        "标准化日数据已持久化：dataset_id=%s，耗时=%.3fs",
+        dataset_id,
+        perf_counter() - started_at,
+    )
     return dataset_id
 
 
@@ -43,8 +49,14 @@ def persist_base_report(
     返回值：新建或已存在的报告 ID。
     """
 
+    started_at = perf_counter()
     report_id = repository.upsert(dataset_id, report, status="pending_ai")
-    LOGGER.info("基础报告已持久化：report_id=%s，dataset_id=%s", report_id, dataset_id)
+    LOGGER.info(
+        "基础报告已持久化：report_id=%s，dataset_id=%s，耗时=%.3fs",
+        report_id,
+        dataset_id,
+        perf_counter() - started_at,
+    )
     return report_id
 
 
@@ -62,6 +74,7 @@ def enqueue_ai_analysis(
     返回值：新建 AI 分析任务 ID。
     """
 
+    started_at = perf_counter()
     serialized = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     source_hash = hashlib.sha256(serialized.encode("utf-8")).hexdigest()
     analysis_id = repository.enqueue(
@@ -69,5 +82,10 @@ def enqueue_ai_analysis(
         source_hash=source_hash,
         payload=payload,
     )
-    LOGGER.info("确定性分析结果已进入 AI 队列：analysis_id=%s，source_hash=%s", analysis_id, source_hash)
+    LOGGER.info(
+        "确定性分析结果已进入 AI 队列：analysis_id=%s，source_hash=%s，耗时=%.3fs",
+        analysis_id,
+        source_hash,
+        perf_counter() - started_at,
+    )
     return analysis_id
