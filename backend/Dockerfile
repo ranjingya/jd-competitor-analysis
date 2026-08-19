@@ -13,8 +13,7 @@ COPY assets ./assets
 
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
-    REPORTS_DIR=/app/data/reports \
-    TASK_DATABASE_PATH=/app/data/analysis-tasks.db
+    BACKEND_DATABASE_PATH=/app/data/backend.db
 
 EXPOSE 8000
 

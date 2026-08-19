@@ -17,6 +17,7 @@ class ClaimedTask(BaseModel):
     """后端返回给 Codex 的已领取任务。"""
 
     analysis_id: str
+    dataset_id: str
     source_hash: str
     lease_token: str
     lease_expires_at: str

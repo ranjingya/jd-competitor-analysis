@@ -11,6 +11,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+from ..database import Database
+
 
 LOGGER = logging.getLogger(__name__)
 
@@ -34,49 +36,21 @@ def _iso(value: datetime) -> str:
 class TaskRepository:
     """管理 AI 任务的创建、领取、完成与失败状态。"""
 
-    def __init__(self, database_path: Path) -> None:
-        self.database_path = database_path
+    def __init__(self, database: Database | Path) -> None:
+        self.database = database if isinstance(database, Database) else Database(database)
 
     def initialize(self) -> None:
-        """初始化任务数据库。
+        """初始化统一数据库。
 
-        功能说明：创建持久化目录和 AI 任务表，已有数据库保持原数据不变。
+        功能说明：创建持久化目录、三张业务表和索引，已有数据库保持原数据不变。
         返回值：无。
         """
 
-        self.database_path.parent.mkdir(parents=True, exist_ok=True)
-        with self._connect() as connection:
-            connection.execute(
-                """
-                CREATE TABLE IF NOT EXISTS analysis_tasks (
-                    analysis_id TEXT PRIMARY KEY,
-                    source_hash TEXT NOT NULL,
-                    payload_json TEXT NOT NULL,
-                    result_json TEXT,
-                    status TEXT NOT NULL,
-                    worker_id TEXT,
-                    lease_token TEXT,
-                    lease_expires_at TEXT,
-                    attempt_count INTEGER NOT NULL DEFAULT 0,
-                    error_message TEXT,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL,
-                    completed_at TEXT
-                )
-                """
-            )
-            connection.execute(
-                "CREATE INDEX IF NOT EXISTS idx_analysis_tasks_status_created "
-                "ON analysis_tasks(status, created_at)"
-            )
-            connection.execute(
-                "CREATE UNIQUE INDEX IF NOT EXISTS idx_analysis_tasks_source_hash "
-                "ON analysis_tasks(source_hash)"
-            )
-        LOGGER.info("AI 任务数据库初始化完成：%s", self.database_path)
+        self.database.initialize()
 
     def enqueue(
         self,
+        dataset_id: str,
         source_hash: str,
         payload: dict[str, Any],
         analysis_id: str | None = None,
@@ -84,7 +58,8 @@ class TaskRepository:
         """创建待分析任务。
 
         功能说明：把后端脚本生成的结构化事实保存为 pending 任务，供 Mac Codex 后续领取。
-        参数 source_hash：当前分析输入的稳定内容哈希。
+        参数 dataset_id：任务所属标准化数据集 ID。
+        参数 source_hash：当前 AI 输入的稳定内容哈希。
         参数 payload：只包含分析所需事实的结构化输入。
         参数 analysis_id：可选任务 ID；为空时自动生成。
         返回值：创建后的任务 ID。
@@ -92,23 +67,33 @@ class TaskRepository:
 
         task_id = analysis_id or str(uuid.uuid4())
         now = _iso(_utc_now())
-        with self._connect() as connection:
+        with self.database.connection() as connection:
             try:
                 connection.execute(
                     """
                     INSERT INTO analysis_tasks (
-                        analysis_id, source_hash, payload_json, status, created_at, updated_at
-                    ) VALUES (?, ?, ?, 'pending', ?, ?)
+                        analysis_id, dataset_id, source_hash, payload_json,
+                        status, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, 'pending', ?, ?)
                     """,
-                    (task_id, source_hash, json.dumps(payload, ensure_ascii=False), now, now),
+                    (
+                        task_id,
+                        dataset_id,
+                        source_hash,
+                        json.dumps(payload, ensure_ascii=False),
+                        now,
+                        now,
+                    ),
                 )
             except sqlite3.IntegrityError as error:
                 existing = connection.execute(
-                    "SELECT analysis_id FROM analysis_tasks WHERE source_hash = ?",
+                    "SELECT analysis_id, dataset_id FROM analysis_tasks WHERE source_hash = ?",
                     (source_hash,),
                 ).fetchone()
                 if existing is None:
                     raise error
+                if existing["dataset_id"] != dataset_id:
+                    raise TaskConflictError("相同 AI 输入哈希已关联其他数据集") from error
                 LOGGER.info(
                     "相同数据版本的 AI 任务已存在：analysis_id=%s，source_hash=%s",
                     existing["analysis_id"],
@@ -145,7 +130,7 @@ class TaskRepository:
             )
             row = connection.execute(
                 """
-                SELECT analysis_id, source_hash, payload_json
+                SELECT analysis_id, dataset_id, source_hash, payload_json
                 FROM analysis_tasks
                 WHERE status = 'pending'
                 ORDER BY created_at, analysis_id
@@ -168,6 +153,7 @@ class TaskRepository:
             LOGGER.info("AI 分析任务已领取：analysis_id=%s，worker_id=%s", row["analysis_id"], worker_id)
             return {
                 "analysis_id": row["analysis_id"],
+                "dataset_id": row["dataset_id"],
                 "source_hash": row["source_hash"],
                 "payload": json.loads(row["payload_json"]),
                 "lease_token": lease_token,
@@ -290,7 +276,4 @@ class TaskRepository:
     def _connect(self) -> sqlite3.Connection:
         """创建启用字典行和外键约束的 SQLite 连接。"""
 
-        connection = sqlite3.connect(self.database_path, timeout=30, isolation_level=None)
-        connection.row_factory = sqlite3.Row
-        connection.execute("PRAGMA foreign_keys = ON")
-        return connection
+        return self.database.connect()

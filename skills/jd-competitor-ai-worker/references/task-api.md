@@ -8,6 +8,7 @@
 {
   "task": {
     "analysis_id": "任务 ID",
+    "dataset_id": "标准化数据集 ID",
     "source_hash": "输入数据哈希",
     "lease_token": "本次租约令牌",
     "lease_expires_at": "租约到期时间",

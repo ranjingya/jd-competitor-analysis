@@ -6,6 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from app.repositories.dataset_repository import DatasetRepository
 from app.repositories.task_repository import TaskConflictError, TaskRepository
 
 
@@ -16,9 +17,22 @@ class TaskRepositoryTest(unittest.TestCase):
         """为每个测试创建独立数据库。"""
 
         self.temporary_directory = tempfile.TemporaryDirectory()
-        database_path = Path(self.temporary_directory.name) / "tasks.db"
+        database_path = Path(self.temporary_directory.name) / "backend.db"
+        dataset_repository = DatasetRepository(database_path)
+        dataset_repository.initialize()
+        self.dataset_id = dataset_repository.store(
+            {
+                "report_date": "2026-08-11",
+                "pair": {
+                    "compare_number": "10001+20001",
+                    "self_spu": "10001",
+                    "competitor_spu": "20001",
+                },
+                "quality": {"status": "ready"},
+            },
+            dataset_id="dataset-1",
+        )
         self.repository = TaskRepository(database_path)
-        self.repository.initialize()
 
     def tearDown(self) -> None:
         """清理测试数据库。"""
@@ -28,12 +42,18 @@ class TaskRepositoryTest(unittest.TestCase):
     def test_claim_and_complete_are_persistent_and_idempotent(self) -> None:
         """任务应被领取、完成，并允许相同结果重复提交。"""
 
-        analysis_id = self.repository.enqueue("hash-1", {"metric": 12}, analysis_id="task-1")
+        analysis_id = self.repository.enqueue(
+            self.dataset_id,
+            "hash-1",
+            {"metric": 12},
+            analysis_id="task-1",
+        )
         claimed = self.repository.claim("mac-worker", lease_seconds=300)
 
         self.assertEqual(analysis_id, "task-1")
         self.assertIsNotNone(claimed)
         assert claimed is not None
+        self.assertEqual(claimed["dataset_id"], self.dataset_id)
         self.assertEqual(claimed["payload"], {"metric": 12})
         result = {"summary": "存在流量差距", "findings": [], "recommendations": []}
         self.repository.complete(
@@ -53,7 +73,12 @@ class TaskRepositoryTest(unittest.TestCase):
     def test_complete_rejects_wrong_lease(self) -> None:
         """错误租约不得写入 AI 分析结果。"""
 
-        self.repository.enqueue("hash-2", {"metric": 8}, analysis_id="task-2")
+        self.repository.enqueue(
+            self.dataset_id,
+            "hash-2",
+            {"metric": 8},
+            analysis_id="task-2",
+        )
         claimed = self.repository.claim("mac-worker", lease_seconds=300)
         assert claimed is not None
 
@@ -68,8 +93,18 @@ class TaskRepositoryTest(unittest.TestCase):
     def test_enqueue_reuses_same_source_hash(self) -> None:
         """相同数据版本不得重复创建 AI 分析任务。"""
 
-        first_id = self.repository.enqueue("same-hash", {"metric": 1}, analysis_id="task-first")
-        second_id = self.repository.enqueue("same-hash", {"metric": 1}, analysis_id="task-second")
+        first_id = self.repository.enqueue(
+            self.dataset_id,
+            "same-hash",
+            {"metric": 1},
+            analysis_id="task-first",
+        )
+        second_id = self.repository.enqueue(
+            self.dataset_id,
+            "same-hash",
+            {"metric": 1},
+            analysis_id="task-second",
+        )
 
         self.assertEqual(first_id, "task-first")
         self.assertEqual(second_id, "task-first")

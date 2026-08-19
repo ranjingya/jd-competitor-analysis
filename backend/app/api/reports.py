@@ -31,6 +31,25 @@ def list_reports(repository: ReportRepository = Depends(get_report_repository)) 
         ) from error
 
 
+@router.get("/{report_id}")
+def get_report_by_id(
+    report_id: str,
+    repository: ReportRepository = Depends(get_report_repository),
+) -> dict[str, Any]:
+    """按报告 ID 返回完整报告。
+
+    功能说明：从统一 Backend 数据库读取一份可由 Web 直接消费的完整报告。
+    参数 report_id：报告 ID。
+    参数 repository：报告数据库仓库。
+    返回值：完整报告 JSON。
+    """
+
+    try:
+        return repository.get(report_id)
+    except FileNotFoundError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="报告不存在") from error
+
+
 @router.get("/{granularity}/{period_directory}")
 def get_report(
     granularity: str,

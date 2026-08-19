@@ -9,7 +9,7 @@ from typing import AsyncIterator
 from fastapi import FastAPI
 
 from .api.analysis_tasks import router as analysis_tasks_router
-from .api.dependencies import get_task_repository
+from .api.dependencies import get_database
 from .api.reports import router as reports_router
 
 
@@ -24,13 +24,13 @@ LOGGER = logging.getLogger(__name__)
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     """管理后端应用生命周期。
 
-    功能说明：应用启动时初始化 AI 任务持久化表，关闭时记录停止日志。
+    功能说明：应用启动时初始化统一 Backend 数据库，关闭时记录停止日志。
     参数 _：FastAPI 应用实例，当前无需直接读取。
     返回值：异步生命周期上下文。
     """
 
     LOGGER.info("京东竞品分析后端开始启动")
-    get_task_repository().initialize()
+    get_database().initialize()
     yield
     LOGGER.info("京东竞品分析后端已停止")
 

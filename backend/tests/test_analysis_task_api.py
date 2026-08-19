@@ -22,11 +22,10 @@ class AnalysisTaskApiTest(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            repository = TaskRepository(root / "tasks.db")
+            repository = TaskRepository(root / "backend.db")
             repository.initialize()
             settings = Settings(
-                reports_dir=root / "reports",
-                task_database_path=root / "tasks.db",
+                database_path=root / "backend.db",
                 ai_worker_token="test-token",
                 task_lease_seconds=300,
             )

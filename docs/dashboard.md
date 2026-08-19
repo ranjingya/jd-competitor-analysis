@@ -30,8 +30,8 @@ Vite 把 `/api` 转发到本地 Backend。生产环境中，同一路径由 Ngin
 
 ```json
 {
-  "period_key": "week:2026-08-10_2026-08-16",
-  "path": "/api/reports/week/2026-08-10_2026-08-16"
+  "period_key": "day:2026-08-18",
+  "path": "/api/reports/报告ID"
 }
 ```
 

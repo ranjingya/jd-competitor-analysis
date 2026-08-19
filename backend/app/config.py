@@ -31,8 +31,7 @@ def _positive_integer(name: str, default: int) -> int:
 class Settings:
     """保存后端运行参数。"""
 
-    reports_dir: Path
-    task_database_path: Path
+    database_path: Path
     ai_worker_token: str | None
     task_lease_seconds: int
 
@@ -46,14 +45,12 @@ def get_settings() -> Settings:
     """
 
     load_dotenv(PROJECT_ROOT / ".env", override=False)
-    reports_dir = Path(os.getenv("REPORTS_DIR", str(BACKEND_ROOT / "output"))).expanduser().resolve()
-    task_database_path = Path(
-        os.getenv("TASK_DATABASE_PATH", str(PROJECT_ROOT / "data" / "analysis-tasks.db"))
+    database_path = Path(
+        os.getenv("BACKEND_DATABASE_PATH", str(PROJECT_ROOT / "data" / "backend.db"))
     ).expanduser().resolve()
     token = os.getenv("AI_WORKER_TOKEN", "").strip() or None
     return Settings(
-        reports_dir=reports_dir,
-        task_database_path=task_database_path,
+        database_path=database_path,
         ai_worker_token=token,
         task_lease_seconds=_positive_integer("TASK_LEASE_SECONDS", 1800),
     )

@@ -15,7 +15,8 @@ Backend 不调用模型，服务器也不主动连接 Mac。Mac 只持有 AI Wor
 
 ```text
 StarRocks 日数据
-  → Backend SKU→SPU 与日周月聚合
+  → Backend SKU→SPU 与日数据标准化
+  → backend.db 保存不可变数据集
   → 确定性分析报告
   → AI pending 任务
   → Mac Codex 领取并分析
@@ -28,6 +29,7 @@ StarRocks 日数据
 
 ```text
 GET  /api/reports
+GET  /api/reports/{report_id}
 GET  /api/reports/{granularity}/{period}
 POST /api/analysis-tasks/claim
 POST /api/analysis-tasks/{analysis_id}/complete
@@ -38,8 +40,7 @@ AI 任务接口要求 Bearer Token。领取操作原子设置租约，完成操�
 
 ## 持久化
 
-- `reports/`：后端生成的看板报告。
-- `data/analysis-tasks.db`：AI 任务状态、租约和回传结果。
+- `data/backend.db`：标准化数据集、AI 任务状态和最终看板报告。
 - StarRocks：业务事实来源，不保存 Codex 运行状态。
 
-服务器通过 Docker volume 分别持久化 `data/` 和 `reports/`。Web 容器不直接挂载或读取这两个目录。
+服务器通过 Docker volume 持久化 `data/`。Web 容器不直接挂载或读取该目录，只通过 Backend API 获取报告。

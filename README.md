@@ -37,7 +37,6 @@ npm run dev
 .env
 docker-compose.yaml
 data/
-reports/
 ```
 
 启动服务：
@@ -62,5 +61,6 @@ Skill 不连接 StarRocks，也不重新计算业务指标。接口路径直接�
 
 - Web 已通过 `/api/reports` 读取报告。
 - Backend 已提供报告查询、任务领取、完成和失败接口。
-- AI 任务使用 SQLite 持久化，并包含租约、数据哈希和幂等完成约束。
+- 标准化日数据、AI 任务和看板报告统一保存在 `data/backend.db`。
+- AI 任务包含数据集关联、租约、数据哈希和幂等完成约束。
 - StarRocks 连接探测和原 Excel 分析逻辑保留在 Backend。

@@ -86,12 +86,12 @@ updated_at
 
 ## 第二步：保存到 Backend 数据库
 
-- [ ] 将数据库路径统一为 `BACKEND_DATABASE_PATH=/app/data/backend.db`。
-- [ ] 使用 `CREATE TABLE IF NOT EXISTS` 初始化三张表。
-- [ ] 标准化日数据写入 `analysis_datasets`。
-- [ ] 使用内容哈希避免相同数据重复写入。
-- [ ] AI 任务通过 `dataset_id` 关联数据集。
-- [ ] 最终看板数据写入 `reports`。
+- [x] 将数据库路径统一为 `BACKEND_DATABASE_PATH=/app/data/backend.db`。
+- [x] 使用 `CREATE TABLE IF NOT EXISTS` 初始化三张表。
+- [x] 标准化日数据写入 `analysis_datasets`。
+- [x] 使用内容哈希避免相同数据重复写入。
+- [x] AI 任务通过 `dataset_id` 关联数据集。
+- [x] 最终看板数据写入 `reports`。
 
 完成标准：Backend 重启后仍能读取数据集、AI 任务和报告，不依赖业务 JSON 文件。
 
@@ -163,4 +163,4 @@ volumes:
 
 ## 下一项工作
 
-将完整标准化日数据保存到 Backend 数据库，并使用内容哈希避免重复写入。
+选取一个真实日期和商品对，串联数据读取、标准化、确定性计算、报告写入和 AI 任务创建。
