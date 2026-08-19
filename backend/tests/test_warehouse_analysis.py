@@ -136,7 +136,45 @@ class WarehouseAnalysisTest(unittest.TestCase):
         second = build_ai_task_payload("dataset-1", dataset, report)
 
         self.assertEqual(first, second)
-        self.assertNotIn("generated_at", first["deterministic_report"]["meta"])
+        self.assertNotIn("generated_at", first["analysis_facts"]["meta"])
+        self.assertNotIn("deterministic_report", first)
+        self.assertNotIn("sku_components", first["self_product"])
+        self.assertNotIn("tabs", first["analysis_facts"])
+        self.assertNotIn("self_validation", first["analysis_facts"])
+
+    def test_ai_payload_limits_display_rows_and_removes_images(self) -> None:
+        """AI 输入应限制明细数量，并排除图片和页面重复结构。"""
+
+        dataset = daily_dataset()
+        report = analyze_daily_dataset(dataset, product_images={})
+        report["meta"]["self_product"] = {"id": "10001", "image_url": "https://example.test/a.jpg"}
+        report["tabs"] = [{"rows": [{"duplicated": True}]}]
+        report["keywords"] = {
+            "summary": {},
+            "coverage": {},
+            "rows": [
+                {
+                    "keyword": f"关键词{index}",
+                    "coverage_relation": f"关系{index % 3}",
+                    "self_visitors": index,
+                    "competitor_visitors": index + 1,
+                    "self_gmv": index * 10,
+                    "competitor_gmv": index * 20,
+                }
+                for index in range(120)
+            ],
+            "notes": [],
+        }
+
+        payload = build_ai_task_payload("dataset-1", dataset, report)
+        facts = payload["analysis_facts"]
+
+        self.assertEqual(facts["keywords"]["total_row_count"], 120)
+        self.assertEqual(len(facts["keywords"]["selected_rows"]), 60)
+        self.assertNotIn("tabs", facts)
+        self.assertNotIn("self_product", facts["meta"])
+        self.assertNotIn("barcode_69", str(payload))
+        self.assertNotIn("sku_id", str(payload))
 
     def test_partial_profile_keeps_single_side_rows_without_missing_risk(self) -> None:
         """画像单侧未披露时应保留事实，且不能误判为整块画像缺失。"""
