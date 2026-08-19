@@ -6,9 +6,11 @@ import argparse
 import logging
 from pathlib import Path
 
+from jd_competitor_analysis.lark_mapping import run_lark_mapping_check
 from jd_competitor_analysis.pipeline import run_analysis
 from jd_competitor_analysis.recommendations import apply_recommendations
 from jd_competitor_analysis.warehouse import run_warehouse_probe
+from jd_competitor_analysis.warehouse_sources import run_warehouse_daily_check
 
 
 def _add_analysis_arguments(parser: argparse.ArgumentParser) -> None:
@@ -31,7 +33,8 @@ def _add_analysis_arguments(parser: argparse.ArgumentParser) -> None:
 def parse_args() -> argparse.Namespace:
     """解析统一入口的子命令和参数。
 
-    功能说明：提供分析、AI 建议写回和数仓连接探测操作，并为每个操作注册独立参数。
+    功能说明：提供分析、AI 建议写回、数仓连接探测、飞书映射检查和日数据来源检查，
+    并为每个操作注册独立参数。
     返回值：包含子命令、处理函数和业务参数的命名空间。
     """
 
@@ -53,6 +56,29 @@ def parse_args() -> argparse.Namespace:
     warehouse_parser.add_argument("--limit", type=int, help="返回样例行数，默认使用 DB_TEST_LIMIT。")
     warehouse_parser.add_argument("--log-level", default="INFO", help="日志级别。")
     warehouse_parser.set_defaults(handler=run_warehouse_probe)
+
+    lark_parser = subparsers.add_parser("lark-mapping-check", help="只读检查指定 SPU 的飞书 SKU 映射。")
+    lark_parser.add_argument("--env-file", type=Path, help="环境变量文件，默认读取项目根目录的 .env。")
+    lark_parser.add_argument("--spu-id", required=True, help="需要查询的本品 SPU ID。")
+    lark_parser.add_argument("--log-level", default="INFO", help="日志级别。")
+    lark_parser.set_defaults(handler=run_lark_mapping_check)
+
+    daily_check_parser = subparsers.add_parser("warehouse-daily-check", help="检查指定商品对的正式日数据来源。")
+    daily_check_parser.add_argument("--env-file", type=Path, help="环境变量文件，默认读取项目根目录的 .env。")
+    daily_check_parser.add_argument("--date", required=True, help="业务日期，格式为 YYYY-MM-DD。")
+    daily_check_parser.add_argument(
+        "--compare-number",
+        required=True,
+        help="商品对编号，格式为 <本品SPU>+<竞品SPU>。",
+    )
+    daily_check_parser.add_argument(
+        "--sku-id",
+        action="append",
+        default=[],
+        help="本品 SPU 下的 SKU ID，可重复提供；未提供时自动读取飞书映射。",
+    )
+    daily_check_parser.add_argument("--log-level", default="INFO", help="日志级别。")
+    daily_check_parser.set_defaults(handler=run_warehouse_daily_check)
     return parser.parse_args()
 
 
