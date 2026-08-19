@@ -2,7 +2,7 @@
 
 ## 定位
 
-最终报告保存当前周期的准真实估算值、差距、审计信息、AI 发现、AI 劣势建议和风险，是 Vite 看板与人工复核共同使用的数据契约。基础报告中的 `ai_findings` 和 `ai_recommendations` 使用空数组；Mac AI 回传后由 Backend 合并填充。
+最终报告保存当前周期的准真实估算值、差距、审计信息、AI 发现、AI 劣势建议和风险，是 Vite 看板与人工复核共同使用的数据契约。基础报告中的 `ai_findings` 和 `ai_recommendations` 使用空数组；DeepSeek 返回结构化结果后由 Backend 合并填充。
 
 本文档是标准化事实到分析结果的字段映射和最终 JSON 结构的唯一规范。输入事实见 [normalized-data.md](normalized-data.md)，计算规则见 [estimation.md](estimation.md)，AI 分析规则位于 `skills/jd-competitor-ai-worker/references/analysis-guidelines.md`，页面消费规则见 [dashboard.md](dashboard.md)。
 
@@ -170,7 +170,7 @@
 
 ## `ai_recommendations[]`
 
-基础分析流程只初始化空数组。Backend 把完整结构化事实写入 AI 任务，Mac Codex Skill 生成有证据支持的分析结果并通过任务完成接口回传。Backend 校验任务 ID、数据哈希和租约后保存结果；Web 不直接写入该字段。
+基础分析流程只初始化空数组。Backend 把完整结构化事实写入 AI 执行记录，调用 DeepSeek 生成有证据支持的分析结果，校验结构后保存并合并到报告；Web 不直接写入该字段。
 
 每项至少包含：
 

@@ -5,26 +5,30 @@
 | 组件 | 职责 |
 |---|---|
 | Web | 展示看板并通过同源 `/api` 查询报告。 |
-| Backend | 读取 StarRocks、执行确定性计算、保存报告、创建和管理 AI 任务。 |
-| Codex Skill | 在 Mac 上领取结构化任务，生成人工语言分析并回传。 |
+| Backend API | 持续提供报告查询和健康检查，不执行长时间分析请求。 |
+| Backend CLI | 读取飞书与 StarRocks，执行确定性计算和 DeepSeek 分析，保存最终报告。 |
+| 宿主机 cron | 按固定时间在 Backend 容器中启动一次 CLI 进程。 |
 | Traefik | 为 Web 提供域名、HTTPS 和入口路由。 |
 
-Backend 不调用模型，服务器也不主动连接 Mac。Mac 只持有 AI Worker 接口令牌，不持有 StarRocks 账号。
+FastAPI 和 CLI 是 Backend 容器中的独立进程，共享 `/app/data/backend.db`。分析任务不通过浏览器或普通 API 请求触发。
 
 ## 数据流
 
 ```text
-StarRocks 日数据
-  → Backend SKU→SPU 与日数据标准化
+宿主机 cron
+  → Backend CLI 获取飞书映射与 StarRocks 日数据
+  → SKU→SPU 与日数据标准化
   → backend.db 保存不可变数据集
   → 确定性分析报告
-  → AI pending 任务
-  → Mac Codex 领取并分析
-  → Backend 校验数据哈希和租约
-  → 原子保存 AI 结果并合并基础报告
+  → AI 执行记录进入 processing
+  → DeepSeek V4 Pro 生成总结、发现和建议
+  → Backend 校验结构化结果
+  → 原子保存 AI 原始结果并合并基础报告
   → 报告状态更新为 ready
   → Web 通过 /api 展示
 ```
+
+不同商品对依次串行执行。调用 DeepSeek 期间不持有 SQLite 事务；单个商品对失败时记录 `failed` 和 `ai_failed`，随后继续下一组。
 
 ## API
 
@@ -32,17 +36,24 @@ StarRocks 日数据
 GET  /api/reports
 GET  /api/reports/{report_id}
 GET  /api/reports/{granularity}/{period}
-GET  /api/analysis-tasks
-POST /api/analysis-tasks/claim
-POST /api/analysis-tasks/{analysis_id}/complete
-POST /api/analysis-tasks/{analysis_id}/fail
 ```
 
-AI 任务接口要求 Bearer Token。列表接口按生成时间倒序返回任务 ID、生成时间、状态和商品对等摘要，可使用 `status` 和 `limit` 查询参数筛选。同一日期和商品对只有一份当前报告及一条非 `expired` 任务；新输入会使旧任务过期并使旧租约失效。领取操作原子设置租约，完成操作同时校验 `analysis_id`、`source_hash`、`lease_token` 和报告当前数据版本。Mac 只提交 `summary`、`findings` 和 `recommendations`；Backend 在同一数据库事务中保存原始 AI 结果、合并完整报告并更新报告状态。
+报告 API 只读取 Backend 数据库。AI 执行记录由 CLI 直接管理，不对外提供领取、完成或失败接口。
 
 ## 持久化
 
 - `data/backend.db`：标准化数据集、AI 任务状态和最终看板报告。
-- StarRocks：业务事实来源，不保存 Codex 运行状态。
+- StarRocks：业务事实来源，不保存应用的 AI 执行状态。
 
 服务器通过 Docker volume 持久化 `data/`。Web 容器不直接挂载或读取该目录，只通过 Backend API 获取报告。
+
+## 定时执行
+
+宿主机 cron 执行：
+
+```bash
+docker compose exec -T jd-competitor-analysis-backend \
+  python /app/cli.py warehouse-daily-run --yesterday
+```
+
+CLI 使用 `/app/data/warehouse-daily-run.lock` 进程锁。同一任务仍在运行时，后续触发直接退出，避免重复读取数仓和覆盖报告。

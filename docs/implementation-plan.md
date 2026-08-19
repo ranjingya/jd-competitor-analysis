@@ -8,22 +8,22 @@
 StarRocks + 飞书映射
   → Backend 标准化日数据
   → backend.db
-  → Mac Codex 分析
+  → DeepSeek V4 Pro 分析
   → Backend API
   → Web 看板
 ```
 
-当前阶段只支持单个后端容器、日数据和手动触发。周月聚合、自动调度、复杂版本管理和多实例部署在 MVP 跑通后处理。
+当前阶段使用单个 Backend 容器、日数据和宿主机 cron。周月聚合、复杂版本管理和多实例部署在 MVP 跑通后处理。
 
 ## 已完成
 
-- [x] Web、Backend、Mac AI Worker 完成职责拆分。
+- [x] Web、Backend API 和 Backend CLI 完成职责拆分。
 - [x] Backend 连接 StarRocks。
 - [x] 五张竞品表可以按日期和商品对读取。
 - [x] 飞书 Bot 可以实时只读获取 SPU/SKU 映射。
 - [x] 飞书多维表提供本品 SPU 和竞品 SPU 候选组合。
 - [x] 本品 SKU 日数据可以按映射读取。
-- [x] AI 任务领取和回传 API 具备基础框架。
+- [x] DeepSeek 分析接入 Backend CLI。
 
 ## MVP 只使用三张表
 
@@ -46,7 +46,7 @@ created_at
 
 ### `analysis_tasks`
 
-保存 AI 任务、租约和 AI 回传结果，沿用现有表并关联 `dataset_id`。
+保存 DeepSeek 执行状态、模型、输入、原始结果和错误信息，并关联 `report_id` 与 `dataset_id`。
 
 ### `reports`
 
@@ -111,16 +111,15 @@ updated_at
 
 完成标准：一个真实商品对能够从数据源走到数据库中的待分析报告。
 
-## 第四步：跑通 Mac AI
+## 第四步：跑通后端 AI
 
-- [x] Mac Codex 领取一条任务。
-- [x] AI 根据后端提供的结构化事实生成分析和建议。
-- [x] AI 将结果回传 Backend。
+- [x] Backend 根据结构化事实调用 DeepSeek V4 Pro。
+- [x] Backend 校验模型返回的总结、发现和建议。
 - [x] Backend 保存 AI 结果并生成完整报告。
 - [x] 同一报告只保留一个当前任务，新输入使历史任务变为 `expired`。
-- [ ] 错误任务可以标记失败并重新人工触发。
+- [x] AI 失败记录原因并允许下次任务重试。
 
-完成标准：不使用模型 API，Mac Codex 可以完成一次真实分析闭环。
+完成标准：Backend CLI 可以独立完成一次真实分析闭环。
 
 ## 第五步：前端只读 API
 
@@ -145,13 +144,13 @@ volumes:
 - [ ] Web 和 Backend 保持两个容器。
 - [ ] 删除 reports 业务目录挂载。
 - [ ] 手动执行一次真实日期分析并检查页面。
+- [ ] 宿主机 cron 使用 `--yesterday` 定时启动 Backend CLI。
 
 完成标准：服务器重启或更新镜像后 `backend.db` 不丢失，Web 能通过 API 展示报告。
 
 ## MVP 暂不处理
 
 - 周、月聚合。
-- 自动定时任务。
 - 晚到数据自动补算。
 - 多后端实例并发。
 - 正式数据库迁移框架。
@@ -164,4 +163,4 @@ volumes:
 
 ## 下一项工作
 
-不指定商品对执行一次真实日期批处理，验证飞书商品对候选能够逐个进入日分析流程。
+配置 DeepSeek API Key，执行一次真实日期批处理并检查最终 `ready` 报告。

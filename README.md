@@ -1,14 +1,13 @@
 # 京东竞品分析
 
-本项目是一个前后端分离的竞品分析系统。服务器运行 Web 与 Backend 两个容器；Mac 上的 Codex Skill 作为外部 AI Worker，主动领取后端任务并回传分析结果。
+本项目是一个前后端分离的竞品分析系统。服务器运行 Web 与 Backend 两个容器；宿主机定时启动 Backend CLI，依次完成数仓读取、确定性计算、DeepSeek 分析和报告入库。
 
 ## 目录
 
 ```text
-web/           Vite 看板与内部 Nginx
-backend/       FastAPI、确定性分析、StarRocks 访问和任务持久化
-skills/jd-competitor-ai-worker/   Mac Codex 使用的 AI Worker Skill
-docs/          数据、估算、报告和看板契约
+web/      Vite 看板与内部 Nginx
+backend/  FastAPI、批处理、StarRocks 访问、DeepSeek 调用和数据持久化
+docs/     数据、估算、报告和看板契约
 ```
 
 ## 本地运行
@@ -47,22 +46,22 @@ docker compose up -d
 
 两个服务都只使用 Docker 网络中的 `expose`，不直接向宿主机发布端口。Traefik 只连接 Web 容器，Backend 通过内部网络接受 `/api` 转发。
 
-## Mac AI Worker
+## 日分析任务
 
-将 `skills/jd-competitor-ai-worker/` 安装或链接到 Mac 的 Codex Skills 目录，并复制其中的 `.env.example` 为 `.env`。Codex 定时任务调用 Skill 后执行以下闭环：
+完整日分析由 Backend CLI 在独立进程中执行：
 
 ```text
-领取任务 → 基于结构化事实分析 → 回传结果 → 继续领取
+飞书与 StarRocks → 标准化 → 固定公式 → DeepSeek → 最终报告
 ```
 
-Skill 不连接 StarRocks，也不重新计算业务指标。接口路径直接使用 `/api`，当前不包含版本号。
+生产环境由宿主机 cron 使用 `docker compose exec` 启动 CLI。FastAPI 持续提供只读报告接口，不通过 Web 请求触发长时间分析。
 
 ## 已有能力
 
 - Web 已通过 `/api/reports` 读取报告。
-- Backend 已提供报告查询、任务领取、完成和失败接口。
-- 标准化日数据、AI 任务和看板报告统一保存在 `data/backend.db`。
-- AI 任务包含数据集关联、租约、数据哈希和幂等完成约束。
+- Backend 已提供报告查询 API 和完整日分析 CLI。
+- 标准化日数据、AI 执行记录和看板报告统一保存在 `data/backend.db`。
+- 同一日期和商品对只有一份当前报告及一条非过期 AI 执行记录。
 - StarRocks 连接探测和原 Excel 分析逻辑保留在 Backend。
-- `warehouse-daily-run` 可以把数仓日数据、固定公式报告和待处理 AI 任务写入统一数据库。
-- AI 完成接口只接收生成内容，由 Backend 原子合并基础报告并更新报告状态。
+- `warehouse-daily-run` 按商品对串行完成数仓读取、固定公式、DeepSeek 分析和报告入库。
+- 日分析使用进程锁防止同一服务器重复执行，单个商品对失败后继续处理下一组。
