@@ -19,6 +19,12 @@ def metric(value: int | float, unit: str = "count") -> dict[str, Any]:
     return {"raw": raw, "status": "exact", "low": value, "high": value, "unit": unit}
 
 
+def masked_metric(unit: str = "ratio") -> dict[str, Any]:
+    """生成数仓未披露指标对象。"""
+
+    return {"raw": "-", "status": "masked", "low": None, "high": None, "unit": unit}
+
+
 def source(records: list[dict[str, Any]], status: str = "ready") -> dict[str, Any]:
     """生成固定来源外层。"""
 
@@ -116,6 +122,8 @@ class WarehouseAnalysisTest(unittest.TestCase):
         self.assertEqual(gmv["self_value"], 1000)
         self.assertEqual(gmv["competitor_value"], 1200)
         self.assertEqual(report["ai_recommendations"], [])
+        self.assertIn("缺少关键词数据，关键词 Tab 不完整", report["risks"])
+        self.assertIn("缺少客户画像数据，客户画像 Tab 不完整", report["risks"])
 
     def test_ai_payload_excludes_volatile_generated_time(self) -> None:
         """AI 输入不应因报告生成时间变化而产生新版本。"""
@@ -129,6 +137,70 @@ class WarehouseAnalysisTest(unittest.TestCase):
 
         self.assertEqual(first, second)
         self.assertNotIn("generated_at", first["deterministic_report"]["meta"])
+
+    def test_partial_profile_keeps_single_side_rows_without_missing_risk(self) -> None:
+        """画像单侧未披露时应保留事实，且不能误判为整块画像缺失。"""
+
+        dataset = daily_dataset()
+        dataset["sources"]["customer_profiles"] = source(
+            [
+                {
+                    "dimension": "age",
+                    "segment": "16–25岁",
+                    "self_share": masked_metric(),
+                    "competitor_share": metric(0.0159, "ratio"),
+                },
+                {
+                    "dimension": "age",
+                    "segment": "56岁以上",
+                    "self_share": metric(0.0149, "ratio"),
+                    "competitor_share": masked_metric(),
+                },
+            ],
+            "partial",
+        )
+
+        normalized = adapt_daily_dataset(dataset)
+        report = analyze_daily_dataset(dataset, product_images={})
+        profile_items = report["customer_profile"]["dimensions"][0]["items"]
+
+        self.assertEqual(
+            next(
+                item
+                for item in normalized["source_files"]
+                if item["role"] == "customer_profile"
+            )["status"],
+            "ready",
+        )
+        self.assertIsNone(profile_items[0]["self_rate"])
+        self.assertEqual(profile_items[0]["competitor_rate"], 1.59)
+        self.assertIsNone(profile_items[0]["gap_rate"])
+        self.assertEqual(profile_items[1]["self_rate"], 1.49)
+        self.assertIsNone(profile_items[1]["competitor_rate"])
+        self.assertIsNone(profile_items[1]["gap_rate"])
+        self.assertNotIn("缺少客户画像数据，客户画像 Tab 不完整", report["risks"])
+
+    def test_partial_keywords_do_not_trigger_missing_tab_risk(self) -> None:
+        """关键词含未披露指标时仍应视为已读取来源。"""
+
+        dataset = daily_dataset()
+        dataset["sources"]["traffic_keywords"] = source(
+            [
+                {
+                    "spu_id": "10001",
+                    "product_name": "测试商品",
+                    "keyword": "儿童雨衣",
+                    "visitors": metric(10),
+                    "gmv": masked_metric("currency"),
+                }
+            ],
+            "partial",
+        )
+
+        report = analyze_daily_dataset(dataset, product_images={})
+
+        self.assertEqual(report["keywords"]["summary"]["self_only_count"], 1)
+        self.assertNotIn("缺少关键词数据，关键词 Tab 不完整", report["risks"])
 
     def test_invalid_dataset_is_rejected(self) -> None:
         """核心事实无效时不得生成正式报告。"""

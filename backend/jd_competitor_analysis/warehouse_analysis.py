@@ -40,6 +40,19 @@ def _metric_raw(metric: Any) -> Any:
     return metric.get("raw") if isinstance(metric, dict) else None
 
 
+def _analysis_source_status(source: dict[str, Any]) -> str:
+    """把数仓字段质量状态转换为旧版分析使用的来源可用状态。
+
+    功能说明：旧版分析只区分整块来源是否可读取；数仓的 partial 表示部分字段未披露，
+    但记录仍可用于分析，因此应继续按 ready 处理。只有整块来源不可用时才返回 missing。
+    参数 source：包含 records 和 quality 的数仓标准化来源对象。
+    返回值：旧版确定性分析使用的 ready 或 missing 状态。
+    """
+
+    quality_status = source.get("quality", {}).get("status")
+    return "ready" if quality_status in {"ready", "partial"} else "missing"
+
+
 def _first_product_name(dataset: dict[str, Any]) -> str | None:
     """从本品 SKU 构成中提取首个非空商品名。"""
 
@@ -199,7 +212,7 @@ def adapt_daily_dataset(dataset: dict[str, Any], title: str | None = None) -> di
         "source_files": [
             {
                 "role": role,
-                "status": dataset["sources"][source_id]["quality"]["status"],
+                "status": _analysis_source_status(dataset["sources"][source_id]),
                 "source": dataset["sources"][source_id]["source"]["table"],
             }
             for source_id, role in source_roles.items()

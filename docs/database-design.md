@@ -181,7 +181,7 @@ CREATE TABLE IF NOT EXISTS reports (
   → 合并更新 reports，状态 ready
 ```
 
-`quality_status=invalid` 的数据集允许保存以便排查，但不创建正式报告和 AI 任务。`quality_status=partial` 的数据集可以继续处理，缺失模块和风险必须进入任务事实与报告。
+`quality_status=invalid` 的数据集允许保存以便排查，但不创建正式报告和 AI 任务。`quality_status=partial` 的数据集可以继续处理。部分字段未披露时保留 `masked/null` 事实；只有整块来源不可用时，才把缺失模块和对应风险写入任务事实与报告。
 
 ## MVP 不建立的表
 
