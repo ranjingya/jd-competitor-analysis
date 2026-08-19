@@ -138,6 +138,28 @@ class DailyAnalysisJobTest(unittest.TestCase):
         self.assertEqual([item["status"] for item in results], ["skipped", "pending_ai"])
         self.assertEqual(process_pair.call_count, 2)
 
+    @patch("app.jobs.daily_analysis.process_daily_pair")
+    def test_warehouse_concurrency_error_is_concise_and_retryable(self, process_pair: Mock) -> None:
+        """数仓并发达到上限时应输出明确的可重试信息，且不携带完整 SQL。"""
+
+        process_pair.side_effect = RuntimeError(
+            "Exceed concurrency limit: 3 backend [id=10004]\n[SQL: SELECT * FROM secret_table]"
+        )
+
+        with self.assertLogs("app.jobs.daily_analysis", level="ERROR") as captured:
+            results = process_daily_pairs(
+                Mock(),
+                Mock(),
+                [self.pair],
+                "2026-08-18",
+                self.database,
+            )
+
+        self.assertEqual(results[0]["message"], "数仓查询并发已达到上限 3，请稍后重试")
+        self.assertTrue(results[0]["retryable"])
+        self.assertNotIn("SELECT", results[0]["message"])
+        self.assertIn("商品对处理失败（可重试）", captured.output[0])
+
 
 if __name__ == "__main__":
     unittest.main()

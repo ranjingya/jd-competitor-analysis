@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import sys
 from pathlib import Path
 from typing import Any, Iterable
@@ -26,6 +27,26 @@ from .analysis import enqueue_ai_analysis, persist_base_report, persist_daily_da
 
 
 LOGGER = logging.getLogger(__name__)
+CONCURRENCY_LIMIT_PATTERN = re.compile(r"Exceed concurrency limit:\s*(\d+)", re.IGNORECASE)
+
+
+def _processing_error_message(error: Exception) -> tuple[str, bool]:
+    """把底层异常转换为适合命令行展示的简洁信息。
+
+    功能说明：识别数仓并发限制等可重试错误，避免把完整 SQL 和参数写入默认日志；
+    未识别错误保留异常首行，完整堆栈交给 DEBUG 日志。
+    参数 error：商品对处理流程抛出的原始异常。
+    返回值：由简洁错误信息和是否建议重试组成的二元组。
+    """
+
+    error_text = str(error)
+    concurrency_match = CONCURRENCY_LIMIT_PATTERN.search(error_text)
+    if concurrency_match:
+        limit = concurrency_match.group(1)
+        return f"数仓查询并发已达到上限 {limit}，请稍后重试", True
+    first_line = next((line.strip() for line in error_text.splitlines() if line.strip()), "")
+    message = first_line or error.__class__.__name__
+    return message[:500], False
 
 
 def process_daily_pair(
@@ -154,7 +175,18 @@ def process_daily_pairs(
                 "message": str(error),
             }
         except Exception as error:
-            LOGGER.exception("商品对处理失败：compare_number=%s", product_pair.compare_number)
+            message, retryable = _processing_error_message(error)
+            LOGGER.error(
+                "商品对处理失败%s：compare_number=%s，原因=%s",
+                "（可重试）" if retryable else "",
+                product_pair.compare_number,
+                message,
+            )
+            LOGGER.debug(
+                "商品对处理失败堆栈：compare_number=%s",
+                product_pair.compare_number,
+                exc_info=True,
+            )
             result = {
                 "compare_number": product_pair.compare_number,
                 "status": "failed",
@@ -162,7 +194,8 @@ def process_daily_pairs(
                 "dataset_id": None,
                 "report_id": None,
                 "analysis_id": None,
-                "message": str(error),
+                "message": message,
+                "retryable": retryable,
             }
         results.append(result)
     return results
@@ -225,4 +258,9 @@ def run_warehouse_daily_analysis(args: Any) -> None:
     sys.stdout.write(json.dumps(summary, ensure_ascii=False, indent=2) + "\n")
     failed_count = summary["counts"]["failed"]
     if failed_count:
-        raise RuntimeError(f"有 {failed_count} 个商品对处理失败")
+        failed_messages = "；".join(
+            f"{item['compare_number']}：{item.get('message') or '未知错误'}"
+            for item in results
+            if item["status"] == "failed"
+        )
+        raise RuntimeError(f"有 {failed_count} 个商品对处理失败：{failed_messages}")
