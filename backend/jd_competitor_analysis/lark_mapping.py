@@ -31,6 +31,10 @@ MAPPING_FIELDS = {
     "product_name": "商品名称",
     "specification": "规格",
 }
+PAIR_FIELDS = {
+    "self_spu": "本品spu",
+    "competitor_spu": "竞品spu",
+}
 
 JsonRequester = Callable[[str, str, dict[str, str], dict[str, Any] | None, int], dict[str, Any]]
 
@@ -43,6 +47,7 @@ class LarkBaseConfig:
     app_secret: str = field(repr=False)
     base_token: str = ""
     table_id: str = ""
+    pair_table_id: str = ""
     request_timeout_seconds: int = 30
     page_size: int = 500
     api_base_url: str = LARK_API_BASE_URL
@@ -57,6 +62,20 @@ class SkuMapping:
     barcode_69: str | None
     product_name: str | None
     specification: str | None
+
+
+@dataclass(frozen=True)
+class ProductPairMapping:
+    """保存飞书中配置的一组本品与竞品 SPU。"""
+
+    self_spu: str
+    competitor_spu: str
+
+    @property
+    def compare_number(self) -> str:
+        """返回数仓使用的标准商品对编号。"""
+
+        return f"{self.self_spu}+{self.competitor_spu}"
 
 
 def _required_text(name: str) -> str:
@@ -98,16 +117,20 @@ def load_lark_base_config(env_file: Path | None = None) -> LarkBaseConfig:
 
     base_token = _required_text("LARK_BASE_TOKEN")
     table_id = _required_text("LARK_TABLE_ID")
+    pair_table_id = os.getenv("LARK_PAIR_TABLE_ID", "").strip()
     if not BASE_TOKEN_PATTERN.fullmatch(base_token):
         raise ValueError("LARK_BASE_TOKEN 格式无效")
     if not TABLE_ID_PATTERN.fullmatch(table_id):
         raise ValueError("LARK_TABLE_ID 格式无效")
+    if pair_table_id and not TABLE_ID_PATTERN.fullmatch(pair_table_id):
+        raise ValueError("LARK_PAIR_TABLE_ID 格式无效")
 
     return LarkBaseConfig(
         app_id=_required_text("LARK_APP_ID"),
         app_secret=_required_text("LARK_APP_SECRET"),
         base_token=base_token,
         table_id=table_id,
+        pair_table_id=pair_table_id,
         request_timeout_seconds=_positive_integer("LARK_REQUEST_TIMEOUT", 30, 120),
         page_size=_positive_integer("LARK_PAGE_SIZE", 500, 500),
     )
@@ -227,34 +250,39 @@ class LarkBaseMappingClient:
         LOGGER.info("飞书 tenant_access_token 获取成功")
         return token
 
-    def list_spu_sku_mappings(self, spu_id: str) -> list[SkuMapping]:
-        """读取指定 SPU 的全部 SKU 映射。
+    def _list_records(
+        self,
+        table_id: str,
+        field_names: list[str],
+        operation: str,
+        filter_formula: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """分页读取一张多维表的指定字段。
 
-        功能说明：按主商品条码在服务端筛选记录，分页读取五个业务字段，并校验和去重映射关系。
-        参数 spu_id：需要查询的京东 SPU ID。
-        返回值：包含 SPU ID、SKU ID、69 码、商品名和规格的映射列表。
+        功能说明：复用应用凭证，以只读 GET 请求读取完整分页，并校验飞书业务响应。
+        参数 table_id：目标数据表 ID。
+        参数 field_names：需要读取的字段名称。
+        参数 operation：日志和异常使用的操作名称。
+        参数 filter_formula：可选的飞书记录筛选公式。
+        返回值：响应中的完整记录对象列表。
         """
 
-        selected_spu_id = str(spu_id).strip()
-        if not PRODUCT_ID_PATTERN.fullmatch(selected_spu_id):
-            raise ValueError(f"SPU ID 必须是正整数：{spu_id}")
-
+        if not TABLE_ID_PATTERN.fullmatch(table_id):
+            raise ValueError(f"{operation}缺少有效的数据表 ID")
         token = self._get_tenant_access_token()
         endpoint = (
             f"{self._config.api_base_url}/bitable/v1/apps/{self._config.base_token}"
-            f"/tables/{self._config.table_id}/records"
+            f"/tables/{table_id}/records"
         )
-        field_names = list(MAPPING_FIELDS.values())
         page_token: str | None = None
         records: list[dict[str, Any]] = []
-        LOGGER.info("开始只读查询飞书 SPU/SKU 映射：spu_id=%s", selected_spu_id)
-
         while True:
             query = {
                 "page_size": str(self._config.page_size),
                 "field_names": json.dumps(field_names, ensure_ascii=False),
-                "filter": f'CurrentValue.[{MAPPING_FIELDS["spu_id"]}]="{selected_spu_id}"',
             }
+            if filter_formula:
+                query["filter"] = filter_formula
             if page_token:
                 query["page_token"] = page_token
             result = self._requester(
@@ -267,10 +295,10 @@ class LarkBaseMappingClient:
                 None,
                 self._config.request_timeout_seconds,
             )
-            data = _require_success(result, "读取飞书 SPU/SKU 映射")
+            data = _require_success(result, operation)
             items = data.get("items") or []
             if not isinstance(items, list):
-                raise RuntimeError("读取飞书 SPU/SKU 映射响应中的 items 不是数组")
+                raise RuntimeError(f"{operation}响应中的 items 不是数组")
             records.extend(item for item in items if isinstance(item, dict))
             if not data.get("has_more"):
                 break
@@ -278,6 +306,28 @@ class LarkBaseMappingClient:
             if next_page_token is None or next_page_token == page_token:
                 raise RuntimeError("飞书多维表分页响应缺少有效的 page_token")
             page_token = next_page_token
+        return records
+
+    def list_spu_sku_mappings(self, spu_id: str) -> list[SkuMapping]:
+        """读取指定 SPU 的全部 SKU 映射。
+
+        功能说明：按主商品条码在服务端筛选记录，分页读取五个业务字段，并校验和去重映射关系。
+        参数 spu_id：需要查询的京东 SPU ID。
+        返回值：包含 SPU ID、SKU ID、69 码、商品名和规格的映射列表。
+        """
+
+        selected_spu_id = str(spu_id).strip()
+        if not PRODUCT_ID_PATTERN.fullmatch(selected_spu_id):
+            raise ValueError(f"SPU ID 必须是正整数：{spu_id}")
+
+        field_names = list(MAPPING_FIELDS.values())
+        LOGGER.info("开始只读查询飞书 SPU/SKU 映射：spu_id=%s", selected_spu_id)
+        records = self._list_records(
+            self._config.table_id,
+            field_names,
+            "读取飞书 SPU/SKU 映射",
+            filter_formula=f'CurrentValue.[{MAPPING_FIELDS["spu_id"]}]="{selected_spu_id}"',
+        )
 
         mappings_by_key: dict[tuple[str, str], SkuMapping] = {}
         for record in records:
@@ -304,6 +354,42 @@ class LarkBaseMappingClient:
         mappings = sorted(mappings_by_key.values(), key=lambda item: int(item.sku_id))
         LOGGER.info("飞书 SPU/SKU 映射读取完成：spu_id=%s，sku_count=%s", selected_spu_id, len(mappings))
         return mappings
+
+    def list_product_pairs(self) -> list[ProductPairMapping]:
+        """读取全部本品与竞品 SPU 候选组合。
+
+        功能说明：从商品对多维表只读获取两个 SPU 字段，过滤空值、非法值和本竞品相同的记录，并按商品对去重。
+        返回值：按本品和竞品 SPU 排序后的候选商品对。
+        """
+
+        LOGGER.info("开始只读查询飞书商品对")
+        records = self._list_records(
+            self._config.pair_table_id,
+            list(PAIR_FIELDS.values()),
+            "读取飞书商品对",
+        )
+        pairs: dict[tuple[str, str], ProductPairMapping] = {}
+        for record in records:
+            fields = record.get("fields")
+            if not isinstance(fields, dict):
+                LOGGER.warning("跳过缺少 fields 的商品对记录：record_id=%s", record.get("record_id"))
+                continue
+            try:
+                self_spu = _required_product_id(PAIR_FIELDS["self_spu"], fields.get(PAIR_FIELDS["self_spu"]))
+                competitor_spu = _required_product_id(
+                    PAIR_FIELDS["competitor_spu"],
+                    fields.get(PAIR_FIELDS["competitor_spu"]),
+                )
+            except ValueError as error:
+                LOGGER.warning("跳过无效商品对记录：record_id=%s，error=%s", record.get("record_id"), error)
+                continue
+            if self_spu == competitor_spu:
+                LOGGER.warning("跳过本品与竞品相同的记录：record_id=%s，spu=%s", record.get("record_id"), self_spu)
+                continue
+            pairs[(self_spu, competitor_spu)] = ProductPairMapping(self_spu, competitor_spu)
+        result = sorted(pairs.values(), key=lambda item: (int(item.self_spu), int(item.competitor_spu)))
+        LOGGER.info("飞书商品对读取完成：pair_count=%s", len(result))
+        return result
 
 
 def run_lark_mapping_check(args: Any) -> None:

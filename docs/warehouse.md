@@ -73,6 +73,7 @@ LARK_APP_ID=<飞书自建应用 App ID>
 LARK_APP_SECRET=<飞书自建应用 App Secret>
 LARK_BASE_TOKEN=<多维表格 Base Token>
 LARK_TABLE_ID=<映射数据表 ID>
+LARK_PAIR_TABLE_ID=<商品对数据表 ID>
 LARK_REQUEST_TIMEOUT=30
 LARK_PAGE_SIZE=500
 ```

@@ -62,6 +62,7 @@ class LarkBaseMappingClientTest(unittest.TestCase):
             app_secret="test-secret",
             base_token="baseToken123",
             table_id="tblMapping123",
+            pair_table_id="tblPair123",
             page_size=100,
             api_base_url="https://example.invalid/open-apis",
         )
@@ -145,6 +146,34 @@ class LarkBaseMappingClientTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "SPU ID"):
             LarkBaseMappingClient(self.config, requester=requester).list_spu_sku_mappings("10001 OR 1=1")
         self.assertEqual(requester.calls, [])
+
+    def test_product_pairs_are_filtered_deduplicated_and_sorted(self) -> None:
+        """商品对读取应跳过无效行并按两个 SPU 去重排序。"""
+
+        requester = FakeRequester(
+            [
+                {
+                    "code": 0,
+                    "data": {
+                        "items": [
+                            {"record_id": "rec-2", "fields": {"本品spu": "10002", "竞品spu": "20002"}},
+                            {"record_id": "rec-1", "fields": {"本品spu": "10001", "竞品spu": "20001"}},
+                            {"record_id": "rec-dup", "fields": {"本品spu": "10001", "竞品spu": "20001"}},
+                            {"record_id": "rec-empty", "fields": {"本品spu": "", "竞品spu": "20003"}},
+                            {"record_id": "rec-same", "fields": {"本品spu": "10004", "竞品spu": "10004"}},
+                        ],
+                        "has_more": False,
+                    },
+                }
+            ]
+        )
+
+        pairs = LarkBaseMappingClient(self.config, requester=requester).list_product_pairs()
+
+        self.assertEqual([pair.compare_number for pair in pairs], ["10001+20001", "10002+20002"])
+        request_url = requester.calls[-1][1]
+        self.assertIn("/tables/tblPair123/records", request_url)
+        self.assertNotIn("filter", parse_qs(urlparse(request_url).query))
 
 
 if __name__ == "__main__":
