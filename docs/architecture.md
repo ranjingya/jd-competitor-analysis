@@ -38,7 +38,7 @@ POST /api/analysis-tasks/{analysis_id}/complete
 POST /api/analysis-tasks/{analysis_id}/fail
 ```
 
-AI 任务接口要求 Bearer Token。列表接口按生成时间倒序返回任务 ID、生成时间、状态和商品对等摘要，可使用 `status` 和 `limit` 查询参数筛选。领取操作原子设置租约，完成操作同时校验 `analysis_id`、`source_hash` 和 `lease_token`。Mac 只提交 `summary`、`findings` 和 `recommendations`；Backend 在同一数据库事务中保存原始 AI 结果、合并完整报告并更新报告状态。
+AI 任务接口要求 Bearer Token。列表接口按生成时间倒序返回任务 ID、生成时间、状态和商品对等摘要，可使用 `status` 和 `limit` 查询参数筛选。同一日期和商品对只有一份当前报告及一条非 `expired` 任务；新输入会使旧任务过期并使旧租约失效。领取操作原子设置租约，完成操作同时校验 `analysis_id`、`source_hash`、`lease_token` 和报告当前数据版本。Mac 只提交 `summary`、`findings` 和 `recommendations`；Backend 在同一数据库事务中保存原始 AI 结果、合并完整报告并更新报告状态。
 
 ## 持久化
 

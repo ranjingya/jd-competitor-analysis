@@ -110,7 +110,10 @@ def process_daily_pair(
     report = analyze_daily_dataset(dataset, title=title, product_images=product_images)
     report_id = persist_base_report(report_repository, dataset_id, report)
     task_payload = build_ai_task_payload(dataset_id, dataset, report)
-    analysis_id = enqueue_ai_analysis(task_repository, dataset_id, task_payload)
+    enqueue_result = enqueue_ai_analysis(task_repository, report_id, dataset_id, task_payload)
+    if enqueue_result.created:
+        report_repository.activate_pending(report_id, dataset_id, report)
+    analysis_id = enqueue_result.analysis_id
     LOGGER.info(
         "商品对日分析入库完成：dataset_id=%s，report_id=%s，analysis_id=%s，耗时=%.3fs",
         dataset_id,

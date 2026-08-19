@@ -14,8 +14,8 @@ MVP 固定使用三张表：
 
 ```text
 analysis_datasets  1 ─── N  analysis_tasks
-        │
-        └───────── 1  reports
+        ↑                    │
+        └── 当前版本 ── reports 1 ─── N 历史任务
 ```
 
 关键词、客户画像、流量来源、推广明细和 SPU/SKU 构成保存在 JSON 字段中，不拆分业务明细表。
@@ -62,11 +62,12 @@ ON analysis_datasets(report_date, self_spu, competitor_spu, created_at);
 | 字段 | SQLite 类型 | 约束 | 用途 |
 |---|---|---|---|
 | `analysis_id` | TEXT | PRIMARY KEY | AI 任务 UUID，兼容现有任务 API。 |
+| `report_id` | TEXT | NOT NULL, FOREIGN KEY | 任务最终更新的唯一报告。 |
 | `dataset_id` | TEXT | NOT NULL, FOREIGN KEY | 任务所属标准化数据集。 |
-| `source_hash` | TEXT | NOT NULL, UNIQUE | AI 输入内容版本哈希，防止重复创建相同任务。 |
+| `source_hash` | TEXT | NOT NULL | AI 输入内容版本哈希，用于判断当前任务是否需要替换。 |
 | `payload_json` | TEXT | NOT NULL | 交给 AI 的确定性分析事实和风险说明。 |
 | `result_json` | TEXT | NULL | AI 回传的总结、发现和建议。 |
-| `status` | TEXT | NOT NULL | `pending`、`processing`、`completed` 或 `failed`。 |
+| `status` | TEXT | NOT NULL | `pending`、`processing`、`completed`、`failed` 或 `expired`。 |
 | `worker_id` | TEXT | NULL | 当前领取任务的 Mac Worker。 |
 | `lease_token` | TEXT | NULL | 当前领取租约的提交令牌。 |
 | `lease_expires_at` | TEXT | NULL | 当前租约到期时间。 |
@@ -76,29 +77,35 @@ ON analysis_datasets(report_date, self_spu, competitor_spu, created_at);
 | `updated_at` | TEXT | NOT NULL | 最近状态更新时间。 |
 | `completed_at` | TEXT | NULL | AI 分析完成时间。 |
 
-`source_hash` 根据 AI 实际输入计算。输入中的数据版本、确定性计算结果或结构发生变化时，哈希随之变化，可以为同一个 `dataset_id` 创建新任务。
+`source_hash` 根据 AI 实际输入计算。同一报告的当前任务输入不变时直接复用；输入发生变化时，当前任务标记为 `expired` 并清除租约，然后创建新的 `pending` 任务。历史任务继续保留，但同一 `report_id` 只能有一条非 `expired` 任务。
 
 索引：
 
 ```sql
-CREATE UNIQUE INDEX idx_analysis_tasks_source_hash
-ON analysis_tasks(source_hash);
-
 CREATE INDEX idx_analysis_tasks_status_created
 ON analysis_tasks(status, created_at);
 
 CREATE INDEX idx_analysis_tasks_dataset
 ON analysis_tasks(dataset_id, created_at);
+
+CREATE INDEX idx_analysis_tasks_report_created
+ON analysis_tasks(report_id, created_at);
+
+CREATE UNIQUE INDEX idx_analysis_tasks_current_report
+ON analysis_tasks(report_id) WHERE status <> 'expired';
 ```
 
 ## `reports`
 
-保存可由 Web 直接读取的完整看板报告。一个数据集对应一份报告。
+保存可由 Web 直接读取的完整看板报告。同一业务日期、本品 SPU 和竞品 SPU 始终只有一份报告。
 
 | 字段 | SQLite 类型 | 约束 | 用途 |
 |---|---|---|---|
 | `report_id` | TEXT | PRIMARY KEY | 报告 UUID。 |
-| `dataset_id` | TEXT | NOT NULL, UNIQUE, FOREIGN KEY | 报告所属标准化数据集。 |
+| `dataset_id` | TEXT | NOT NULL, UNIQUE, FOREIGN KEY | 报告当前使用的标准化数据集。 |
+| `report_date` | TEXT | NOT NULL | 报告业务日期。 |
+| `self_spu` | TEXT | NOT NULL | 本品 SPU。 |
+| `competitor_spu` | TEXT | NOT NULL | 竞品 SPU。 |
 | `status` | TEXT | NOT NULL | `pending_ai`、`ready` 或 `ai_failed`。 |
 | `report_json` | TEXT | NOT NULL | 后端确定性计算结果与 AI 结果合并后的完整看板 JSON。 |
 | `created_at` | TEXT | NOT NULL | 报告创建时间。 |
@@ -115,8 +122,8 @@ ON analysis_tasks(dataset_id, created_at);
 索引：
 
 ```sql
-CREATE UNIQUE INDEX idx_reports_dataset
-ON reports(dataset_id);
+CREATE UNIQUE INDEX idx_reports_business_key
+ON reports(report_date, self_spu, competitor_spu);
 
 CREATE INDEX idx_reports_status_updated
 ON reports(status, updated_at);
@@ -139,8 +146,21 @@ CREATE TABLE IF NOT EXISTS analysis_datasets (
     created_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS reports (
+    report_id TEXT PRIMARY KEY,
+    dataset_id TEXT NOT NULL UNIQUE REFERENCES analysis_datasets(dataset_id) ON DELETE CASCADE,
+    report_date TEXT NOT NULL,
+    self_spu TEXT NOT NULL,
+    competitor_spu TEXT NOT NULL,
+    status TEXT NOT NULL,
+    report_json TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS analysis_tasks (
     analysis_id TEXT PRIMARY KEY,
+    report_id TEXT NOT NULL REFERENCES reports(report_id) ON DELETE CASCADE,
     dataset_id TEXT NOT NULL REFERENCES analysis_datasets(dataset_id) ON DELETE CASCADE,
     source_hash TEXT NOT NULL,
     payload_json TEXT NOT NULL,
@@ -155,15 +175,6 @@ CREATE TABLE IF NOT EXISTS analysis_tasks (
     updated_at TEXT NOT NULL,
     completed_at TEXT
 );
-
-CREATE TABLE IF NOT EXISTS reports (
-    report_id TEXT PRIMARY KEY,
-    dataset_id TEXT NOT NULL UNIQUE REFERENCES analysis_datasets(dataset_id) ON DELETE CASCADE,
-    status TEXT NOT NULL,
-    report_json TEXT NOT NULL,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
-);
 ```
 
 ## 写入流程
@@ -174,8 +185,9 @@ CREATE TABLE IF NOT EXISTS reports (
   → 计算 source_hash
   → 写入或复用 analysis_datasets
   → 执行后端确定性计算
-  → 写入 reports，状态 pending_ai
-  → 创建 analysis_tasks
+  → 按日期和商品对写入或更新唯一 reports，状态 pending_ai
+  → AI 输入不变时复用当前任务
+  → AI 输入变化时将旧任务标记 expired 并创建新任务
   → Mac AI 领取并回传
   → 保存 analysis_tasks.result_json
   → 合并更新 reports，状态 ready

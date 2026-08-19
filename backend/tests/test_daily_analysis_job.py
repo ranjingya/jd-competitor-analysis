@@ -86,6 +86,67 @@ class DailyAnalysisJobTest(unittest.TestCase):
         self.assertEqual(claimed["dataset_id"], result["dataset_id"])
         self.assertEqual(self.reports.get_record(result["report_id"])["dataset_id"], result["dataset_id"])
 
+    @patch("app.jobs.daily_analysis.build_ai_task_payload")
+    @patch("app.jobs.daily_analysis.analyze_daily_dataset")
+    @patch("app.jobs.daily_analysis.build_daily_dataset")
+    def test_new_pair_version_reuses_report_and_expires_old_task(
+        self,
+        build_dataset: Mock,
+        analyze_dataset: Mock,
+        build_task_payload: Mock,
+    ) -> None:
+        """同一日期商品对的新版本应复用报告，并只保留一个当前任务。"""
+
+        first_dataset = dataset_payload()
+        second_dataset = dataset_payload()
+        second_dataset["revision"] = 2
+        build_dataset.side_effect = [first_dataset, second_dataset]
+        analyze_dataset.side_effect = [
+            {"meta": {"title": "旧版本"}, "ai_recommendations": []},
+            {"meta": {"title": "新版本"}, "ai_recommendations": []},
+        ]
+        build_task_payload.side_effect = [
+            {"facts": {"version": 1}},
+            {"facts": {"version": 2}},
+        ]
+
+        first = process_daily_pair(
+            Mock(),
+            Mock(),
+            self.pair,
+            "2026-08-18",
+            self.datasets,
+            self.reports,
+            self.tasks,
+            product_images={},
+        )
+        second = process_daily_pair(
+            Mock(),
+            Mock(),
+            self.pair,
+            "2026-08-18",
+            self.datasets,
+            self.reports,
+            self.tasks,
+            product_images={},
+        )
+
+        self.assertEqual(first["report_id"], second["report_id"])
+        self.assertNotEqual(first["dataset_id"], second["dataset_id"])
+        self.assertEqual(
+            self.tasks.list_recent("expired", 20)[0]["analysis_id"],
+            first["analysis_id"],
+        )
+        self.assertEqual(
+            self.tasks.list_recent("pending", 20)[0]["analysis_id"],
+            second["analysis_id"],
+        )
+        self.assertEqual(
+            self.reports.get_record(second["report_id"])["dataset_id"],
+            second["dataset_id"],
+        )
+        self.assertEqual(len(self.reports.read_index()["reports"]["day"]), 1)
+
     @patch("app.jobs.daily_analysis.analyze_daily_dataset")
     @patch("app.jobs.daily_analysis.build_daily_dataset")
     def test_invalid_dataset_is_stored_without_report_or_task(

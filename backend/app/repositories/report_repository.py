@@ -44,7 +44,7 @@ class ReportRepository:
     ) -> str:
         """创建或更新一个数据集的报告。
 
-        功能说明：一个数据集只保留一份报告；重复计算时更新 JSON、状态和更新时间。
+        功能说明：同一日期和商品对只保留一份报告；新数据版本更新原报告关联的数据集和基础内容。
         参数 dataset_id：报告所属标准化数据集 ID。
         参数 report：可由 Web 直接消费的完整报告对象。
         参数 status：`pending_ai`、`ready` 或 `ai_failed`。
@@ -58,14 +58,32 @@ class ReportRepository:
         report_json = json.dumps(report, ensure_ascii=False, sort_keys=True)
         now = utc_now_text()
         with self.database.connection() as connection:
-            existing = connection.execute(
-                "SELECT report_id, status FROM reports WHERE dataset_id = ?",
+            dataset = connection.execute(
+                """
+                SELECT report_date, self_spu, competitor_spu
+                FROM analysis_datasets
+                WHERE dataset_id = ?
+                """,
                 (dataset_id,),
             ).fetchone()
+            if dataset is None:
+                raise FileNotFoundError(dataset_id)
+            existing = connection.execute(
+                """
+                SELECT report_id, dataset_id, status
+                FROM reports
+                WHERE report_date = ? AND self_spu = ? AND competitor_spu = ?
+                """,
+                (dataset["report_date"], dataset["self_spu"], dataset["competitor_spu"]),
+            ).fetchone()
             if existing is not None:
-                if status == "pending_ai" and existing["status"] in {"ready", "ai_failed"}:
+                if (
+                    existing["dataset_id"] == dataset_id
+                    and status == "pending_ai"
+                    and existing["status"] in {"ready", "ai_failed"}
+                ):
                     LOGGER.info(
-                        "报告已处于 AI 终态，保留现有内容：report_id=%s，status=%s",
+                        "相同数据集报告已处于 AI 终态，保留现有内容：report_id=%s，status=%s",
                         existing["report_id"],
                         existing["status"],
                     )
@@ -73,10 +91,10 @@ class ReportRepository:
                 connection.execute(
                     """
                     UPDATE reports
-                    SET status = ?, report_json = ?, updated_at = ?
-                    WHERE dataset_id = ?
+                    SET dataset_id = ?, status = ?, report_json = ?, updated_at = ?
+                    WHERE report_id = ?
                     """,
-                    (status, report_json, now, dataset_id),
+                    (dataset_id, status, report_json, now, existing["report_id"]),
                 )
                 LOGGER.info("报告已更新：report_id=%s，status=%s", existing["report_id"], status)
                 return str(existing["report_id"])
@@ -84,16 +102,56 @@ class ReportRepository:
                 connection.execute(
                     """
                     INSERT INTO reports (
-                        report_id, dataset_id, status, report_json, created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?)
+                        report_id, dataset_id, report_date, self_spu, competitor_spu,
+                        status, report_json, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
-                    (selected_report_id, dataset_id, status, report_json, now, now),
+                    (
+                        selected_report_id,
+                        dataset_id,
+                        dataset["report_date"],
+                        dataset["self_spu"],
+                        dataset["competitor_spu"],
+                        status,
+                        report_json,
+                        now,
+                        now,
+                    ),
                 )
             except sqlite3.IntegrityError:
                 LOGGER.exception("报告写入失败：dataset_id=%s", dataset_id)
                 raise
         LOGGER.info("报告已创建：report_id=%s，status=%s", selected_report_id, status)
         return selected_report_id
+
+    def activate_pending(self, report_id: str, dataset_id: str, report: dict[str, Any]) -> None:
+        """激活新 AI 输入对应的基础报告。
+
+        功能说明：确认创建了新任务后，将唯一报告替换为当前数据集的基础内容并标记为 pending_ai。
+        参数 report_id：需要更新的唯一报告 ID。
+        参数 dataset_id：新任务使用的数据集 ID。
+        参数 report：尚未合并 AI 结果的基础报告。
+        返回值：无。
+        """
+
+        now = utc_now_text()
+        with self.database.connection() as connection:
+            updated = connection.execute(
+                """
+                UPDATE reports
+                SET dataset_id = ?, status = 'pending_ai', report_json = ?, updated_at = ?
+                WHERE report_id = ?
+                """,
+                (
+                    dataset_id,
+                    json.dumps(report, ensure_ascii=False, sort_keys=True),
+                    now,
+                    report_id,
+                ),
+            )
+        if updated.rowcount != 1:
+            raise FileNotFoundError(report_id)
+        LOGGER.info("报告已进入 AI 待处理状态：report_id=%s，dataset_id=%s", report_id, dataset_id)
 
     def get(self, report_id: str) -> dict[str, Any]:
         """按报告 ID 读取完整报告。

@@ -7,6 +7,7 @@ import logging
 import secrets
 import sqlite3
 import uuid
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -20,6 +21,14 @@ LOGGER = logging.getLogger(__name__)
 
 class TaskConflictError(RuntimeError):
     """任务状态、租约或数据版本冲突。"""
+
+
+@dataclass(frozen=True)
+class TaskEnqueueResult:
+    """保存任务创建结果。"""
+
+    analysis_id: str
+    created: bool
 
 
 def _utc_now() -> datetime:
@@ -51,63 +60,99 @@ class TaskRepository:
 
     def enqueue(
         self,
+        report_id: str,
         dataset_id: str,
         source_hash: str,
         payload: dict[str, Any],
         analysis_id: str | None = None,
-    ) -> str:
+    ) -> TaskEnqueueResult:
         """创建待分析任务。
 
-        功能说明：把后端脚本生成的结构化事实保存为 pending 任务，供 Mac Codex 后续领取。
+        功能说明：同一报告输入不变时复用当前任务；输入变化时将旧任务标记为 expired，并创建唯一 pending 任务。
+        参数 report_id：任务最终更新的唯一报告 ID。
         参数 dataset_id：任务所属标准化数据集 ID。
         参数 source_hash：当前 AI 输入的稳定内容哈希。
         参数 payload：只包含分析所需事实的结构化输入。
         参数 analysis_id：可选任务 ID；为空时自动生成。
-        返回值：创建后的任务 ID。
+        返回值：任务 ID 和本次是否新建任务。
         """
 
         task_id = analysis_id or str(uuid.uuid4())
         now = _iso(_utc_now())
-        with self.database.connection() as connection:
-            try:
+        connection = self._connect()
+        try:
+            connection.execute("BEGIN IMMEDIATE")
+            report = connection.execute(
+                "SELECT report_id FROM reports WHERE report_id = ? AND dataset_id = ?",
+                (report_id, dataset_id),
+            ).fetchone()
+            if report is None:
+                raise TaskConflictError("AI 任务关联的当前报告或数据版本不存在")
+            existing = connection.execute(
+                """
+                SELECT analysis_id, dataset_id, source_hash
+                FROM analysis_tasks
+                WHERE report_id = ? AND status <> 'expired'
+                """,
+                (report_id,),
+            ).fetchone()
+            if existing is not None:
+                if (
+                    existing["dataset_id"] == dataset_id
+                    and existing["source_hash"] == source_hash
+                ):
+                    connection.commit()
+                    LOGGER.info(
+                        "相同 AI 输入的当前任务已存在：analysis_id=%s，report_id=%s",
+                        existing["analysis_id"],
+                        report_id,
+                    )
+                    return TaskEnqueueResult(str(existing["analysis_id"]), False)
+                LOGGER.info(
+                    "旧 AI 任务已标记过期：analysis_id=%s，report_id=%s",
+                    existing["analysis_id"],
+                    report_id,
+                )
                 connection.execute(
                     """
-                    INSERT INTO analysis_tasks (
-                        analysis_id, dataset_id, source_hash, payload_json,
-                        status, created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, 'pending', ?, ?)
+                    UPDATE analysis_tasks
+                    SET status = 'expired', lease_token = NULL, lease_expires_at = NULL,
+                        updated_at = ?
+                    WHERE analysis_id = ?
                     """,
-                    (
-                        task_id,
-                        dataset_id,
-                        source_hash,
-                        json.dumps(payload, ensure_ascii=False),
-                        now,
-                        now,
-                    ),
+                    (now, existing["analysis_id"]),
                 )
-            except sqlite3.IntegrityError as error:
-                existing = connection.execute(
-                    "SELECT analysis_id, dataset_id FROM analysis_tasks WHERE source_hash = ?",
-                    (source_hash,),
-                ).fetchone()
-                if existing is None:
-                    raise error
-                if existing["dataset_id"] != dataset_id:
-                    raise TaskConflictError("相同 AI 输入哈希已关联其他数据集") from error
-                LOGGER.info(
-                    "相同数据版本的 AI 任务已存在：analysis_id=%s，source_hash=%s",
-                    existing["analysis_id"],
+            connection.execute(
+                """
+                INSERT INTO analysis_tasks (
+                    analysis_id, report_id, dataset_id, source_hash, payload_json,
+                    status, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?)
+                """,
+                (
+                    task_id,
+                    report_id,
+                    dataset_id,
                     source_hash,
-                )
-                return str(existing["analysis_id"])
+                    json.dumps(payload, ensure_ascii=False),
+                    now,
+                    now,
+                ),
+            )
+            connection.commit()
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
         LOGGER.info(
-            "AI 分析任务已创建：analysis_id=%s，dataset_id=%s，created_at=%s",
+            "AI 分析任务已创建：analysis_id=%s，report_id=%s，dataset_id=%s，created_at=%s",
             task_id,
+            report_id,
             dataset_id,
             now,
         )
-        return task_id
+        return TaskEnqueueResult(task_id, True)
 
     def list_recent(self, status: str | None = None, limit: int = 20) -> list[dict[str, Any]]:
         """读取最近的 AI 任务摘要。
@@ -125,6 +170,7 @@ class TaskRepository:
                 f"""
                 SELECT
                     task.analysis_id,
+                    task.report_id,
                     task.dataset_id,
                     dataset.report_date,
                     dataset.compare_number,
@@ -177,6 +223,7 @@ class TaskRepository:
                 """
                 SELECT
                     task.analysis_id,
+                    task.report_id,
                     task.dataset_id,
                     task.source_hash,
                     task.payload_json,
@@ -189,7 +236,7 @@ class TaskRepository:
                 FROM analysis_tasks AS task
                 JOIN analysis_datasets AS dataset ON dataset.dataset_id = task.dataset_id
                 WHERE task.status = 'pending'
-                ORDER BY task.created_at, task.analysis_id
+                ORDER BY task.created_at DESC, task.analysis_id DESC
                 LIMIT 1
                 """
             ).fetchone()
@@ -218,6 +265,7 @@ class TaskRepository:
             )
             return {
                 "analysis_id": row["analysis_id"],
+                "report_id": row["report_id"],
                 "dataset_id": row["dataset_id"],
                 "report_date": row["report_date"],
                 "compare_number": row["compare_number"],
@@ -266,12 +314,24 @@ class TaskRepository:
                 raise FileNotFoundError(analysis_id)
             if row["status"] == "completed":
                 if row["source_hash"] == source_hash and row["result_json"] == result_json:
-                    self._merge_report(connection, row["dataset_id"], result, now_text)
+                    self._merge_report(
+                        connection,
+                        row["report_id"],
+                        row["dataset_id"],
+                        result,
+                        now_text,
+                    )
                     connection.commit()
                     return
                 raise TaskConflictError("任务已经完成，不能覆盖已有 AI 结果")
             self._validate_active_lease(row, source_hash, lease_token, now_text)
-            self._merge_report(connection, row["dataset_id"], result, now_text)
+            self._merge_report(
+                connection,
+                row["report_id"],
+                row["dataset_id"],
+                result,
+                now_text,
+            )
             connection.execute(
                 """
                 UPDATE analysis_tasks
@@ -312,8 +372,12 @@ class TaskRepository:
                 raise FileNotFoundError(analysis_id)
             self._validate_active_lease(row, row["source_hash"], lease_token, now_text)
             report_update = connection.execute(
-                "UPDATE reports SET status = 'ai_failed', updated_at = ? WHERE dataset_id = ?",
-                (now_text, row["dataset_id"]),
+                """
+                UPDATE reports
+                SET status = 'ai_failed', updated_at = ?
+                WHERE report_id = ? AND dataset_id = ?
+                """,
+                (now_text, row["report_id"], row["dataset_id"]),
             )
             if report_update.rowcount != 1:
                 raise TaskConflictError("任务所属基础报告不存在")
@@ -337,6 +401,7 @@ class TaskRepository:
     @staticmethod
     def _merge_report(
         connection: sqlite3.Connection,
+        report_id: str,
         dataset_id: str,
         result: dict[str, Any],
         updated_at: str,
@@ -344,16 +409,25 @@ class TaskRepository:
         """在当前事务中合并并更新任务所属报告。"""
 
         report_row = connection.execute(
-            "SELECT report_json FROM reports WHERE dataset_id = ?",
-            (dataset_id,),
+            "SELECT report_json FROM reports WHERE report_id = ? AND dataset_id = ?",
+            (report_id, dataset_id),
         ).fetchone()
         if report_row is None:
             raise TaskConflictError("任务所属基础报告不存在")
         report = json.loads(report_row["report_json"])
         merged = merge_ai_result(report, result)
         connection.execute(
-            "UPDATE reports SET status = 'ready', report_json = ?, updated_at = ? WHERE dataset_id = ?",
-            (json.dumps(merged, ensure_ascii=False, sort_keys=True), updated_at, dataset_id),
+            """
+            UPDATE reports
+            SET status = 'ready', report_json = ?, updated_at = ?
+            WHERE report_id = ? AND dataset_id = ?
+            """,
+            (
+                json.dumps(merged, ensure_ascii=False, sort_keys=True),
+                updated_at,
+                report_id,
+                dataset_id,
+            ),
         )
 
     @staticmethod

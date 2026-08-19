@@ -57,8 +57,23 @@ class Database:
                     created_at TEXT NOT NULL
                 );
 
+                CREATE TABLE IF NOT EXISTS reports (
+                    report_id TEXT PRIMARY KEY,
+                    dataset_id TEXT NOT NULL UNIQUE
+                        REFERENCES analysis_datasets(dataset_id) ON DELETE CASCADE,
+                    report_date TEXT NOT NULL,
+                    self_spu TEXT NOT NULL,
+                    competitor_spu TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    report_json TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+
                 CREATE TABLE IF NOT EXISTS analysis_tasks (
                     analysis_id TEXT PRIMARY KEY,
+                    report_id TEXT NOT NULL
+                        REFERENCES reports(report_id) ON DELETE CASCADE,
                     dataset_id TEXT NOT NULL
                         REFERENCES analysis_datasets(dataset_id) ON DELETE CASCADE,
                     source_hash TEXT NOT NULL,
@@ -74,25 +89,26 @@ class Database:
                     updated_at TEXT NOT NULL,
                     completed_at TEXT
                 );
-
-                CREATE TABLE IF NOT EXISTS reports (
-                    report_id TEXT PRIMARY KEY,
-                    dataset_id TEXT NOT NULL UNIQUE
-                        REFERENCES analysis_datasets(dataset_id) ON DELETE CASCADE,
-                    status TEXT NOT NULL,
-                    report_json TEXT NOT NULL,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
-                );
-
+                """
+            )
+            connection.execute("BEGIN IMMEDIATE")
+            try:
+                self._migrate_task_and_report_schema(connection)
+                connection.commit()
+            except Exception:
+                connection.rollback()
+                raise
+            connection.executescript(
+                """
                 CREATE UNIQUE INDEX IF NOT EXISTS idx_analysis_datasets_source_hash
                 ON analysis_datasets(source_hash);
 
                 CREATE INDEX IF NOT EXISTS idx_analysis_datasets_pair_date
                 ON analysis_datasets(report_date, self_spu, competitor_spu, created_at);
 
-                CREATE UNIQUE INDEX IF NOT EXISTS idx_analysis_tasks_source_hash
-                ON analysis_tasks(source_hash);
+                DROP INDEX IF EXISTS idx_analysis_tasks_source_hash;
+
+                DROP INDEX IF EXISTS idx_reports_dataset;
 
                 CREATE INDEX IF NOT EXISTS idx_analysis_tasks_status_created
                 ON analysis_tasks(status, created_at);
@@ -100,8 +116,14 @@ class Database:
                 CREATE INDEX IF NOT EXISTS idx_analysis_tasks_dataset
                 ON analysis_tasks(dataset_id, created_at);
 
-                CREATE UNIQUE INDEX IF NOT EXISTS idx_reports_dataset
-                ON reports(dataset_id);
+                CREATE INDEX IF NOT EXISTS idx_analysis_tasks_report_created
+                ON analysis_tasks(report_id, created_at);
+
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_analysis_tasks_current_report
+                ON analysis_tasks(report_id) WHERE status <> 'expired';
+
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_reports_business_key
+                ON reports(report_date, self_spu, competitor_spu);
 
                 CREATE INDEX IF NOT EXISTS idx_reports_status_updated
                 ON reports(status, updated_at);
@@ -111,6 +133,232 @@ class Database:
             "Backend 数据库初始化完成：%s，耗时=%.3fs",
             self.path,
             perf_counter() - started_at,
+        )
+
+    @staticmethod
+    def _column_names(connection: sqlite3.Connection, table_name: str) -> set[str]:
+        """返回指定表的字段名集合。"""
+
+        return {
+            str(row["name"])
+            for row in connection.execute(f"PRAGMA table_info({table_name})")
+        }
+
+    @staticmethod
+    def _execute_migration_script(connection: sqlite3.Connection, script: str) -> None:
+        """在当前事务中逐条执行不含内嵌分号的迁移 SQL。"""
+
+        for statement in script.split(";"):
+            normalized = statement.strip()
+            if normalized:
+                connection.execute(normalized)
+
+    def _migrate_task_and_report_schema(self, connection: sqlite3.Connection) -> None:
+        """迁移报告业务键和任务当前版本关系。
+
+        功能说明：为旧数据库补充报告业务键和任务报告关联，合并同一日期商品对的重复报告，并将较旧任务标记为 expired。
+        参数 connection：当前数据库连接。
+        返回值：无；迁移在当前数据库中原地完成。
+        """
+
+        report_columns = self._column_names(connection, "reports")
+        task_columns = self._column_names(connection, "analysis_tasks")
+        if not {"report_date", "self_spu", "competitor_spu"}.issubset(
+            report_columns
+        ) or "report_id" not in task_columns:
+            self._rebuild_legacy_task_and_report_tables(connection)
+
+        duplicate_reports = connection.execute(
+            """
+            SELECT report_date, self_spu, competitor_spu
+            FROM reports
+            GROUP BY report_date, self_spu, competitor_spu
+            HAVING COUNT(*) > 1
+            """
+        ).fetchall()
+        for business_key in duplicate_reports:
+            reports = connection.execute(
+                """
+                SELECT report_id, dataset_id
+                FROM reports
+                WHERE report_date = ? AND self_spu = ? AND competitor_spu = ?
+                ORDER BY updated_at DESC, report_id DESC
+                """,
+                tuple(business_key),
+            ).fetchall()
+            current_report = reports[0]
+            for stale_report in reports[1:]:
+                connection.execute(
+                    "UPDATE analysis_tasks SET report_id = ? WHERE report_id = ? OR dataset_id = ?",
+                    (
+                        current_report["report_id"],
+                        stale_report["report_id"],
+                        stale_report["dataset_id"],
+                    ),
+                )
+                connection.execute(
+                    "DELETE FROM reports WHERE report_id = ?",
+                    (stale_report["report_id"],),
+                )
+
+        missing_links = connection.execute(
+            "SELECT COUNT(*) AS count FROM analysis_tasks WHERE report_id IS NULL"
+        ).fetchone()["count"]
+        if missing_links:
+            raise RuntimeError(f"存在 {missing_links} 条无法关联报告的 AI 任务")
+
+        now = utc_now_text()
+        report_ids = connection.execute(
+            """
+            SELECT report_id
+            FROM analysis_tasks
+            WHERE status <> 'expired'
+            GROUP BY report_id
+            HAVING COUNT(*) > 1
+            """
+        ).fetchall()
+        for report_row in report_ids:
+            tasks = connection.execute(
+                """
+                SELECT analysis_id
+                FROM analysis_tasks
+                WHERE report_id = ? AND status <> 'expired'
+                ORDER BY created_at DESC, analysis_id DESC
+                """,
+                (report_row["report_id"],),
+            ).fetchall()
+            stale_task_ids = [task["analysis_id"] for task in tasks[1:]]
+            connection.executemany(
+                """
+                UPDATE analysis_tasks
+                SET status = 'expired', lease_token = NULL, lease_expires_at = NULL, updated_at = ?
+                WHERE analysis_id = ?
+                """,
+                [(now, analysis_id) for analysis_id in stale_task_ids],
+            )
+            LOGGER.info(
+                "历史 AI 任务已标记过期：report_id=%s，count=%s",
+                report_row["report_id"],
+                len(stale_task_ids),
+            )
+
+    @staticmethod
+    def _rebuild_legacy_task_and_report_tables(connection: sqlite3.Connection) -> None:
+        """将旧报告和任务表重建为当前结构。
+
+        功能说明：按日期和商品对保留最近报告，为全部历史任务补充报告关联，并建立真实的非空字段和外键约束。
+        参数 connection：当前数据库连接。
+        返回值：无。
+        """
+
+        Database._execute_migration_script(
+            connection,
+            """
+            CREATE TABLE reports_migrated (
+                report_id TEXT PRIMARY KEY,
+                dataset_id TEXT NOT NULL UNIQUE
+                    REFERENCES analysis_datasets(dataset_id) ON DELETE CASCADE,
+                report_date TEXT NOT NULL,
+                self_spu TEXT NOT NULL,
+                competitor_spu TEXT NOT NULL,
+                status TEXT NOT NULL,
+                report_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+
+            INSERT INTO reports_migrated (
+                report_id, dataset_id, report_date, self_spu, competitor_spu,
+                status, report_json, created_at, updated_at
+            )
+            SELECT
+                report_id, dataset_id, report_date, self_spu, competitor_spu,
+                status, report_json, created_at, updated_at
+            FROM (
+                SELECT
+                    report.report_id,
+                    report.dataset_id,
+                    dataset.report_date,
+                    dataset.self_spu,
+                    dataset.competitor_spu,
+                    report.status,
+                    report.report_json,
+                    report.created_at,
+                    report.updated_at,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY dataset.report_date, dataset.self_spu, dataset.competitor_spu
+                        ORDER BY report.updated_at DESC, report.report_id DESC
+                    ) AS business_rank
+                FROM reports AS report
+                JOIN analysis_datasets AS dataset ON dataset.dataset_id = report.dataset_id
+            )
+            WHERE business_rank = 1;
+
+            CREATE TABLE analysis_tasks_migrated (
+                analysis_id TEXT PRIMARY KEY,
+                report_id TEXT NOT NULL
+                    REFERENCES reports_migrated(report_id) ON DELETE CASCADE,
+                dataset_id TEXT NOT NULL
+                    REFERENCES analysis_datasets(dataset_id) ON DELETE CASCADE,
+                source_hash TEXT NOT NULL,
+                payload_json TEXT NOT NULL,
+                result_json TEXT,
+                status TEXT NOT NULL,
+                worker_id TEXT,
+                lease_token TEXT,
+                lease_expires_at TEXT,
+                attempt_count INTEGER NOT NULL DEFAULT 0,
+                error_message TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                completed_at TEXT
+            );
+
+            INSERT INTO analysis_tasks_migrated (
+                analysis_id, report_id, dataset_id, source_hash, payload_json,
+                result_json, status, worker_id, lease_token, lease_expires_at,
+                attempt_count, error_message, created_at, updated_at, completed_at
+            )
+            SELECT
+                task.analysis_id,
+                report.report_id,
+                task.dataset_id,
+                task.source_hash,
+                task.payload_json,
+                task.result_json,
+                task.status,
+                task.worker_id,
+                task.lease_token,
+                task.lease_expires_at,
+                task.attempt_count,
+                task.error_message,
+                task.created_at,
+                task.updated_at,
+                task.completed_at
+            FROM analysis_tasks AS task
+            JOIN analysis_datasets AS dataset ON dataset.dataset_id = task.dataset_id
+            JOIN reports_migrated AS report
+              ON report.report_date = dataset.report_date
+             AND report.self_spu = dataset.self_spu
+             AND report.competitor_spu = dataset.competitor_spu;
+            """,
+        )
+        original_count = connection.execute(
+            "SELECT COUNT(*) AS count FROM analysis_tasks"
+        ).fetchone()["count"]
+        migrated_count = connection.execute(
+            "SELECT COUNT(*) AS count FROM analysis_tasks_migrated"
+        ).fetchone()["count"]
+        if migrated_count != original_count:
+            raise RuntimeError("存在无法关联唯一报告的历史 AI 任务")
+        Database._execute_migration_script(
+            connection,
+            """
+            DROP TABLE analysis_tasks;
+            DROP TABLE reports;
+            ALTER TABLE reports_migrated RENAME TO reports;
+            ALTER TABLE analysis_tasks_migrated RENAME TO analysis_tasks;
+            """,
         )
 
     def connect(self) -> sqlite3.Connection:

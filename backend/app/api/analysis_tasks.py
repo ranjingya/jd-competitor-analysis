@@ -30,10 +30,9 @@ router = APIRouter(
 
 @router.get("", response_model=TaskListResponse)
 def list_tasks(
-    task_status: Literal["pending", "processing", "completed", "failed"] | None = Query(
-        default=None,
-        alias="status",
-    ),
+    task_status: (
+        Literal["pending", "processing", "completed", "failed", "expired"] | None
+    ) = Query(default=None, alias="status"),
     limit: int = Query(default=20, ge=1, le=100),
     repository: TaskRepository = Depends(get_task_repository),
 ) -> TaskListResponse:

@@ -113,21 +113,22 @@ updated_at
 
 ## 第四步：跑通 Mac AI
 
-- [ ] Mac Codex 领取一条任务。
-- [ ] AI 根据后端提供的结构化事实生成分析和建议。
-- [ ] AI 将结果回传 Backend。
+- [x] Mac Codex 领取一条任务。
+- [x] AI 根据后端提供的结构化事实生成分析和建议。
+- [x] AI 将结果回传 Backend。
 - [x] Backend 保存 AI 结果并生成完整报告。
+- [x] 同一报告只保留一个当前任务，新输入使历史任务变为 `expired`。
 - [ ] 错误任务可以标记失败并重新人工触发。
 
 完成标准：不使用模型 API，Mac Codex 可以完成一次真实分析闭环。
 
 ## 第五步：前端只读 API
 
-- [ ] `GET /api/reports` 从数据库返回报告列表。
-- [ ] `GET /api/reports/{report_id}` 返回完整报告。
+- [x] `GET /api/reports` 从数据库返回报告列表。
+- [x] `GET /api/reports/{report_id}` 返回完整报告。
 - [ ] 提供 SPU 组成 SKU 的只读接口。
-- [ ] Web 从 API 获取列表和报告详情。
-- [ ] Web 不再读取 `report-index.json` 和 `analysis_result.json`。
+- [x] Web 从 API 获取列表和报告详情。
+- [x] Web 不再读取 `report-index.json` 和 `analysis_result.json`。
 
 完成标准：更新数据库报告后无需重新构建 Web 镜像，页面能够直接展示新结果。
 
@@ -163,4 +164,4 @@ volumes:
 
 ## 下一项工作
 
-使用 Mac Codex 领取现有真实任务，生成 AI 内容并回传 Backend，验证报告状态更新为 `ready`。
+不指定商品对执行一次真实日期批处理，验证飞书商品对候选能够逐个进入日分析流程。

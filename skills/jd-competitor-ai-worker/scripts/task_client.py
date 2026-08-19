@@ -238,7 +238,7 @@ def parse_args() -> argparse.Namespace:
     list_parser = subparsers.add_parser("list", help="查看最近的任务摘要。")
     list_parser.add_argument(
         "--status",
-        choices=("pending", "processing", "completed", "failed"),
+        choices=("pending", "processing", "completed", "failed", "expired"),
         help="仅显示指定状态的任务。",
     )
     list_parser.add_argument("--limit", type=int, default=20, help="最多显示的任务数量，默认 20。")

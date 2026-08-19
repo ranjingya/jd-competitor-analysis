@@ -41,8 +41,9 @@ class AnalysisJobTest(unittest.TestCase):
                 dataset_id,
                 {"meta": {"title": "竞品分析日报"}},
             )
-            analysis_id = enqueue_ai_analysis(
+            enqueue_result = enqueue_ai_analysis(
                 tasks,
+                report_id,
                 dataset_id,
                 {"facts": {"dataset_id": dataset_id}},
             )
@@ -51,7 +52,7 @@ class AnalysisJobTest(unittest.TestCase):
 
         self.assertIsNotNone(claimed)
         assert claimed is not None
-        self.assertEqual(claimed["analysis_id"], analysis_id)
+        self.assertEqual(claimed["analysis_id"], enqueue_result.analysis_id)
         self.assertEqual(claimed["dataset_id"], dataset_id)
         self.assertEqual(report_record["dataset_id"], dataset_id)
 

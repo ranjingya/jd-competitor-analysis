@@ -10,7 +10,7 @@ from typing import Any
 
 from ..repositories.dataset_repository import DatasetRepository
 from ..repositories.report_repository import ReportRepository
-from ..repositories.task_repository import TaskRepository
+from ..repositories.task_repository import TaskEnqueueResult, TaskRepository
 
 
 LOGGER = logging.getLogger(__name__)
@@ -62,30 +62,33 @@ def persist_base_report(
 
 def enqueue_ai_analysis(
     repository: TaskRepository,
+    report_id: str,
     dataset_id: str,
     payload: dict[str, Any],
-) -> str:
+) -> TaskEnqueueResult:
     """为确定性分析结果创建 AI 任务。
 
     功能说明：对后端生成的结构化事实计算稳定哈希并写入任务仓库，供 Mac Codex 主动领取。
     参数 repository：AI 任务持久化仓库。
+    参数 report_id：任务最终更新的唯一报告 ID。
     参数 dataset_id：AI 输入所属的标准化数据集 ID。
     参数 payload：已经完成 SKU→SPU、周期聚合和确定性指标计算的事实数据。
-    返回值：新建 AI 分析任务 ID。
+    返回值：任务 ID 和本次是否创建新任务。
     """
 
     started_at = perf_counter()
     serialized = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     source_hash = hashlib.sha256(serialized.encode("utf-8")).hexdigest()
-    analysis_id = repository.enqueue(
+    result = repository.enqueue(
+        report_id=report_id,
         dataset_id=dataset_id,
         source_hash=source_hash,
         payload=payload,
     )
     LOGGER.info(
         "确定性分析结果已进入 AI 队列：analysis_id=%s，source_hash=%s，耗时=%.3fs",
-        analysis_id,
+        result.analysis_id,
         source_hash,
         perf_counter() - started_at,
     )
-    return analysis_id
+    return result

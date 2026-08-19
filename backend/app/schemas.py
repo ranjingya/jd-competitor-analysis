@@ -17,6 +17,7 @@ class ClaimedTask(BaseModel):
     """后端返回给 Codex 的已领取任务。"""
 
     analysis_id: str
+    report_id: str
     dataset_id: str
     report_date: str
     compare_number: str
@@ -34,6 +35,7 @@ class TaskSummary(BaseModel):
     """供人工查看的 AI 任务摘要。"""
 
     analysis_id: str
+    report_id: str
     dataset_id: str
     report_date: str
     compare_number: str

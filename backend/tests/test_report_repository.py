@@ -32,6 +32,7 @@ class ReportRepositoryTest(unittest.TestCase):
             },
             dataset_id="dataset-1",
         )
+        self.datasets = datasets
         self.repository = ReportRepository(database_path)
 
     def tearDown(self) -> None:
@@ -80,6 +81,40 @@ class ReportRepositoryTest(unittest.TestCase):
         )
         with self.assertRaisesRegex(ValueError, "格式无效"):
             self.repository.read_report("day", "../../.env")
+
+    def test_new_dataset_version_updates_same_business_report(self) -> None:
+        """同一日期商品对的新数据版本应更新原报告，不新增第二份报告。"""
+
+        report_id = self.repository.upsert(
+            self.dataset_id,
+            {"meta": {"title": "旧版本"}},
+            status="ready",
+            report_id="report-1",
+        )
+        new_dataset_id = self.datasets.store(
+            {
+                "report_date": "2026-08-17",
+                "pair": {
+                    "compare_number": "10001+20001",
+                    "self_spu": "10001",
+                    "competitor_spu": "20001",
+                },
+                "quality": {"status": "ready"},
+                "revision": 2,
+            },
+            dataset_id="dataset-2",
+        )
+
+        updated_report_id = self.repository.upsert(
+            new_dataset_id,
+            {"meta": {"title": "新版本"}},
+            report_id="report-2",
+        )
+
+        self.assertEqual(updated_report_id, report_id)
+        self.assertEqual(self.repository.get_record(report_id)["dataset_id"], new_dataset_id)
+        self.assertEqual(self.repository.read_index()["reports"]["day"][0]["status"], "pending_ai")
+        self.assertEqual(len(self.repository.read_index()["reports"]["day"]), 1)
 
 
 if __name__ == "__main__":
