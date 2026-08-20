@@ -36,7 +36,9 @@ const periodPickerState = {
 };
 
 const pairPickerState = {
-  open: false
+  open: false,
+  closing: false,
+  animateOpen: false
 };
 
 function reportsFor(granularity) {

@@ -85,7 +85,10 @@ function syncPickerState(container, pickerState) {
   trigger?.setAttribute("aria-expanded", String(pickerState.open));
   container.classList.toggle("is-open", pickerState.open);
   if (popover) {
-    popover.hidden = !pickerState.open;
+    popover.classList.toggle("is-open", pickerState.open);
+    popover.classList.toggle("is-closing", pickerState.closing);
+    popover.classList.toggle("is-entering", pickerState.animateOpen);
+    popover.hidden = !pickerState.open && !pickerState.closing;
   }
 }
 
@@ -114,7 +117,10 @@ export function closePairPicker(container, pickerState, restoreFocus = false) {
   if (!container || !pickerState.open) {
     return false;
   }
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   pickerState.open = false;
+  pickerState.animateOpen = false;
+  pickerState.closing = !reduceMotion;
   syncPickerState(container, pickerState);
   if (restoreFocus) {
     container.querySelector("#pair-trigger")?.focus();
@@ -135,6 +141,8 @@ export function renderPairPicker(options) {
   trigger.disabled = !pairs.length;
   popover.replaceChildren(...pairs.map((pair) => createPairOption(pair, activePairKey, (pairKey) => {
     pickerState.open = false;
+    pickerState.closing = false;
+    pickerState.animateOpen = false;
     syncPickerState(container, pickerState);
     onPairChange(pairKey);
   })));
@@ -146,6 +154,8 @@ export function renderPairPicker(options) {
     }
     onBeforeOpen?.();
     pickerState.open = true;
+    pickerState.closing = false;
+    pickerState.animateOpen = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     syncPickerState(container, pickerState);
     if (focusOption) {
       requestAnimationFrame(() => {
@@ -190,6 +200,17 @@ export function renderPairPicker(options) {
     if (event.key === "Escape") {
       event.preventDefault();
       closePairPicker(container, pickerState, true);
+    }
+  };
+  popover.onanimationend = (event) => {
+    if (event.animationName === "period-picker-fold-enter") {
+      pickerState.animateOpen = false;
+      popover.classList.remove("is-entering");
+      return;
+    }
+    if (event.animationName === "period-picker-fold-exit" && pickerState.closing) {
+      pickerState.closing = false;
+      syncPickerState(container, pickerState);
     }
   };
 }
