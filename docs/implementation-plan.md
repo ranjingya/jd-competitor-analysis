@@ -13,7 +13,7 @@ StarRocks + 飞书映射
   → Web 看板
 ```
 
-当前阶段使用单个 Backend 容器、日数据和宿主机 cron。周月聚合、复杂版本管理和多实例部署在 MVP 跑通后处理。
+当前阶段使用单个 Backend 容器、数仓日数据和宿主机 cron。日报直接分析日数据；周报和月报由已完成日报聚合生成。
 
 ## 已完成
 
@@ -46,7 +46,7 @@ created_at
 
 ### `analysis_tasks`
 
-保存 DeepSeek 执行状态、模型、输入、原始结果和错误信息，并关联 `report_id` 与 `dataset_id`。
+保存 DeepSeek 执行状态、模型、输入、原始结果和错误信息。所有任务关联 `report_id`；日报任务同时关联 `dataset_id`，周报和月报任务的 `dataset_id` 为空。
 
 ### `reports`
 
@@ -55,6 +55,11 @@ created_at
 ```text
 report_id
 dataset_id
+granularity
+start_date
+end_date
+self_spu
+competitor_spu
 status
 report_json
 created_at
@@ -90,7 +95,7 @@ updated_at
 - [x] 使用 `CREATE TABLE IF NOT EXISTS` 初始化三张表。
 - [x] 标准化日数据写入 `analysis_datasets`。
 - [x] 使用内容哈希避免相同数据重复写入。
-- [x] AI 执行记录通过 `dataset_id` 关联数据集。
+- [x] AI 执行记录通过 `report_id` 关联报告，日报任务同时关联日数据集。
 - [x] 最终看板数据写入 `reports`。
 
 完成标准：Backend 重启后仍能读取数据集、AI 执行记录和报告，不依赖业务 JSON 文件。
@@ -148,9 +153,21 @@ volumes:
 
 完成标准：服务器重启或更新镜像后 `backend.db` 不丢失，Web 能通过 API 展示报告。
 
+## 第七步：周月聚合
+
+- [x] 报告和 AI 执行表支持日、周、月周期。
+- [ ] 周报按周一至周日读取七份完整日报。
+- [ ] 月报按自然月读取当月完整日报。
+- [ ] 数量和金额指标按日累加。
+- [ ] 转化率按累计成交人数除以累计访客数重新计算。
+- [ ] 客单价按累计成交金额除以累计成交人数重新计算。
+- [ ] 渠道、关键词、画像和推广占比根据累计值重新计算。
+- [ ] 周月报告保存来源日报 ID，并进入相同的 DeepSeek 分析流程。
+
+完成标准：指定自然周或自然月能够由完整日报生成唯一报告，并通过 API 与 Web 读取。
+
 ## MVP 暂不处理
 
-- 周、月聚合。
 - 晚到数据自动补算。
 - 多后端实例并发。
 - 正式数据库迁移框架。

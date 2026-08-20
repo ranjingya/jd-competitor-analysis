@@ -45,7 +45,7 @@ class TaskRepository:
     def initialize(self) -> None:
         """初始化统一数据库。
 
-        功能说明：创建持久化目录、三张业务表和索引，已有数据库执行兼容迁移。
+        功能说明：创建持久化目录、三张业务表和索引。
         返回值：无。
         """
 
@@ -54,7 +54,7 @@ class TaskRepository:
     def start(
         self,
         report_id: str,
-        dataset_id: str,
+        dataset_id: str | None,
         source_hash: str,
         payload: dict[str, Any],
         model: str,
@@ -64,7 +64,7 @@ class TaskRepository:
 
         功能说明：相同输入已完成时直接复用；失败或中断时复用原记录重试；输入变化时将旧记录标记为 expired 并创建 processing 记录。
         参数 report_id：AI 结果最终写入的唯一报告 ID。
-        参数 dataset_id：本次分析所属标准化数据集 ID。
+        参数 dataset_id：日报所属标准化数据集 ID；周报和月报使用空值。
         参数 source_hash：AI 输入的稳定内容哈希。
         参数 payload：只包含模型分析所需事实的结构化输入。
         参数 model：本次调用使用的模型标识。
@@ -78,10 +78,10 @@ class TaskRepository:
         try:
             connection.execute("BEGIN IMMEDIATE")
             report = connection.execute(
-                "SELECT report_id FROM reports WHERE report_id = ? AND dataset_id = ?",
-                (report_id, dataset_id),
+                "SELECT report_id, dataset_id FROM reports WHERE report_id = ?",
+                (report_id,),
             ).fetchone()
-            if report is None:
+            if report is None or report["dataset_id"] != dataset_id:
                 raise TaskConflictError("AI 执行关联的当前报告或数据版本不存在")
             existing = connection.execute(
                 """
@@ -186,7 +186,7 @@ class TaskRepository:
                 raise TaskConflictError("AI 执行已经完成，不能覆盖已有结果")
             if row["status"] != "processing":
                 raise TaskConflictError(f"AI 执行当前状态不能完成：{row['status']}")
-            self._merge_report(connection, row["report_id"], row["dataset_id"], result, now)
+            self._merge_report(connection, row["report_id"], result, now)
             connection.execute(
                 """
                 UPDATE analysis_tasks
@@ -229,9 +229,9 @@ class TaskRepository:
                 """
                 UPDATE reports
                 SET status = 'ai_failed', updated_at = ?
-                WHERE report_id = ? AND dataset_id = ?
+                WHERE report_id = ?
                 """,
-                (now, row["report_id"], row["dataset_id"]),
+                (now, row["report_id"]),
             )
             if report_update.rowcount != 1:
                 raise TaskConflictError("AI 执行所属基础报告不存在")
@@ -267,13 +267,15 @@ class TaskRepository:
                 f"""
                 SELECT
                     task.analysis_id, task.report_id, task.dataset_id,
-                    dataset.report_date, dataset.compare_number,
-                    dataset.self_spu, dataset.competitor_spu,
+                    report.granularity, report.start_date, report.end_date,
+                    report.start_date AS report_date,
+                    report.self_spu || '+' || report.competitor_spu AS compare_number,
+                    report.self_spu, report.competitor_spu,
                     task.model, task.status, task.attempt_count,
                     task.created_at, task.updated_at, task.completed_at,
                     task.error_message
                 FROM analysis_tasks AS task
-                JOIN analysis_datasets AS dataset ON dataset.dataset_id = task.dataset_id
+                JOIN reports AS report ON report.report_id = task.report_id
                 {conditions}
                 ORDER BY task.created_at DESC, task.analysis_id DESC
                 LIMIT ?
@@ -286,15 +288,14 @@ class TaskRepository:
     def _merge_report(
         connection: sqlite3.Connection,
         report_id: str,
-        dataset_id: str,
         result: dict[str, Any],
         updated_at: str,
     ) -> None:
         """在当前事务中合并并更新任务所属报告。"""
 
         report_row = connection.execute(
-            "SELECT report_json FROM reports WHERE report_id = ? AND dataset_id = ?",
-            (report_id, dataset_id),
+            "SELECT report_json FROM reports WHERE report_id = ?",
+            (report_id,),
         ).fetchone()
         if report_row is None:
             raise TaskConflictError("AI 执行所属基础报告不存在")
@@ -304,9 +305,9 @@ class TaskRepository:
             """
             UPDATE reports
             SET status = 'ready', report_json = ?, updated_at = ?
-            WHERE report_id = ? AND dataset_id = ?
+            WHERE report_id = ?
             """,
-            (json.dumps(merged, ensure_ascii=False, sort_keys=True), updated_at, report_id, dataset_id),
+            (json.dumps(merged, ensure_ascii=False, sort_keys=True), updated_at, report_id),
         )
 
     def _connect(self) -> sqlite3.Connection:

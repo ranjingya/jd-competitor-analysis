@@ -136,7 +136,11 @@ class WarehouseAnalysisTest(unittest.TestCase):
         second = build_ai_task_payload(dataset, report)
 
         self.assertEqual(first, second)
-        self.assertEqual(set(first), {"report_date", "pair", "self_spu_data", "tables"})
+        self.assertEqual(set(first), {"period", "pair", "self_spu_data", "tables"})
+        self.assertEqual(
+            first["period"],
+            {"granularity": "day", "start_date": "2026-08-18", "end_date": "2026-08-18"},
+        )
         self.assertEqual(first["self_spu_data"]["spu_id"], "10001")
         self.assertEqual(first["self_spu_data"]["metrics"], dataset["self_product"]["spu_daily_metrics"])
         self.assertEqual(

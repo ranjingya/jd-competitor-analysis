@@ -2,7 +2,7 @@
 
 ## 目标
 
-Backend 使用一个 SQLite 数据库保存标准化日数据、DeepSeek 执行记录和最终看板报告：
+Backend 使用一个 SQLite 数据库保存标准化日数据、日周月看板报告和 DeepSeek 执行记录：
 
 ```text
 /app/data/backend.db
@@ -13,9 +13,9 @@ Backend 使用一个 SQLite 数据库保存标准化日数据、DeepSeek 执行�
 MVP 固定使用三张表：
 
 ```text
-analysis_datasets  1 ─── N  analysis_tasks
-        ↑                    │
-        └── 当前版本 ── reports 1 ─── N 历史任务
+analysis_datasets  1 ─── 0..1  reports（日）
+                              │
+reports（日/周/月） 1 ─── N  analysis_tasks
 ```
 
 关键词、客户画像、流量来源、推广明细和 SPU/SKU 构成保存在 JSON 字段中，不拆分业务明细表。
@@ -63,7 +63,7 @@ ON analysis_datasets(report_date, self_spu, competitor_spu, created_at);
 |---|---|---|---|
 | `analysis_id` | TEXT | PRIMARY KEY | AI 执行记录 UUID。 |
 | `report_id` | TEXT | NOT NULL, FOREIGN KEY | 任务最终更新的唯一报告。 |
-| `dataset_id` | TEXT | NOT NULL, FOREIGN KEY | 任务所属标准化数据集。 |
+| `dataset_id` | TEXT | NULL, FOREIGN KEY | 日报任务所属的标准化日数据集；周报和月报为空。 |
 | `source_hash` | TEXT | NOT NULL | AI 输入内容版本哈希，用于判断当前任务是否需要替换。 |
 | `payload_json` | TEXT | NOT NULL | 交给 AI 的本品 SPU 汇总值和五张来源表处理结果。 |
 | `result_json` | TEXT | NULL | AI 回传的总结、发现和建议。 |
@@ -77,7 +77,7 @@ ON analysis_datasets(report_date, self_spu, competitor_spu, created_at);
 
 `source_hash` 根据 AI 实际输入计算。已完成且输入不变时直接复用结果；失败或中断的相同输入在下次运行时重试；输入发生变化时，当前记录标记为 `expired`，然后创建新的 `processing` 记录。历史记录继续保留，但同一 `report_id` 只能有一条非 `expired` 记录。
 
-`payload_json` 固定包含 `report_date`、`pair`、`self_spu_data` 和 `tables`。`tables` 下包含 `core_metrics`、`traffic_sources`、`traffic_keywords`、`customer_profiles` 和 `promotion`；完整数据集、计算审计和页面展示结构由其他两张表保存。
+`payload_json` 固定包含 `period`、`pair`、`self_spu_data` 和 `tables`。`period` 使用 `granularity`、`start_date` 和 `end_date` 表达周期；`tables` 下包含 `core_metrics`、`traffic_sources`、`traffic_keywords`、`customer_profiles` 和 `promotion`。完整数据集、计算审计和页面展示结构由其他两张表保存。
 
 索引：
 
@@ -97,19 +97,23 @@ ON analysis_tasks(report_id) WHERE status <> 'expired';
 
 ## `reports`
 
-保存可由 Web 直接读取的完整看板报告。同一业务日期、本品 SPU 和竞品 SPU 始终只有一份报告。
+保存可由 Web 直接读取的完整看板报告。同一粒度、日期范围和商品对始终只有一份报告。
 
 | 字段 | SQLite 类型 | 约束 | 用途 |
 |---|---|---|---|
 | `report_id` | TEXT | PRIMARY KEY | 报告 UUID。 |
-| `dataset_id` | TEXT | NOT NULL, UNIQUE, FOREIGN KEY | 报告当前使用的标准化数据集。 |
-| `report_date` | TEXT | NOT NULL | 报告业务日期。 |
+| `dataset_id` | TEXT | NULL, UNIQUE, FOREIGN KEY | 日报当前使用的标准化日数据集；周报和月报为空。 |
+| `granularity` | TEXT | NOT NULL | `day`、`week` 或 `month`。 |
+| `start_date` | TEXT | NOT NULL | 周期开始日期；自然周从周一开始。 |
+| `end_date` | TEXT | NOT NULL | 周期结束日期；自然周到周日结束。 |
 | `self_spu` | TEXT | NOT NULL | 本品 SPU。 |
 | `competitor_spu` | TEXT | NOT NULL | 竞品 SPU。 |
 | `status` | TEXT | NOT NULL | `pending_ai`、`ready` 或 `ai_failed`。 |
 | `report_json` | TEXT | NOT NULL | 后端确定性计算结果与 AI 结果合并后的完整看板 JSON。 |
 | `created_at` | TEXT | NOT NULL | 报告创建时间。 |
 | `updated_at` | TEXT | NOT NULL | 基础报告或 AI 结果更新时间。 |
+
+日报的 `start_date` 与 `end_date` 相同，并通过 `dataset_id` 关联当前日数据版本。周报和月报直接聚合已完成的日报，`dataset_id` 为空，来源日报记录在 `report_json.meta.source_report_ids`。自然周固定为周一至周日。
 
 状态含义：
 
@@ -123,7 +127,7 @@ ON analysis_tasks(report_id) WHERE status <> 'expired';
 
 ```sql
 CREATE UNIQUE INDEX idx_reports_business_key
-ON reports(report_date, self_spu, competitor_spu);
+ON reports(granularity, start_date, end_date, self_spu, competitor_spu);
 
 CREATE INDEX idx_reports_status_updated
 ON reports(status, updated_at);
@@ -148,8 +152,10 @@ CREATE TABLE IF NOT EXISTS analysis_datasets (
 
 CREATE TABLE IF NOT EXISTS reports (
     report_id TEXT PRIMARY KEY,
-    dataset_id TEXT NOT NULL UNIQUE REFERENCES analysis_datasets(dataset_id) ON DELETE CASCADE,
-    report_date TEXT NOT NULL,
+    dataset_id TEXT UNIQUE REFERENCES analysis_datasets(dataset_id) ON DELETE SET NULL,
+    granularity TEXT NOT NULL,
+    start_date TEXT NOT NULL,
+    end_date TEXT NOT NULL,
     self_spu TEXT NOT NULL,
     competitor_spu TEXT NOT NULL,
     status TEXT NOT NULL,
@@ -161,7 +167,7 @@ CREATE TABLE IF NOT EXISTS reports (
 CREATE TABLE IF NOT EXISTS analysis_tasks (
     analysis_id TEXT PRIMARY KEY,
     report_id TEXT NOT NULL REFERENCES reports(report_id) ON DELETE CASCADE,
-    dataset_id TEXT NOT NULL REFERENCES analysis_datasets(dataset_id) ON DELETE CASCADE,
+    dataset_id TEXT REFERENCES analysis_datasets(dataset_id) ON DELETE SET NULL,
     model TEXT NOT NULL,
     source_hash TEXT NOT NULL,
     payload_json TEXT NOT NULL,
@@ -183,7 +189,7 @@ CREATE TABLE IF NOT EXISTS analysis_tasks (
   → 计算 source_hash
   → 写入或复用 analysis_datasets
   → 执行后端确定性计算
-  → 按日期和商品对写入或更新唯一 reports，状态 pending_ai
+  → 按粒度、日期范围和商品对写入或更新唯一 reports，状态 pending_ai
   → AI 输入不变且已完成时复用当前结果
   → AI 输入变化时将旧记录标记 expired 并创建 processing 记录
   → Backend 直接调用 DeepSeek
@@ -191,7 +197,17 @@ CREATE TABLE IF NOT EXISTS analysis_tasks (
   → 合并更新 reports，状态 ready
 ```
 
-`quality_status=invalid` 的数据集允许保存以便排查，但不创建正式报告和 AI 执行记录。`quality_status=partial` 的数据集可以继续处理。部分字段未披露时保留 `masked/null` 事实；只有整块来源不可用时，才把缺失模块和对应风险写入 AI 输入事实与报告。
+周报和月报在日报完成后执行独立聚合：
+
+```text
+读取同一商品对的完整日报范围
+  → 累加金额、人数、访客、订单、件数、点击等数值
+  → 重新计算转化率、客单价及各类占比
+  → 写入 dataset_id 为空的周报或月报
+  → 生成周期 AI 输入并完成分析
+```
+
+`quality_status=invalid` 的数据集允许保存以便排查，但不创建正式报告和 AI 执行记录。`quality_status=partial` 的数据集可以继续处理。部分字段未披露时保留 `masked/null` 事实；只有整块来源不可用时，才把缺失模块和对应风险写入报告。
 
 ## MVP 不建立的表
 

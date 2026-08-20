@@ -63,7 +63,7 @@ def persist_base_report(
 def start_ai_analysis(
     repository: TaskRepository,
     report_id: str,
-    dataset_id: str,
+    dataset_id: str | None,
     payload: dict[str, Any],
     model: str,
 ) -> TaskStartResult:
@@ -72,7 +72,7 @@ def start_ai_analysis(
     功能说明：对后端生成的结构化事实计算稳定哈希并写入任务仓库，判断是否需要调用当前模型。
     参数 repository：AI 执行记录持久化仓库。
     参数 report_id：AI 结果最终更新的唯一报告 ID。
-    参数 dataset_id：AI 输入所属的标准化数据集 ID。
+    参数 dataset_id：日报所属的标准化数据集 ID；周报和月报使用空值。
     参数 payload：已经完成 SKU→SPU、周期聚合和确定性指标计算的事实数据。
     参数 model：本次使用的 DeepSeek 模型标识。
     返回值：执行记录 ID 与本次是否需要调用模型。

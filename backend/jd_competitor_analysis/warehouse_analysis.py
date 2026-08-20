@@ -258,8 +258,13 @@ def build_ai_task_payload(
     """
 
     self_product = dataset["self_product"]
+    report_date = str(dataset["report_date"])
     return {
-        "report_date": dataset["report_date"],
+        "period": {
+            "granularity": "day",
+            "start_date": report_date,
+            "end_date": report_date,
+        },
         "pair": copy.deepcopy(dataset["pair"]),
         "self_spu_data": {
             "spu_id": dataset["pair"]["self_spu"],

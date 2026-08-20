@@ -20,7 +20,7 @@ PERIOD_DIRECTORY_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}(?:_\d{4}-\d{2}-\d{2})
 
 
 class ReportRepository:
-    """保存报告并提供数据库查询与旧 API 兼容读取。"""
+    """保存报告并提供按 ID 与周期的数据库查询。"""
 
     def __init__(self, database: Database | Path) -> None:
         """保存统一数据库实例。
@@ -37,15 +37,15 @@ class ReportRepository:
 
     def upsert(
         self,
-        dataset_id: str,
+        dataset_id: str | None,
         report: dict[str, Any],
         status: str = "pending_ai",
         report_id: str | None = None,
     ) -> str:
-        """创建或更新一个数据集的报告。
+        """创建或更新一个业务周期的报告。
 
-        功能说明：同一日期和商品对只保留一份报告；新数据版本更新原报告关联的数据集和基础内容。
-        参数 dataset_id：报告所属标准化数据集 ID。
+        功能说明：同一粒度、日期范围和商品对只保留一份报告；日报关联日数据集，周报和月报不绑定单个数据集。
+        参数 dataset_id：日报所属标准化数据集 ID；周报和月报使用空值。
         参数 report：可由 Web 直接消费的完整报告对象。
         参数 status：`pending_ai`、`ready` 或 `ai_failed`。
         参数 report_id：可选报告 ID；新建且为空时生成 UUID。
@@ -58,23 +58,19 @@ class ReportRepository:
         report_json = json.dumps(report, ensure_ascii=False, sort_keys=True)
         now = utc_now_text()
         with self.database.connection() as connection:
-            dataset = connection.execute(
-                """
-                SELECT report_date, self_spu, competitor_spu
-                FROM analysis_datasets
-                WHERE dataset_id = ?
-                """,
-                (dataset_id,),
-            ).fetchone()
-            if dataset is None:
-                raise FileNotFoundError(dataset_id)
+            granularity, start_date, end_date, self_spu, competitor_spu = self._resolve_scope(
+                connection,
+                dataset_id,
+                report,
+            )
             existing = connection.execute(
                 """
                 SELECT report_id, dataset_id, status
                 FROM reports
-                WHERE report_date = ? AND self_spu = ? AND competitor_spu = ?
+                WHERE granularity = ? AND start_date = ? AND end_date = ?
+                  AND self_spu = ? AND competitor_spu = ?
                 """,
-                (dataset["report_date"], dataset["self_spu"], dataset["competitor_spu"]),
+                (granularity, start_date, end_date, self_spu, competitor_spu),
             ).fetchone()
             if existing is not None:
                 if (
@@ -102,16 +98,19 @@ class ReportRepository:
                 connection.execute(
                     """
                     INSERT INTO reports (
-                        report_id, dataset_id, report_date, self_spu, competitor_spu,
+                        report_id, dataset_id, granularity, start_date, end_date,
+                        self_spu, competitor_spu,
                         status, report_json, created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         selected_report_id,
                         dataset_id,
-                        dataset["report_date"],
-                        dataset["self_spu"],
-                        dataset["competitor_spu"],
+                        granularity,
+                        start_date,
+                        end_date,
+                        self_spu,
+                        competitor_spu,
                         status,
                         report_json,
                         now,
@@ -124,12 +123,59 @@ class ReportRepository:
         LOGGER.info("报告已创建：report_id=%s，status=%s", selected_report_id, status)
         return selected_report_id
 
-    def activate_pending(self, report_id: str, dataset_id: str, report: dict[str, Any]) -> None:
+    @staticmethod
+    def _resolve_scope(
+        connection: sqlite3.Connection,
+        dataset_id: str | None,
+        report: dict[str, Any],
+    ) -> tuple[str, str, str, str, str]:
+        """解析报告粒度、日期范围和商品对。"""
+
+        if dataset_id is not None:
+            dataset = connection.execute(
+                """
+                SELECT report_date, self_spu, competitor_spu
+                FROM analysis_datasets
+                WHERE dataset_id = ?
+                """,
+                (dataset_id,),
+            ).fetchone()
+            if dataset is None:
+                raise FileNotFoundError(dataset_id)
+            report_date = str(dataset["report_date"])
+            return (
+                "day",
+                report_date,
+                report_date,
+                str(dataset["self_spu"]),
+                str(dataset["competitor_spu"]),
+            )
+
+        meta = report.get("meta")
+        if not isinstance(meta, dict):
+            raise ValueError("周报或月报缺少 meta")
+        granularity = str(meta.get("granularity") or "")
+        start_date = str(meta.get("period_start") or "")
+        end_date = str(meta.get("period_end") or "")
+        self_spu = str(meta.get("self_spu") or "")
+        competitor_spu = str(meta.get("competitor_spu") or "")
+        if granularity not in {"week", "month"}:
+            raise ValueError("未绑定日数据集的报告只能使用 week 或 month 粒度")
+        if not all((start_date, end_date, self_spu, competitor_spu)):
+            raise ValueError("周报或月报缺少日期范围或商品对")
+        return granularity, start_date, end_date, self_spu, competitor_spu
+
+    def activate_pending(
+        self,
+        report_id: str,
+        dataset_id: str | None,
+        report: dict[str, Any],
+    ) -> None:
         """激活新 AI 输入对应的基础报告。
 
         功能说明：确认创建了新任务后，将唯一报告替换为当前数据集的基础内容并标记为 pending_ai。
         参数 report_id：需要更新的唯一报告 ID。
-        参数 dataset_id：新任务使用的数据集 ID。
+        参数 dataset_id：新任务使用的日数据集 ID；周报和月报使用空值。
         参数 report：尚未合并 AI 结果的基础报告。
         返回值：无。
         """
@@ -175,9 +221,9 @@ class ReportRepository:
         with self.database.connection() as connection:
             row = connection.execute(
                 """
-                SELECT r.*, d.report_date, d.self_spu, d.competitor_spu, d.quality_status
+                SELECT r.*, d.quality_status
                 FROM reports r
-                JOIN analysis_datasets d ON d.dataset_id = r.dataset_id
+                LEFT JOIN analysis_datasets d ON d.dataset_id = r.dataset_id
                 WHERE r.report_id = ?
                 """,
                 (report_id,),
@@ -187,7 +233,9 @@ class ReportRepository:
         return {
             "report_id": row["report_id"],
             "dataset_id": row["dataset_id"],
-            "report_date": row["report_date"],
+            "granularity": row["granularity"],
+            "start_date": row["start_date"],
+            "end_date": row["end_date"],
             "self_spu": row["self_spu"],
             "competitor_spu": row["competitor_spu"],
             "quality_status": row["quality_status"],
@@ -200,30 +248,43 @@ class ReportRepository:
     def read_index(self) -> dict[str, Any]:
         """生成与当前 Web 兼容的报告索引。
 
-        功能说明：从数据库按更新时间倒序读取日报，周报和月报在 MVP 阶段返回空数组。
+        功能说明：从数据库按更新时间倒序读取日、周、月报告，并按粒度分组。
         返回值：包含 day、week 和 month 数组的报告索引。
         """
 
         with self.database.connection() as connection:
             rows = connection.execute(
                 """
-                SELECT r.report_id, r.dataset_id, r.status, r.report_json, r.updated_at,
-                       d.report_date, d.self_spu, d.competitor_spu, d.quality_status
+                SELECT r.report_id, r.dataset_id, r.granularity, r.start_date, r.end_date,
+                       r.self_spu, r.competitor_spu, r.status, r.report_json, r.updated_at,
+                       d.quality_status
                 FROM reports r
-                JOIN analysis_datasets d ON d.dataset_id = r.dataset_id
+                LEFT JOIN analysis_datasets d ON d.dataset_id = r.dataset_id
                 ORDER BY r.updated_at DESC, r.report_id
                 """
             ).fetchall()
-        entries = []
+        grouped_entries: dict[str, list[dict[str, Any]]] = {
+            "day": [],
+            "week": [],
+            "month": [],
+        }
         for row in rows:
             report = json.loads(row["report_json"])
             meta = report.get("meta") if isinstance(report.get("meta"), dict) else {}
-            entries.append(
+            granularity = str(row["granularity"])
+            period_key = (
+                f"day:{row['start_date']}"
+                if granularity == "day"
+                else f"{granularity}:{row['start_date']}:{row['end_date']}"
+            )
+            grouped_entries[granularity].append(
                 {
                     "report_id": row["report_id"],
                     "dataset_id": row["dataset_id"],
-                    "period": row["report_date"],
-                    "period_key": f"day:{row['report_date']}",
+                    "period": meta.get("period") or row["start_date"],
+                    "period_key": period_key,
+                    "start_date": row["start_date"],
+                    "end_date": row["end_date"],
                     "self_spu": row["self_spu"],
                     "competitor_spu": row["competitor_spu"],
                     "quality_status": row["quality_status"],
@@ -239,13 +300,13 @@ class ReportRepository:
             "schema_version": "2.0",
             "updated_at": updated_at,
             "meta": {},
-            "reports": {"day": entries, "month": [], "week": []},
+            "reports": grouped_entries,
         }
 
     def read_report(self, granularity: str, period_directory: str) -> dict[str, Any]:
-        """兼容按粒度和周期读取最新报告。
+        """按粒度和周期读取最新报告。
 
-        功能说明：日维度按业务日期返回最近更新的报告；周月数据在 MVP 阶段不存在。
+        功能说明：按粒度和起止日期返回最近更新的报告。
         参数 granularity：day、week 或 month。
         参数 period_directory：日期或日期区间。
         返回值：反序列化后的完整报告 JSON。
@@ -255,19 +316,24 @@ class ReportRepository:
             raise ValueError(f"不支持的报告粒度：{granularity}")
         if not PERIOD_DIRECTORY_PATTERN.fullmatch(period_directory):
             raise ValueError(f"报告周期目录格式无效：{period_directory}")
-        if granularity != "day" or "_" in period_directory:
+        if "_" in period_directory:
+            start_date, end_date = period_directory.split("_", 1)
+        else:
+            start_date = end_date = period_directory
+        if granularity == "day" and start_date != end_date:
+            raise FileNotFoundError(period_directory)
+        if granularity in {"week", "month"} and start_date == end_date:
             raise FileNotFoundError(period_directory)
         with self.database.connection() as connection:
             row = connection.execute(
                 """
-                SELECT r.report_json
-                FROM reports r
-                JOIN analysis_datasets d ON d.dataset_id = r.dataset_id
-                WHERE d.report_date = ?
-                ORDER BY r.updated_at DESC, r.report_id
+                SELECT report_json
+                FROM reports
+                WHERE granularity = ? AND start_date = ? AND end_date = ?
+                ORDER BY updated_at DESC, report_id
                 LIMIT 1
                 """,
-                (period_directory,),
+                (granularity, start_date, end_date),
             ).fetchone()
         if row is None:
             raise FileNotFoundError(period_directory)

@@ -187,7 +187,7 @@
 
 DeepSeek 接收后端处理完成的业务数据，输入固定包含：
 
-- `report_date`：分析日期。
+- `period`：分析粒度及 `start_date`、`end_date` 周期范围。
 - `pair`：本品与竞品 SPU 商品对。
 - `self_spu_data`：数仓汇总的本品 SPU 真实指标。
 - `tables.core_metrics`：核心指标处理结果。

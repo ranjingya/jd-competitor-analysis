@@ -70,8 +70,8 @@ class ReportRepositoryTest(unittest.TestCase):
         self.assertEqual(entry["status"], "ready")
         self.assertEqual(entry["quality_status"], "partial")
 
-    def test_legacy_day_lookup_and_invalid_path(self) -> None:
-        """日报可按旧日期路径读取，目录穿越应被拒绝。"""
+    def test_day_lookup_and_invalid_path(self) -> None:
+        """日报可按日期读取，目录穿越应被拒绝。"""
 
         self.repository.upsert(self.dataset_id, {"meta": {"title": "日报"}}, report_id="report-1")
 
@@ -115,6 +115,34 @@ class ReportRepositoryTest(unittest.TestCase):
         self.assertEqual(self.repository.get_record(report_id)["dataset_id"], new_dataset_id)
         self.assertEqual(self.repository.read_index()["reports"]["day"][0]["status"], "pending_ai")
         self.assertEqual(len(self.repository.read_index()["reports"]["day"]), 1)
+
+    def test_week_report_uses_period_without_dataset(self) -> None:
+        """周报应按起止日期保存，且不绑定单个日数据集。"""
+
+        weekly_report = {
+            "meta": {
+                "title": "自然周报告",
+                "granularity": "week",
+                "period_start": "2026-08-17",
+                "period_end": "2026-08-23",
+                "self_spu": "10001",
+                "competitor_spu": "20001",
+            }
+        }
+
+        report_id = self.repository.upsert(None, weekly_report, report_id="report-week")
+        record = self.repository.get_record(report_id)
+        weekly_entry = self.repository.read_index()["reports"]["week"][0]
+
+        self.assertIsNone(record["dataset_id"])
+        self.assertEqual(record["granularity"], "week")
+        self.assertEqual(record["start_date"], "2026-08-17")
+        self.assertEqual(record["end_date"], "2026-08-23")
+        self.assertEqual(weekly_entry["period_key"], "week:2026-08-17:2026-08-23")
+        self.assertEqual(
+            self.repository.read_report("week", "2026-08-17_2026-08-23")["meta"]["title"],
+            "自然周报告",
+        )
 
 
 if __name__ == "__main__":

@@ -139,6 +139,38 @@ class TaskRepositoryTest(unittest.TestCase):
 
         self.assertEqual(self.reports.get_record(self.report_id)["status"], "ai_failed")
 
+    def test_week_report_task_does_not_require_dataset(self) -> None:
+        """周报 AI 执行应仅通过报告关联，并允许数据集 ID 为空。"""
+
+        weekly_report = json.loads(json.dumps(self.base_report))
+        weekly_report["meta"].update(
+            {
+                "granularity": "week",
+                "period_start": "2026-08-10",
+                "period_end": "2026-08-16",
+            }
+        )
+        weekly_report_id = self.reports.upsert(
+            None,
+            weekly_report,
+            report_id="report-week",
+        )
+
+        started = self.repository.start(
+            weekly_report_id,
+            None,
+            "week-hash",
+            {"period": "2026-08-10_2026-08-16"},
+            "deepseek-v4-pro",
+            analysis_id="task-week",
+        )
+        self.repository.complete(started.analysis_id, self.result)
+
+        task = self.repository.list_recent("completed", 20)[0]
+        self.assertIsNone(task["dataset_id"])
+        self.assertEqual(task["granularity"], "week")
+        self.assertEqual(self.reports.get_record(weekly_report_id)["status"], "ready")
+
 
 if __name__ == "__main__":
     unittest.main()
