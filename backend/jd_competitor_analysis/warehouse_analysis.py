@@ -32,8 +32,6 @@ PROFILE_DIMENSION_LABELS = {
     "city": "城市",
     "unknown": "其他",
 }
-AI_EXCLUDED_REPORT_FIELDS = {"tabs", "ai_findings", "ai_recommendations"}
-AI_SOURCE_FILE_FIELDS = ("role", "label", "required_level", "status", "warnings")
 
 
 def _metric_raw(metric: Any) -> Any:
@@ -247,67 +245,31 @@ def analyze_daily_dataset(
     return report
 
 
-def _full_report_facts(report: dict[str, Any]) -> dict[str, Any]:
-    """构建不丢失业务行的完整准真实值分析事实。
-
-    功能说明：复制后端确定性报告的全部分析字段，仅移除页面渲染结构、已有 AI 内容、易变时间和图片地址，并将来源信息收敛为分析状态。
-    参数 report：固定公式生成、尚未合并当前 AI 结果的完整基础报告。
-    返回值：可直接保存为 AI 输入快照的完整分析事实。
-    """
-
-    facts = copy.deepcopy(report)
-    for field in AI_EXCLUDED_REPORT_FIELDS:
-        facts.pop(field, None)
-    meta = facts.get("meta", {})
-    meta.pop("generated_at", None)
-    for product_field in ("self_product", "competitor_product"):
-        product = meta.get(product_field)
-        if isinstance(product, dict):
-            product.pop("image_url", None)
-    facts["source_files"] = [
-        {
-            field: copy.deepcopy(item.get(field))
-            for field in AI_SOURCE_FILE_FIELDS
-            if field in item
-        }
-        for item in facts.get("source_files", [])
-    ]
-    return facts
-
-
 def build_ai_task_payload(
-    dataset_id: str,
     dataset: dict[str, Any],
     report: dict[str, Any],
 ) -> dict[str, Any]:
-    """生成稳定且不包含易变时间的 AI 任务事实。
+    """生成只包含业务分析数据的 AI 输入。
 
-    功能说明：组合数据集标识、质量、SKU 完整性和完整准真实值分析事实，不筛选任何关键词、画像或流量业务行。
-    参数 dataset_id：标准化数据集 ID。
+    功能说明：组合日期、商品对、本品 SPU 汇总值和五张来源表的处理结果，不包含计算审计与页面展示结构。
     参数 dataset：完整标准化日数据集。
     参数 report：固定公式生成的基础报告。
-    返回值：供后端 DeepSeek 分析器读取的只读结构化事实。
+    返回值：供后端 DeepSeek 分析器读取的精简业务数据。
     """
 
     self_product = dataset["self_product"]
-    self_quality = self_product["quality"]
     return {
-        "schema_version": "1.2",
-        "dataset_id": dataset_id,
         "report_date": dataset["report_date"],
-        "pair": dataset["pair"],
-        "data_quality": dataset["quality"],
-        "self_product": {
-            "sku_count": len(self_product["sku_components"]),
-            "quality": {
-                "status": self_quality.get("status"),
-                "mapped_sku_count": self_quality.get("mapped_sku_count"),
-                "warehouse_sku_count": self_quality.get("warehouse_sku_count"),
-                "ready_sku_count": self_quality.get("ready_sku_count"),
-                "missing_sku_count": len(self_quality.get("missing_sku_ids", [])),
-                "partial_sku_count": len(self_quality.get("partial_sku_ids", [])),
-                "issues": copy.deepcopy(self_quality.get("issues", [])),
-            },
+        "pair": copy.deepcopy(dataset["pair"]),
+        "self_spu_data": {
+            "spu_id": dataset["pair"]["self_spu"],
+            "metrics": copy.deepcopy(self_product["spu_daily_metrics"]),
         },
-        "analysis_facts": _full_report_facts(report),
+        "tables": {
+            "core_metrics": copy.deepcopy(report["comparison"]),
+            "traffic_sources": copy.deepcopy(report["traffic_sources"]),
+            "traffic_keywords": copy.deepcopy(report["keywords"]),
+            "customer_profiles": copy.deepcopy(report["customer_profile"]),
+            "promotion": copy.deepcopy(report["promotion"]),
+        },
     }

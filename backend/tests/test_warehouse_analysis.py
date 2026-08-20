@@ -125,23 +125,24 @@ class WarehouseAnalysisTest(unittest.TestCase):
         self.assertIn("缺少关键词数据，关键词 Tab 不完整", report["risks"])
         self.assertIn("缺少客户画像数据，客户画像 Tab 不完整", report["risks"])
 
-    def test_ai_payload_excludes_volatile_generated_time(self) -> None:
-        """AI 输入不应因报告生成时间变化而产生新版本。"""
+    def test_ai_payload_contains_only_self_spu_and_five_tables(self) -> None:
+        """AI 输入只应包含基础标识、本品 SPU 汇总值和五张表。"""
 
         dataset = daily_dataset()
         report = analyze_daily_dataset(dataset, product_images={})
         report["meta"]["generated_at"] = "2026-08-19T10:00:00"
-        first = build_ai_task_payload("dataset-1", dataset, report)
+        first = build_ai_task_payload(dataset, report)
         report["meta"]["generated_at"] = "2026-08-19T11:00:00"
-        second = build_ai_task_payload("dataset-1", dataset, report)
+        second = build_ai_task_payload(dataset, report)
 
         self.assertEqual(first, second)
-        self.assertNotIn("generated_at", first["analysis_facts"]["meta"])
-        self.assertNotIn("deterministic_report", first)
-        self.assertNotIn("sku_components", first["self_product"])
-        self.assertNotIn("tabs", first["analysis_facts"])
-        self.assertIn("self_validation", first["analysis_facts"])
-        self.assertIn("competitor_core_conversions", first["analysis_facts"])
+        self.assertEqual(set(first), {"report_date", "pair", "self_spu_data", "tables"})
+        self.assertEqual(first["self_spu_data"]["spu_id"], "10001")
+        self.assertEqual(first["self_spu_data"]["metrics"], dataset["self_product"]["spu_daily_metrics"])
+        self.assertEqual(
+            set(first["tables"]),
+            {"core_metrics", "traffic_sources", "traffic_keywords", "customer_profiles", "promotion"},
+        )
 
     def test_ai_payload_keeps_all_business_rows_and_removes_display_fields(self) -> None:
         """AI 输入应保留全部业务行，并排除图片和页面重复结构。"""
@@ -179,13 +180,13 @@ class WarehouseAnalysisTest(unittest.TestCase):
             "notes": [],
         }
 
-        payload = build_ai_task_payload("dataset-1", dataset, report)
-        facts = payload["analysis_facts"]
+        payload = build_ai_task_payload(dataset, report)
+        tables = payload["tables"]
 
-        self.assertEqual(len(facts["keywords"]["rows"]), 120)
-        self.assertEqual(len(facts["customer_profile"]["dimensions"][0]["items"]), 80)
-        self.assertNotIn("tabs", facts)
-        self.assertNotIn("image_url", facts["meta"]["self_product"])
+        self.assertEqual(len(tables["traffic_keywords"]["rows"]), 120)
+        self.assertEqual(len(tables["customer_profiles"]["dimensions"][0]["items"]), 80)
+        self.assertNotIn("tabs", str(payload))
+        self.assertNotIn("image_url", str(payload))
         self.assertNotIn("barcode_69", str(payload))
         self.assertNotIn("sku_id", str(payload))
 

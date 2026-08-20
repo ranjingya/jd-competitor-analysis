@@ -65,7 +65,7 @@ ON analysis_datasets(report_date, self_spu, competitor_spu, created_at);
 | `report_id` | TEXT | NOT NULL, FOREIGN KEY | 任务最终更新的唯一报告。 |
 | `dataset_id` | TEXT | NOT NULL, FOREIGN KEY | 任务所属标准化数据集。 |
 | `source_hash` | TEXT | NOT NULL | AI 输入内容版本哈希，用于判断当前任务是否需要替换。 |
-| `payload_json` | TEXT | NOT NULL | 交给 AI 的确定性分析事实和风险说明。 |
+| `payload_json` | TEXT | NOT NULL | 交给 AI 的本品 SPU 汇总值和五张来源表处理结果。 |
 | `result_json` | TEXT | NULL | AI 回传的总结、发现和建议。 |
 | `model` | TEXT | NOT NULL | 本次执行使用的模型标识。 |
 | `status` | TEXT | NOT NULL | `processing`、`completed`、`failed` 或 `expired`。 |
@@ -76,6 +76,8 @@ ON analysis_datasets(report_date, self_spu, competitor_spu, created_at);
 | `completed_at` | TEXT | NULL | AI 分析完成时间。 |
 
 `source_hash` 根据 AI 实际输入计算。已完成且输入不变时直接复用结果；失败或中断的相同输入在下次运行时重试；输入发生变化时，当前记录标记为 `expired`，然后创建新的 `processing` 记录。历史记录继续保留，但同一 `report_id` 只能有一条非 `expired` 记录。
+
+`payload_json` 固定包含 `report_date`、`pair`、`self_spu_data` 和 `tables`。`tables` 下包含 `core_metrics`、`traffic_sources`、`traffic_keywords`、`customer_profiles` 和 `promotion`；完整数据集、计算审计和页面展示结构由其他两张表保存。
 
 索引：
 

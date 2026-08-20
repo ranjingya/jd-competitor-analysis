@@ -123,7 +123,7 @@ def process_daily_pair(
 
     report = analyze_daily_dataset(dataset, title=title, product_images=product_images)
     report_id = persist_base_report(report_repository, dataset_id, report)
-    task_payload = build_ai_task_payload(dataset_id, dataset, report)
+    task_payload = build_ai_task_payload(dataset, report)
     start_result = start_ai_analysis(
         task_repository,
         report_id,
