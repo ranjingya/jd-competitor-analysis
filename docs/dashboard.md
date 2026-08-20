@@ -35,6 +35,14 @@ Vite 把 `/api` 转发到本地 Backend。生产环境中，同一路径由 Ngin
 }
 ```
 
+报告也可按周期范围读取：
+
+```text
+GET /api/reports/{granularity}/{start_date}/{end_date}
+```
+
+日报的 `start_date` 与 `end_date` 相同；自然周的日期范围为周一至周日。本品 SPU 的 SKU 组成通过 `GET /api/reports/{report_id}/skus` 获取，每项包含 `spu_id`、`sku_id`、`barcode_69`、`product_name` 和 `specification`。
+
 ## 展示约束
 
 1. 本品值标记为真实值，竞品值标记为估算值。

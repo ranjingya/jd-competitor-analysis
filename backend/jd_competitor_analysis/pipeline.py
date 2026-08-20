@@ -113,18 +113,16 @@ def _report_entry(result: dict[str, Any]) -> dict[str, Any]:
     """从单周期分析结果生成轻量索引条目。"""
 
     meta = result["meta"]
-    period_file = period_directory_name(
-        meta["granularity"],
-        meta["period_start"],
-        meta["period_end"],
-    )
     return {
         "period": meta["period"],
         "period_start": meta["period_start"],
         "period_end": meta["period_end"],
         "period_key": meta["period_key"],
         "generated_at": meta["generated_at"],
-        "path": f"/api/reports/{meta['granularity']}/{period_file}",
+        "path": (
+            f"/api/reports/{meta['granularity']}/"
+            f"{meta['period_start']}/{meta['period_end']}"
+        ),
     }
 
 

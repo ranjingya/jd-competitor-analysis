@@ -35,10 +35,11 @@ FastAPI 和 CLI 是 Backend 容器中的独立进程，共享 `/app/data/backend
 ```text
 GET  /api/reports
 GET  /api/reports/{report_id}
-GET  /api/reports/{granularity}/{period}
+GET  /api/reports/{report_id}/skus
+GET  /api/reports/{granularity}/{start_date}/{end_date}
 ```
 
-报告 API 只读取 Backend 数据库。AI 执行记录由 CLI 直接管理，不对外提供领取、完成或失败接口。
+周期报告接口使用数据库中的 `start_date` 和 `end_date` 精确定位报告；日报的两个日期相同。SKU 接口返回生成报告时保存的数据集快照，周报和月报按来源日报合并并去重。报告 API 只读取 Backend 数据库。AI 执行记录由 CLI 直接管理，不对外提供领取、完成或失败接口。
 
 ## 持久化
 

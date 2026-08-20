@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import json
 import logging
-import re
 import sqlite3
 import uuid
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -16,7 +16,6 @@ from ..database import Database, utc_now_text
 LOGGER = logging.getLogger(__name__)
 REPORT_STATUSES = {"pending_ai", "ready", "ai_failed"}
 GRANULARITIES = {"day", "week", "month"}
-PERIOD_DIRECTORY_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}(?:_\d{4}-\d{2}-\d{2})?$")
 
 
 class ReportRepository:
@@ -245,6 +244,88 @@ class ReportRepository:
             "report": json.loads(row["report_json"]),
         }
 
+    def get_skus(self, report_id: str) -> dict[str, Any]:
+        """读取生成指定报告时使用的本品 SKU 构成。
+
+        功能说明：日报读取直接关联的数据集快照；周报和月报合并来源日报的数据集快照，并按 SPU/SKU 去重。
+        参数 report_id：报告 ID。
+        返回值：包含周期、本品 SPU 和五字段 SKU 列表的对象。
+        """
+
+        with self.database.connection() as connection:
+            report_row = connection.execute(
+                "SELECT * FROM reports WHERE report_id = ?",
+                (report_id,),
+            ).fetchone()
+            if report_row is None:
+                raise FileNotFoundError(report_id)
+            dataset_rows = []
+            if report_row["dataset_id"] is not None:
+                dataset_row = connection.execute(
+                    "SELECT dataset_id, payload_json FROM analysis_datasets WHERE dataset_id = ?",
+                    (report_row["dataset_id"],),
+                ).fetchone()
+                if dataset_row is not None:
+                    dataset_rows.append(dataset_row)
+            else:
+                report = json.loads(report_row["report_json"])
+                meta = report.get("meta") if isinstance(report.get("meta"), dict) else {}
+                raw_source_report_ids = meta.get("source_report_ids", [])
+                source_report_ids = (
+                    [
+                        str(item)
+                        for item in raw_source_report_ids
+                        if str(item).strip()
+                    ]
+                    if isinstance(raw_source_report_ids, list)
+                    else []
+                )
+                if source_report_ids:
+                    placeholders = ",".join("?" for _ in source_report_ids)
+                    dataset_rows = connection.execute(
+                        f"""
+                        SELECT dataset.dataset_id, dataset.payload_json
+                        FROM reports AS report
+                        JOIN analysis_datasets AS dataset ON dataset.dataset_id = report.dataset_id
+                        WHERE report.report_id IN ({placeholders})
+                        ORDER BY report.start_date, report.report_id
+                        """,
+                        source_report_ids,
+                    ).fetchall()
+
+        components: dict[tuple[str, str], dict[str, Any]] = {}
+        source_dataset_ids: list[str] = []
+        for dataset_row in dataset_rows:
+            source_dataset_ids.append(str(dataset_row["dataset_id"]))
+            payload = json.loads(dataset_row["payload_json"])
+            raw_components = payload.get("self_product", {}).get("sku_components", [])
+            for item in raw_components:
+                if not isinstance(item, dict):
+                    continue
+                component = {
+                    "spu_id": item.get("spu_id"),
+                    "sku_id": item.get("sku_id"),
+                    "barcode_69": item.get("barcode_69"),
+                    "product_name": item.get("product_name"),
+                    "specification": item.get("specification"),
+                }
+                key = (str(component["spu_id"] or ""), str(component["sku_id"] or ""))
+                if all(key):
+                    components[key] = component
+
+        items = list(components.values())
+        return {
+            "report_id": str(report_row["report_id"]),
+            "dataset_id": report_row["dataset_id"],
+            "source_dataset_ids": source_dataset_ids,
+            "granularity": str(report_row["granularity"]),
+            "start_date": str(report_row["start_date"]),
+            "end_date": str(report_row["end_date"]),
+            "spu_id": str(report_row["self_spu"]),
+            "sku_count": len(items),
+            "items": items,
+        }
+
     def read_index(self) -> dict[str, Any]:
         """生成与当前 Web 兼容的报告索引。
 
@@ -303,27 +384,34 @@ class ReportRepository:
             "reports": grouped_entries,
         }
 
-    def read_report(self, granularity: str, period_directory: str) -> dict[str, Any]:
+    def read_report(
+        self,
+        granularity: str,
+        start_date: str,
+        end_date: str,
+    ) -> dict[str, Any]:
         """按粒度和周期读取最新报告。
 
         功能说明：按粒度和起止日期返回最近更新的报告。
         参数 granularity：day、week 或 month。
-        参数 period_directory：日期或日期区间。
+        参数 start_date：周期开始日期。
+        参数 end_date：周期结束日期。
         返回值：反序列化后的完整报告 JSON。
         """
 
         if granularity not in GRANULARITIES:
             raise ValueError(f"不支持的报告粒度：{granularity}")
-        if not PERIOD_DIRECTORY_PATTERN.fullmatch(period_directory):
-            raise ValueError(f"报告周期目录格式无效：{period_directory}")
-        if "_" in period_directory:
-            start_date, end_date = period_directory.split("_", 1)
-        else:
-            start_date = end_date = period_directory
+        try:
+            parsed_start = date.fromisoformat(start_date)
+            parsed_end = date.fromisoformat(end_date)
+        except ValueError as error:
+            raise ValueError("报告日期格式必须为 YYYY-MM-DD") from error
+        if parsed_start > parsed_end:
+            raise ValueError("报告开始日期不能晚于结束日期")
         if granularity == "day" and start_date != end_date:
-            raise FileNotFoundError(period_directory)
+            raise ValueError("日报的 start_date 和 end_date 必须相同")
         if granularity in {"week", "month"} and start_date == end_date:
-            raise FileNotFoundError(period_directory)
+            raise ValueError("周报和月报必须提供完整日期范围")
         with self.database.connection() as connection:
             row = connection.execute(
                 """
@@ -336,5 +424,5 @@ class ReportRepository:
                 (granularity, start_date, end_date),
             ).fetchone()
         if row is None:
-            raise FileNotFoundError(period_directory)
+            raise FileNotFoundError(f"{granularity}:{start_date}:{end_date}")
         return json.loads(row["report_json"])

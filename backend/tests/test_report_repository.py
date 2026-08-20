@@ -11,7 +11,7 @@ from app.repositories.report_repository import ReportRepository
 
 
 class ReportRepositoryTest(unittest.TestCase):
-    """验证报告写入、更新、索引和兼容读取。"""
+    """验证报告写入、更新、索引和周期读取。"""
 
     def setUp(self) -> None:
         """创建统一数据库和一份标准化数据集。"""
@@ -27,6 +27,17 @@ class ReportRepositoryTest(unittest.TestCase):
                     "compare_number": "10001+20001",
                     "self_spu": "10001",
                     "competitor_spu": "20001",
+                },
+                "self_product": {
+                    "sku_components": [
+                        {
+                            "spu_id": "10001",
+                            "sku_id": "30001",
+                            "barcode_69": "69001",
+                            "product_name": "测试商品",
+                            "specification": "蓝色",
+                        }
+                    ]
                 },
                 "quality": {"status": "partial"},
             },
@@ -71,16 +82,38 @@ class ReportRepositoryTest(unittest.TestCase):
         self.assertEqual(entry["quality_status"], "partial")
 
     def test_day_lookup_and_invalid_path(self) -> None:
-        """日报可按日期读取，目录穿越应被拒绝。"""
+        """日报可按起止日期读取，无效日期应被拒绝。"""
 
         self.repository.upsert(self.dataset_id, {"meta": {"title": "日报"}}, report_id="report-1")
 
         self.assertEqual(
-            self.repository.read_report("day", "2026-08-17")["meta"]["title"],
+            self.repository.read_report("day", "2026-08-17", "2026-08-17")["meta"]["title"],
             "日报",
         )
-        with self.assertRaisesRegex(ValueError, "格式无效"):
-            self.repository.read_report("day", "../../.env")
+        with self.assertRaisesRegex(ValueError, "日期格式"):
+            self.repository.read_report("day", "../../.env", "2026-08-17")
+        with self.assertRaisesRegex(ValueError, "必须相同"):
+            self.repository.read_report("day", "2026-08-17", "2026-08-18")
+
+    def test_report_skus_come_from_dataset_snapshot(self) -> None:
+        """日报 SKU 接口数据应来自生成报告时的数据集快照。"""
+
+        self.repository.upsert(self.dataset_id, {"meta": {"title": "日报"}}, report_id="report-1")
+
+        result = self.repository.get_skus("report-1")
+
+        self.assertEqual(result["spu_id"], "10001")
+        self.assertEqual(result["sku_count"], 1)
+        self.assertEqual(
+            result["items"][0],
+            {
+                "spu_id": "10001",
+                "sku_id": "30001",
+                "barcode_69": "69001",
+                "product_name": "测试商品",
+                "specification": "蓝色",
+            },
+        )
 
     def test_new_dataset_version_updates_same_business_report(self) -> None:
         """同一日期商品对的新数据版本应更新原报告，不新增第二份报告。"""
@@ -119,6 +152,11 @@ class ReportRepositoryTest(unittest.TestCase):
     def test_week_report_uses_period_without_dataset(self) -> None:
         """周报应按起止日期保存，且不绑定单个日数据集。"""
 
+        self.repository.upsert(
+            self.dataset_id,
+            {"meta": {"title": "日报"}},
+            report_id="report-day",
+        )
         weekly_report = {
             "meta": {
                 "title": "自然周报告",
@@ -127,6 +165,7 @@ class ReportRepositoryTest(unittest.TestCase):
                 "period_end": "2026-08-23",
                 "self_spu": "10001",
                 "competitor_spu": "20001",
+                "source_report_ids": ["report-day"],
             }
         }
 
@@ -140,9 +179,10 @@ class ReportRepositoryTest(unittest.TestCase):
         self.assertEqual(record["end_date"], "2026-08-23")
         self.assertEqual(weekly_entry["period_key"], "week:2026-08-17:2026-08-23")
         self.assertEqual(
-            self.repository.read_report("week", "2026-08-17_2026-08-23")["meta"]["title"],
+            self.repository.read_report("week", "2026-08-17", "2026-08-23")["meta"]["title"],
             "自然周报告",
         )
+        self.assertEqual(self.repository.get_skus(report_id)["sku_count"], 1)
 
 
 if __name__ == "__main__":

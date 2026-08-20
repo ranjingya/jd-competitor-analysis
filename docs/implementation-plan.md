@@ -130,7 +130,8 @@ updated_at
 
 - [x] `GET /api/reports` 从数据库返回报告列表。
 - [x] `GET /api/reports/{report_id}` 返回完整报告。
-- [ ] 提供 SPU 组成 SKU 的只读接口。
+- [x] `GET /api/reports/{granularity}/{start_date}/{end_date}` 按数据库周期字段返回完整报告。
+- [x] `GET /api/reports/{report_id}/skus` 返回生成报告时的本品 SKU 构成快照。
 - [x] Web 从 API 获取列表和报告详情。
 - [x] Web 不再读取 `report-index.json` 和 `analysis_result.json`。
 
