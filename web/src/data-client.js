@@ -1,4 +1,5 @@
 const reportCache = new Map();
+const reportSkuCache = new Map();
 
 async function readJson(url) {
   const response = await fetch(url, { cache: "no-store" });
@@ -56,4 +57,22 @@ export async function loadReport(entry) {
   const report = await readJson(entry.path);
   reportCache.set(cacheKey, report);
   return report;
+}
+
+/**
+ * 功能说明：读取指定报告生成时保存的本品 SKU 构成快照。
+ * 参数 entry：包含 `report_id` 的报告索引条目。
+ * 返回值：包含五字段 SKU 列表和报告周期的对象。
+ */
+export async function loadReportSkus(entry) {
+  const reportId = String(entry?.report_id || "").trim();
+  if (!reportId) {
+    throw new Error("报告缺少 report_id，无法读取 SKU 构成");
+  }
+  if (reportSkuCache.has(reportId)) {
+    return reportSkuCache.get(reportId);
+  }
+  const data = await readJson(`/api/reports/${encodeURIComponent(reportId)}/skus`);
+  reportSkuCache.set(reportId, data);
+  return data;
 }

@@ -57,12 +57,26 @@ class ReportRepositoryTest(unittest.TestCase):
         self.assertEqual(self.repository.read_index()["reports"]["day"], [])
         report_id = self.repository.upsert(
             self.dataset_id,
-            {"meta": {"title": "日报", "summary": "基础报告"}},
+            {
+                "meta": {
+                    "title": "日报",
+                    "summary": "基础报告",
+                    "self_product": {"name": "本品名称"},
+                    "competitor_product": {"name": "竞品名称"},
+                }
+            },
             report_id="report-1",
         )
         repeated_id = self.repository.upsert(
             self.dataset_id,
-            {"meta": {"title": "日报", "summary": "AI 已完成"}},
+            {
+                "meta": {
+                    "title": "日报",
+                    "summary": "AI 已完成",
+                    "self_product": {"name": "本品名称"},
+                    "competitor_product": {"name": "竞品名称"},
+                }
+            },
             status="ready",
             report_id="report-other",
         )
@@ -80,6 +94,8 @@ class ReportRepositoryTest(unittest.TestCase):
         self.assertEqual(entry["path"], "/api/reports/report-1")
         self.assertEqual(entry["status"], "ready")
         self.assertEqual(entry["quality_status"], "partial")
+        self.assertEqual(entry["self_name"], "本品名称")
+        self.assertEqual(entry["competitor_name"], "竞品名称")
 
     def test_day_lookup_and_invalid_path(self) -> None:
         """日报可按起止日期读取，无效日期应被拒绝。"""

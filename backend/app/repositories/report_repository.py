@@ -352,6 +352,16 @@ class ReportRepository:
         for row in rows:
             report = json.loads(row["report_json"])
             meta = report.get("meta") if isinstance(report.get("meta"), dict) else {}
+            self_product = (
+                meta.get("self_product")
+                if isinstance(meta.get("self_product"), dict)
+                else {}
+            )
+            competitor_product = (
+                meta.get("competitor_product")
+                if isinstance(meta.get("competitor_product"), dict)
+                else {}
+            )
             granularity = str(row["granularity"])
             period_key = (
                 f"day:{row['start_date']}"
@@ -368,6 +378,10 @@ class ReportRepository:
                     "end_date": row["end_date"],
                     "self_spu": row["self_spu"],
                     "competitor_spu": row["competitor_spu"],
+                    "self_name": self_product.get("name") or meta.get("self_name"),
+                    "competitor_name": (
+                        competitor_product.get("name") or meta.get("competitor_name")
+                    ),
                     "quality_status": row["quality_status"],
                     "status": row["status"],
                     "title": meta.get("title"),

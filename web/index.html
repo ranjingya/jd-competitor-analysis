@@ -22,7 +22,21 @@
           <p class="meta" id="meta">正在读取报告索引</p>
           <div class="product-comparison" id="product-comparison" aria-label="本品与竞品商品信息"></div>
         </div>
-        <div class="period-control" id="period-picker"></div>
+        <div class="report-controls">
+          <label class="pair-control" for="pair-select">
+            <span>商品对</span>
+            <span class="select-shell">
+              <select id="pair-select" disabled>
+                <option>正在读取商品对</option>
+              </select>
+            </span>
+          </label>
+          <div class="period-control" id="period-picker"></div>
+          <div class="sku-control">
+            <span>本品组成</span>
+            <button id="sku-trigger" type="button" disabled>查看 SKU</button>
+          </div>
+        </div>
       </section>
     </header>
 
@@ -70,6 +84,24 @@
       <footer class="footnote" id="risks">-</footer>
     </div>
   </main>
+
+  <dialog class="sku-dialog" id="sku-dialog" aria-labelledby="sku-dialog-title">
+    <header class="sku-dialog-header">
+      <div>
+        <h2 id="sku-dialog-title">本品 SKU 构成</h2>
+        <p id="sku-dialog-meta">-</p>
+      </div>
+      <form method="dialog">
+        <button class="sku-dialog-close" type="submit" aria-label="关闭 SKU 构成">×</button>
+      </form>
+    </header>
+    <div class="sku-dialog-body" id="sku-dialog-body"></div>
+    <footer class="sku-dialog-footer">
+      <form method="dialog">
+        <button class="sku-dialog-done" type="submit">关闭</button>
+      </form>
+    </footer>
+  </dialog>
 
   <script type="module" src="/src/main.js"></script>
 </body>

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { loadReport, normalizeReportIndex } from "../src/data-client.js";
+import { loadReport, loadReportSkus, normalizeReportIndex } from "../src/data-client.js";
 
 
 test("报告索引按 start_date 和 end_date 由旧到新排列", () => {
@@ -69,6 +69,32 @@ test("相同周期的不同报告使用 report_id 独立缓存", async () => {
       "/api/reports/cache-report-a",
       "/api/reports/cache-report-b"
     ]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("SKU 构成按 report_id 请求并缓存", async () => {
+  const originalFetch = globalThis.fetch;
+  const requestedUrls = [];
+  globalThis.fetch = async (url) => {
+    requestedUrls.push(url);
+    return {
+      ok: true,
+      async json() {
+        return { report_id: "sku-report", sku_count: 18, items: [] };
+      }
+    };
+  };
+
+  try {
+    const entry = { report_id: "sku-report" };
+    const first = await loadReportSkus(entry);
+    const second = await loadReportSkus(entry);
+
+    assert.equal(first.sku_count, 18);
+    assert.equal(second, first);
+    assert.deepEqual(requestedUrls, ["/api/reports/sku-report/skus"]);
   } finally {
     globalThis.fetch = originalFetch;
   }
