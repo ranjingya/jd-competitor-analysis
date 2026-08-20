@@ -198,7 +198,7 @@ h1 {
   padding: 14px 16px;
   border-left: 1px solid var(--line);
   border-radius: 0 11px 11px 0;
-  background: rgba(247, 244, 237, 0.72);
+  background: var(--panel);
 }
 
 .sku-control {
