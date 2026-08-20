@@ -379,9 +379,11 @@ class ReportRepository:
                     "self_spu": row["self_spu"],
                     "competitor_spu": row["competitor_spu"],
                     "self_name": self_product.get("name") or meta.get("self_name"),
+                    "self_image_url": self_product.get("image_url"),
                     "competitor_name": (
                         competitor_product.get("name") or meta.get("competitor_name")
                     ),
+                    "competitor_image_url": competitor_product.get("image_url"),
                     "quality_status": row["quality_status"],
                     "status": row["status"],
                     "title": meta.get("title"),

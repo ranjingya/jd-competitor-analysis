@@ -18,19 +18,23 @@
         <span id="updated-at">等待数据</span>
       </div>
       <section class="report-toolbar" aria-label="报告信息与分析周期">
-        <div class="report-product-info">
-          <p class="meta" id="meta">正在读取报告索引</p>
-          <div class="product-comparison" id="product-comparison" aria-label="本品与竞品商品信息"></div>
+        <div class="pair-picker" id="pair-picker">
+          <div class="pair-panel">
+            <button class="pair-panel-trigger" id="pair-trigger" type="button" aria-expanded="false" aria-controls="pair-popover" aria-label="切换商品对">
+              <span class="visually-hidden">切换商品对</span>
+            </button>
+            <header class="pair-panel-heading">
+              <strong>当前商品对</strong>
+              <span class="pair-panel-period">
+                <span class="meta" id="meta">正在读取报告索引</span>
+                <span class="pair-panel-chevron" aria-hidden="true"></span>
+              </span>
+            </header>
+            <div class="product-comparison" id="product-comparison" aria-label="本品与竞品商品信息"></div>
+            <div class="pair-popover" id="pair-popover" role="listbox" aria-label="选择商品对" hidden></div>
+          </div>
         </div>
         <div class="report-controls">
-          <label class="pair-control" for="pair-select">
-            <span>商品对</span>
-            <span class="select-shell">
-              <select id="pair-select" disabled>
-                <option>正在读取商品对</option>
-              </select>
-            </span>
-          </label>
           <div class="period-control" id="period-picker"></div>
           <div class="sku-control">
             <span>本品组成</span>

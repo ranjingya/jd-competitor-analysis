@@ -28,8 +28,14 @@ export function reportPairs(index) {
         selfSpu: String(entry.self_spu),
         competitorSpu: String(entry.competitor_spu),
         selfName: String(entry.self_name || existing?.selfName || "").trim(),
+        selfImageUrl: String(
+          entry.self_image_url || existing?.selfImageUrl || ""
+        ).trim(),
         competitorName: String(
           entry.competitor_name || existing?.competitorName || ""
+        ).trim(),
+        competitorImageUrl: String(
+          entry.competitor_image_url || existing?.competitorImageUrl || ""
         ).trim()
       });
     }

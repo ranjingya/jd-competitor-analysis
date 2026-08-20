@@ -73,8 +73,14 @@ class ReportRepositoryTest(unittest.TestCase):
                 "meta": {
                     "title": "日报",
                     "summary": "AI 已完成",
-                    "self_product": {"name": "本品名称"},
-                    "competitor_product": {"name": "竞品名称"},
+                    "self_product": {
+                        "name": "本品名称",
+                        "image_url": "https://example.com/self.jpg",
+                    },
+                    "competitor_product": {
+                        "name": "竞品名称",
+                        "image_url": "https://example.com/competitor.jpg",
+                    },
                 }
             },
             status="ready",
@@ -96,6 +102,8 @@ class ReportRepositoryTest(unittest.TestCase):
         self.assertEqual(entry["quality_status"], "partial")
         self.assertEqual(entry["self_name"], "本品名称")
         self.assertEqual(entry["competitor_name"], "竞品名称")
+        self.assertEqual(entry["self_image_url"], "https://example.com/self.jpg")
+        self.assertEqual(entry["competitor_image_url"], "https://example.com/competitor.jpg")
 
     def test_day_lookup_and_invalid_path(self) -> None:
         """日报可按起止日期读取，无效日期应被拒绝。"""

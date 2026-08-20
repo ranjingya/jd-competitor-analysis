@@ -18,7 +18,9 @@ const index = {
         self_spu: "10001",
         competitor_spu: "20001",
         self_name: "本品一",
-        competitor_name: "竞品一"
+        competitor_name: "竞品一",
+        self_image_url: "https://example.com/self-a.jpg",
+        competitor_image_url: "https://example.com/competitor-a.jpg"
       },
       {
         report_id: "report-b-new",
@@ -44,6 +46,8 @@ test("商品对从三个粒度去重，并默认选择最新日报所属商品�
 
   assert.deepEqual(pairs.map((pair) => pair.key), ["10001::20001", "10002::20002"]);
   assert.equal(pairs[0].selfName, "本品一");
+  assert.equal(pairs[0].selfImageUrl, "https://example.com/self-a.jpg");
+  assert.equal(pairs[0].competitorImageUrl, "https://example.com/competitor-a.jpg");
   assert.equal(defaultPairKey(index), "10002::20002");
 });
 

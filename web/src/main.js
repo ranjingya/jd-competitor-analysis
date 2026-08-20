@@ -1,5 +1,6 @@
 import { renderDashboard, renderTrendChart, showPageState, showTrendState } from "./dashboard.js";
 import { loadReport, loadReportIndex } from "./data-client.js";
+import { closePairPicker, renderPairPicker } from "./pair-picker.js";
 import { closePeriodPicker, renderPeriodPicker } from "./period-picker.js";
 import {
   defaultPairKey,
@@ -34,42 +35,38 @@ const periodPickerState = {
   draftGranularity: null
 };
 
+const pairPickerState = {
+  open: false
+};
+
 function reportsFor(granularity) {
   return reportsForPair(state.index, granularity, state.activePairKey);
 }
 
-function pairLabel(pair) {
-  const selfLabel = pair.selfName
-    ? `${pair.selfName}（${pair.selfSpu}）`
-    : `本品 ${pair.selfSpu}`;
-  const competitorLabel = pair.competitorName
-    ? `${pair.competitorName}（${pair.competitorSpu}）`
-    : `竞品 ${pair.competitorSpu}`;
-  return `${selfLabel} vs ${competitorLabel}`;
-}
-
 /**
- * 功能说明：渲染商品对原生选择框，并在切换后选择该商品对的最新报告。
+ * 功能说明：渲染带商品图的商品对选择器，并在切换后选择该商品对的最新报告。
  * 参数：无；读取当前报告索引和 activePairKey。
- * 返回值：无；直接更新商品对选择框并绑定 change 事件。
+ * 返回值：无；直接更新商品对下拉框并绑定切换事件。
  */
 function renderPairSelector() {
-  const select = document.querySelector("#pair-select");
   const pairs = reportPairs(state.index);
-  select.replaceChildren(...pairs.map((pair) => {
-    const option = document.createElement("option");
-    option.value = pair.key;
-    option.textContent = pairLabel(pair);
-    option.title = option.textContent;
-    return option;
-  }));
-  select.value = state.activePairKey;
-  select.disabled = pairs.length <= 1;
-  select.onchange = () => {
-    state.activePairKey = select.value;
-    selectReportsForActivePair();
-    selectActiveReport();
-  };
+  renderPairPicker({
+    container: document.querySelector("#pair-picker"),
+    pairs,
+    activePairKey: state.activePairKey,
+    pickerState: pairPickerState,
+    onBeforeOpen() {
+      closePeriodPicker(document.querySelector("#period-picker"), periodPickerState);
+    },
+    onPairChange(pairKey) {
+      if (pairKey === state.activePairKey) {
+        return;
+      }
+      state.activePairKey = pairKey;
+      selectReportsForActivePair();
+      selectActiveReport();
+    }
+  });
 }
 
 /**
@@ -128,6 +125,23 @@ function bindPeriodPickerDismissal() {
     if (event.key !== "Escape" || !periodPickerState.open) return;
     closePeriodPicker(document.querySelector("#period-picker"), periodPickerState);
     document.querySelector("#period-trigger")?.focus();
+  });
+}
+
+function bindPairPickerDismissal() {
+  document.addEventListener("click", (event) => {
+    const container = document.querySelector("#pair-picker");
+    const eventPath = typeof event.composedPath === "function" ? event.composedPath() : [];
+    if (!pairPickerState.open || !container || container.contains(event.target) || eventPath.includes(container)) {
+      return;
+    }
+    closePairPicker(container, pairPickerState);
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || !pairPickerState.open) {
+      return;
+    }
+    closePairPicker(document.querySelector("#pair-picker"), pairPickerState, true);
   });
 }
 
@@ -231,6 +245,7 @@ async function initialize() {
       : "暂无分析结果";
     renderControls();
     bindPeriodPickerDismissal();
+    bindPairPickerDismissal();
     bindSkuDialog(
       document.querySelector("#sku-trigger"),
       document.querySelector("#sku-dialog"),
