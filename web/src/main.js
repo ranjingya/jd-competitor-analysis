@@ -13,7 +13,7 @@ const state = {
   activeGranularity: "day",
   activeMetricId: "gmv",
   currentEntry: null,
-  selectedPeriods: {},
+  selectedReportIds: {},
   trendRequestId: 0
 };
 
@@ -32,16 +32,21 @@ function reportsFor(granularity) {
 function renderControls() {
   const reports = reportsFor(state.activeGranularity);
   const latest = reports.at(-1);
-  const selectedKey = state.selectedPeriods[state.activeGranularity] || latest?.period_key || "";
+  const selectedReportId = state.selectedReportIds[state.activeGranularity]
+    || latest?.report_id
+    || "";
   renderPeriodPicker({
     container: document.querySelector("#period-picker"),
     index: state.index,
     activeGranularity: state.activeGranularity,
-    selectedPeriods: { ...state.selectedPeriods, [state.activeGranularity]: selectedKey },
+    selectedReportIds: {
+      ...state.selectedReportIds,
+      [state.activeGranularity]: selectedReportId
+    },
     pickerState: periodPickerState,
-    onPeriodChange(granularity, periodKey) {
+    onReportChange(granularity, reportId) {
       state.activeGranularity = granularity;
-      state.selectedPeriods[granularity] = periodKey;
+      state.selectedReportIds[granularity] = reportId;
       selectActiveReport();
     }
   });
@@ -68,18 +73,18 @@ function bindPeriodPickerDismissal() {
  */
 function trendEntriesFor(entry) {
   const reports = [...reportsFor(state.activeGranularity)].sort((left, right) =>
-    String(left.period_start || "").localeCompare(String(right.period_start || ""))
+    String(left.start_date || "").localeCompare(String(right.start_date || ""))
   );
   if (state.activeGranularity === "day") {
-    const selectedIndex = Math.max(0, reports.findIndex((item) => item.period_key === entry.period_key));
+    const selectedIndex = Math.max(0, reports.findIndex((item) => item.report_id === entry.report_id));
     const windowSize = 7;
     const centeredStart = selectedIndex - Math.floor(windowSize / 2);
     const start = Math.min(Math.max(0, centeredStart), Math.max(0, reports.length - windowSize));
     return reports.slice(start, start + windowSize);
   }
   if (state.activeGranularity === "week") {
-    const selectedMonth = String(entry.period_start || "").slice(0, 7);
-    return reports.filter((item) => String(item.period_start || "").startsWith(selectedMonth));
+    const selectedMonth = String(entry.start_date || "").slice(0, 7);
+    return reports.filter((item) => String(item.start_date || "").startsWith(selectedMonth));
   }
   return reports;
 }
@@ -99,7 +104,7 @@ async function renderActiveTrend(entry) {
     if (requestId !== state.trendRequestId) {
       return;
     }
-    renderTrendChart(reports, state.activeMetricId, state.activeGranularity, entry.period_start);
+    renderTrendChart(reports, state.activeMetricId, state.activeGranularity, entry.start_date);
   } catch (error) {
     console.error("趋势数据加载失败", error);
     if (requestId === state.trendRequestId) {
@@ -116,10 +121,11 @@ async function selectActiveReport() {
     showTrendState("当前粒度暂无趋势数据");
     return;
   }
-  const selectedKey = state.selectedPeriods[state.activeGranularity] || reports.at(-1).period_key;
-  const entry = reports.find((item) => item.period_key === selectedKey) || reports.at(-1);
+  const selectedReportId = state.selectedReportIds[state.activeGranularity]
+    || reports.at(-1).report_id;
+  const entry = reports.find((item) => item.report_id === selectedReportId) || reports.at(-1);
   state.currentEntry = entry;
-  state.selectedPeriods[state.activeGranularity] = entry.period_key;
+  state.selectedReportIds[state.activeGranularity] = entry.report_id;
   renderControls();
   showPageState(`正在加载${entry.period}报告`);
   try {
@@ -151,7 +157,7 @@ async function initialize() {
     for (const granularity of Object.keys(granularityLabels)) {
       const latest = reportsFor(granularity).at(-1);
       if (latest) {
-        state.selectedPeriods[granularity] = latest.period_key;
+        state.selectedReportIds[granularity] = latest.report_id;
       }
     }
     document.querySelector("#updated-at").textContent = state.index.updated_at

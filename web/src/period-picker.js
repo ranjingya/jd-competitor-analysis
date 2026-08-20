@@ -34,15 +34,15 @@ function formatWeekRange(start, end) {
 
 function formatPeriodLabel(granularity, entry) {
   if (!entry) return "暂无可用报告";
-  if (granularity === "day") return formatDayLabel(entry.period_start);
-  if (granularity === "week") return formatWeekRange(entry.period_start, entry.period_end);
-  const { year, month } = dateParts(entry.period_start);
+  if (granularity === "day") return formatDayLabel(entry.start_date);
+  if (granularity === "week") return formatWeekRange(entry.start_date, entry.end_date);
+  const { year, month } = dateParts(entry.start_date);
   return `${year}年${month}月`;
 }
 
 function isCrossMonth(entry) {
-  const from = dateParts(entry.period_start);
-  const to = dateParts(entry.period_end);
+  const from = dateParts(entry.start_date);
+  const to = dateParts(entry.end_date);
   return from.year !== to.year || from.month !== to.month;
 }
 
@@ -78,13 +78,13 @@ function calendarWeeks(year, month) {
 
 function selectedEntry(options, granularity = options.activeGranularity) {
   const reports = reportsFor(options.index, granularity);
-  const selectedKey = options.selectedPeriods[granularity];
-  return reports.find((entry) => entry.period_key === selectedKey) || reports.at(-1) || null;
+  const selectedReportId = options.selectedReportIds[granularity];
+  return reports.find((entry) => entry.report_id === selectedReportId) || reports.at(-1) || null;
 }
 
 function contextForEntry(granularity, entry) {
   if (!entry) return "";
-  return granularity === "month" ? entry.period_start.slice(0, 4) : entry.period_start.slice(0, 7);
+  return granularity === "month" ? entry.start_date.slice(0, 4) : entry.start_date.slice(0, 7);
 }
 
 function availableContexts(options, granularity) {
@@ -141,7 +141,7 @@ function createDayPanel(options) {
   const root = document.createElement("div");
   root.className = "period-calendar-panel";
   const selected = selectedEntry(options, "day");
-  const available = new Map(reportsFor(options.index, "day").map((entry) => [entry.period_start, entry]));
+  const available = new Map(reportsFor(options.index, "day").map((entry) => [entry.start_date, entry]));
   root.innerHTML = `
     ${calendarHeader(options, "day", `${year} 年 ${month} 月`, "选择单日报告")}
     ${weekdayHeader()}
@@ -150,10 +150,10 @@ function createDayPanel(options) {
         const parts = dateParts(date);
         const entry = available.get(date);
         const outside = parts.month !== month;
-        return `<button type="button" data-period-key="${entry?.period_key || ""}" class="period-day-cell${outside ? " is-outside" : ""}${entry ? " has-report" : ""}${entry?.period_key === selected?.period_key ? " is-selected" : ""}" ${entry ? "" : "disabled"} aria-pressed="${entry?.period_key === selected?.period_key}"><span>${outside ? `${parts.month}/${parts.day}` : parts.day}</span></button>`;
+        return `<button type="button" data-report-id="${entry?.report_id || ""}" class="period-day-cell${outside ? " is-outside" : ""}${entry ? " has-report" : ""}${entry?.report_id === selected?.report_id ? " is-selected" : ""}" ${entry ? "" : "disabled"} aria-pressed="${entry?.report_id === selected?.report_id}"><span>${outside ? `${parts.month}/${parts.day}` : parts.day}</span></button>`;
       }).join("")}
     </div>
-    ${selected ? `<footer class="period-selection-summary period-day-summary"><span>已选日期</span><strong>${formatDayLabel(selected.period_start)}</strong></footer>` : ""}
+    ${selected ? `<footer class="period-selection-summary period-day-summary"><span>已选日期</span><strong>${formatDayLabel(selected.start_date)}</strong></footer>` : ""}
   `;
   bindContextNavigation(root, options, "day");
   bindPeriodSelection(root, options, "day");
@@ -166,16 +166,16 @@ function createWeekPanel(options) {
   const root = document.createElement("div");
   root.className = "period-calendar-panel period-week-panel";
   const selected = selectedEntry(options, "week");
-  const available = new Map(reportsFor(options.index, "week").map((entry) => [entry.period_start, entry]));
+  const available = new Map(reportsFor(options.index, "week").map((entry) => [entry.start_date, entry]));
   root.innerHTML = `
     ${calendarHeader(options, "week", `${year} 年 ${month} 月`, "选择完整自然周")}
     ${weekdayHeader()}
     <div class="period-week-grid">
       ${calendarWeeks(year, month).map((dates) => {
         const entry = available.get(dates[0]);
-        const isSelected = entry?.period_key === selected?.period_key;
+        const isSelected = entry?.report_id === selected?.report_id;
         return `
-        <button type="button" class="period-week-row${isSelected ? " is-selected" : ""}" data-period-key="${entry?.period_key || ""}" ${entry ? "" : "disabled"} aria-pressed="${isSelected}" ${entry ? `aria-label="第 ${isoWeekNumber(entry.period_start)} 周，${formatWeekRange(entry.period_start, entry.period_end)}"` : ""}>
+        <button type="button" class="period-week-row${isSelected ? " is-selected" : ""}" data-report-id="${entry?.report_id || ""}" ${entry ? "" : "disabled"} aria-pressed="${isSelected}" ${entry ? `aria-label="第 ${isoWeekNumber(entry.start_date)} 周，${formatWeekRange(entry.start_date, entry.end_date)}"` : ""}>
           ${dates.map((date) => {
             const parts = dateParts(date);
             const outside = parts.month !== month;
@@ -185,7 +185,7 @@ function createWeekPanel(options) {
       `;
       }).join("")}
     </div>
-    ${selected ? `<footer class="period-selection-summary period-week-summary"><span>第 ${isoWeekNumber(selected.period_start)} 周${isCrossMonth(selected) ? " · 跨月" : ""}</span><strong>${formatWeekRange(selected.period_start, selected.period_end)}</strong></footer>` : ""}
+    ${selected ? `<footer class="period-selection-summary period-week-summary"><span>第 ${isoWeekNumber(selected.start_date)} 周${isCrossMonth(selected) ? " · 跨月" : ""}</span><strong>${formatWeekRange(selected.start_date, selected.end_date)}</strong></footer>` : ""}
   `;
   bindContextNavigation(root, options, "week");
   bindPeriodSelection(root, options, "week");
@@ -198,14 +198,14 @@ function createMonthPanel(options) {
   const root = document.createElement("div");
   root.className = "period-calendar-panel period-month-panel";
   const selected = selectedEntry(options, "month");
-  const entries = reportsFor(options.index, "month").filter((entry) => entry.period_start.startsWith(`${context}-`));
+  const entries = reportsFor(options.index, "month").filter((entry) => entry.start_date.startsWith(`${context}-`));
   root.innerHTML = `
     ${calendarHeader(options, "month", `${year} 年`, "选择整月报告")}
     <div class="period-month-grid">
       ${Array.from({ length: 12 }, (_, index) => {
         const month = index + 1;
-        const entry = entries.find((item) => Number(item.period_start.slice(5, 7)) === month);
-        return `<button type="button" data-period-key="${entry?.period_key || ""}" ${entry ? "" : "disabled"} class="period-month-cell${entry?.period_key === selected?.period_key ? " is-selected" : ""}" aria-pressed="${entry?.period_key === selected?.period_key}"><strong>${String(month).padStart(2, "0")}</strong><span>${entry ? "报告可用" : "暂无报告"}</span></button>`;
+        const entry = entries.find((item) => Number(item.start_date.slice(5, 7)) === month);
+        return `<button type="button" data-report-id="${entry?.report_id || ""}" ${entry ? "" : "disabled"} class="period-month-cell${entry?.report_id === selected?.report_id ? " is-selected" : ""}" aria-pressed="${entry?.report_id === selected?.report_id}"><strong>${String(month).padStart(2, "0")}</strong><span>${entry ? "报告可用" : "暂无报告"}</span></button>`;
       }).join("")}
     </div>
     ${selected ? `<footer class="period-selection-summary period-month-summary"><span>已选月份</span><strong>${formatPeriodLabel("month", selected)}</strong></footer>` : ""}
@@ -216,15 +216,15 @@ function createMonthPanel(options) {
 }
 
 function bindPeriodSelection(root, options, granularity) {
-  root.querySelectorAll("[data-period-key]:not(:disabled)").forEach((button) => {
+  root.querySelectorAll("[data-report-id]:not(:disabled)").forEach((button) => {
     button.addEventListener("click", () => {
-      const entry = reportsFor(options.index, granularity).find((item) => item.period_key === button.dataset.periodKey);
+      const entry = reportsFor(options.index, granularity).find((item) => item.report_id === button.dataset.reportId);
       if (!entry) return;
       options.pickerState.contexts[granularity] = contextForEntry(granularity, entry);
       options.pickerState.open = true;
       options.pickerState.closing = false;
       options.pickerState.animateOpen = false;
-      options.onPeriodChange(granularity, entry.period_key);
+      options.onReportChange(granularity, entry.report_id);
     });
   });
 }
@@ -279,7 +279,7 @@ export function closePeriodPicker(container, pickerState) {
 
 /**
  * 功能说明：渲染日、周、月一体化周期选择器，并绑定粒度、周期与月份导航交互。
- * 参数 options：包含容器、报告索引、当前粒度、已选周期、弹层状态与变更回调。
+ * 参数 options：包含容器、报告索引、当前粒度、已选报告、弹层状态与变更回调。
  * 返回值：无。
  */
 export function renderPeriodPicker(options) {

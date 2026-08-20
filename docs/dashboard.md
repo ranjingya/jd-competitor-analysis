@@ -35,6 +35,8 @@ Vite 把 `/api` 转发到本地 Backend。生产环境中，同一路径由 Ngin
 }
 ```
 
+索引条目使用 `start_date` 和 `end_date` 表示周期范围。Web 按日期由旧到新排序，并默认打开最新一份报告；报告选择和页面会话缓存均使用唯一的 `report_id`。
+
 报告也可按周期范围读取：
 
 ```text
@@ -49,4 +51,4 @@ GET /api/reports/{granularity}/{start_date}/{end_date}
 2. 缺失值显示为 `-`，数值零正常显示。
 3. 页面只展示 Backend 返回的 AI 结果，不拼接或回退到模板建议。
 4. 缺失模块保持空状态，并展示对应风险说明。
-5. 已加载报告可以在当前页面会话中按 `period_key` 缓存。
+5. 已加载报告可以在当前页面会话中按 `report_id` 缓存。
