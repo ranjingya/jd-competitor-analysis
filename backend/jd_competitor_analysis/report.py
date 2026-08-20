@@ -406,7 +406,6 @@ def build_analysis_result(
             "competitor_product": resolve_product_reference(
                 meta["competitor_spu"], competitor_name, product_images
             ),
-            "confidence": core["report_confidence"],
             "summary": f"本品{'、'.join(advantage_labels)}领先。" if advantage_labels else "本品核心指标暂无明显优势。",
             "weakness_summary": f"本品{'、'.join(warning_labels)}落后，需要优先优化。" if warning_labels else "本品核心指标暂无明显短板。",
             "generated_at": meta["generated_at"],

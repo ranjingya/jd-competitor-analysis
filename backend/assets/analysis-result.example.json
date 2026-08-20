@@ -21,7 +21,6 @@
       "name": "HeyBetter儿童轻氧光变防晒大帽檐防紫外线（蓝色）",
       "image_url": "https://img13.360buyimg.com/pcpubliccms/jfs/t1/378165/6/14701/122357/695343b8F7eb86d80/a0d466381e13b890.jpg.avif"
     },
-    "confidence": "medium",
     "summary": "本品成交金额、访客数领先。",
     "weakness_summary": "本品成交转化率、成交客单价落后，需要优先优化。",
     "generated_at": "2026-07-27T16:46:51"
@@ -236,7 +235,6 @@
       "selected_candidate": 62538.26666666666,
       "final_value": 63339.051883685686,
       "basis": "同周期本品 P 候选；按成交公式共同可行域校正",
-      "confidence": "medium",
       "checks": {
         "range_consistent": true,
         "traffic_consistent": null,
@@ -263,7 +261,6 @@
       "selected_candidate": 631.8,
       "final_value": 789.4,
       "basis": "同周期本品 P 候选；按不小于成交单量校正",
-      "confidence": "medium",
       "checks": {
         "range_consistent": true,
         "traffic_consistent": null,
@@ -290,7 +287,6 @@
       "selected_candidate": 789.4,
       "final_value": 789.4,
       "basis": "同周期本品 P 候选",
-      "confidence": "high",
       "checks": {
         "range_consistent": true,
         "traffic_consistent": null,
@@ -315,7 +311,6 @@
       "selected_candidate": 20192.0,
       "final_value": 20192.0,
       "basis": "同周期本品 P 候选",
-      "confidence": "high",
       "checks": {
         "range_consistent": true,
         "traffic_consistent": null,
@@ -340,7 +335,6 @@
       "selected_candidate": 3350.6,
       "final_value": 3350.6,
       "basis": "同周期本品 P 候选",
-      "confidence": "high",
       "checks": {
         "range_consistent": true,
         "traffic_consistent": null,
@@ -365,7 +359,6 @@
       "selected_candidate": 1239.0,
       "final_value": 1239.0,
       "basis": "同周期本品 P 候选",
-      "confidence": "high",
       "checks": {
         "range_consistent": true,
         "traffic_consistent": null,
@@ -390,7 +383,6 @@
       "selected_candidate": 0.1606,
       "final_value": 0.1606,
       "basis": "同周期本品 P 候选",
-      "confidence": "high",
       "checks": {
         "range_consistent": true,
         "traffic_consistent": null,
@@ -415,7 +407,6 @@
       "selected_candidate": 128.48,
       "final_value": 117.70730954320199,
       "basis": "同周期本品 P 候选；按成交公式共同可行域校正",
-      "confidence": "medium",
       "checks": {
         "range_consistent": true,
         "traffic_consistent": null,

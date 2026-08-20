@@ -124,7 +124,6 @@ def _report_entry(result: dict[str, Any]) -> dict[str, Any]:
         "period_end": meta["period_end"],
         "period_key": meta["period_key"],
         "generated_at": meta["generated_at"],
-        "confidence": meta["confidence"],
         "path": f"/api/reports/{meta['granularity']}/{period_file}",
     }
 

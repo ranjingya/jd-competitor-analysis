@@ -43,7 +43,6 @@ def empty_contract() -> dict[str, Any]:
             "competitor_name": None,
             "competitor_spu": None,
             "competitor_product": {"id": None, "name": None, "image_url": None},
-            "confidence": None,
             "summary": None,
             "weakness_summary": None,
         },
@@ -191,7 +190,7 @@ def validate_contract(data: dict[str, Any], allow_empty: bool = False) -> None:
                 if field not in item:
                     raise ValueError(f"核心指标卡缺少字段：{field}")
         for item in data["competitor_core_conversions"]:
-            for field in ("metric_id", "candidate_source", "selected_candidate", "final_value", "confidence", "checks"):
+            for field in ("metric_id", "candidate_source", "selected_candidate", "final_value", "checks"):
                 if field not in item:
                     raise ValueError(f"核心转换审计缺少字段：{field}")
     LOGGER.info("JSON 契约校验通过：allow_empty=%s", allow_empty)

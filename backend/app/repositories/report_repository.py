@@ -229,7 +229,6 @@ class ReportRepository:
                     "quality_status": row["quality_status"],
                     "status": row["status"],
                     "title": meta.get("title"),
-                    "confidence": meta.get("confidence"),
                     "summary": meta.get("summary"),
                     "path": f"/api/reports/{row['report_id']}",
                     "updated_at": row["updated_at"],
