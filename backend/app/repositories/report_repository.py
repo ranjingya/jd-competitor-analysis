@@ -44,7 +44,7 @@ class ReportRepository:
         """创建或更新一个业务周期的报告。
 
         功能说明：同一粒度、日期范围和商品对只保留一份报告；日报关联日数据集，周报和月报不绑定单个数据集。
-        参数 dataset_id：日报所属标准化数据集 ID；周报和月报使用空值。
+        参数 dataset_id：数仓日报所属标准化数据集 ID；独立历史报告使用空值。
         参数 report：可由 Web 直接消费的完整报告对象。
         参数 status：`pending_ai`、`ready` 或 `ai_failed`。
         参数 report_id：可选报告 ID；新建且为空时生成 UUID。
@@ -158,10 +158,12 @@ class ReportRepository:
         end_date = str(meta.get("period_end") or "")
         self_spu = str(meta.get("self_spu") or "")
         competitor_spu = str(meta.get("competitor_spu") or "")
-        if granularity not in {"week", "month"}:
-            raise ValueError("未绑定日数据集的报告只能使用 week 或 month 粒度")
+        if granularity not in GRANULARITIES:
+            raise ValueError(f"报告粒度无效：{granularity}")
         if not all((start_date, end_date, self_spu, competitor_spu)):
-            raise ValueError("周报或月报缺少日期范围或商品对")
+            raise ValueError("独立报告缺少日期范围或商品对")
+        if granularity == "day" and start_date != end_date:
+            raise ValueError("独立日报的开始日期和结束日期必须相同")
         return granularity, start_date, end_date, self_spu, competitor_spu
 
     def activate_pending(
