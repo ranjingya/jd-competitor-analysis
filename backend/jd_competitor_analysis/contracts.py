@@ -7,6 +7,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from .product_assets import is_valid_product_image_url
 from .report import build_tabs
 
 
@@ -125,8 +126,12 @@ def validate_contract(data: dict[str, Any], allow_empty: bool = False) -> None:
         if product["name"] is not None and not isinstance(product["name"], str):
             raise ValueError(f"analysis_result.meta.{product_field}.name 必须是字符串或 null")
         image_url = product["image_url"]
-        if image_url is not None and (not isinstance(image_url, str) or not image_url.startswith("https://")):
-            raise ValueError(f"analysis_result.meta.{product_field}.image_url 必须是 HTTPS 地址或 null")
+        if image_url is not None and (
+            not isinstance(image_url, str) or not is_valid_product_image_url(image_url)
+        ):
+            raise ValueError(
+                f"analysis_result.meta.{product_field}.image_url 必须是 HTTPS 地址、同源商品主图路径或 null"
+            )
     if not isinstance(data["risks"], list) or any(not isinstance(item, str) for item in data["risks"]):
         raise ValueError("risks 必须是字符串数组")
     if not isinstance(data["ai_findings"], list):

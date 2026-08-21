@@ -39,13 +39,13 @@ npm run dev
   "products": {
     "商品 ID": {
       "name": "商品名称",
-      "image_url": "https://example.com/product.jpg"
+      "image_url": "/product-images/商品ID.png"
     }
   }
 }
 ```
 
-`image_url` 使用完整 HTTPS 地址，可以直接手动增加或修改。商品没有配置主图时，报告正常生成，Web 使用缺图占位。日分析任务启动时读取一次该文件，已经入库的报告继续使用生成报告时保存的主图地址。
+`image_url` 使用 `/product-images/` 下的同源图片路径或完整 HTTPS 地址，可以直接手动增加或修改。本地图片放在 `web/public/product-images/`，Vite 和生产 Nginx 使用相同路径提供访问。商品没有配置主图时，报告正常生成，Web 使用缺图占位。日分析任务启动时读取一次该文件，已经入库的报告继续使用生成报告时保存的主图地址。
 
 ## 部署
 

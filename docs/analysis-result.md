@@ -58,7 +58,7 @@
 
 `meta` 必须包含 `period`、`period_start`、`period_end`、`period_key`、`granularity`、`self_product` 和 `competitor_product`。`period_key` 在同一商品对的报告索引中唯一。
 
-两侧商品对象都包含 `id`、`name` 和 `image_url`。`id` 与对应 SPU 字段保持一致；`image_url` 为 HTTPS 地址或 `null`。主图素材不存在时报告继续生成，并以 `null` 触发网页占位图降级。
+两侧商品对象都包含 `id`、`name` 和 `image_url`。`id` 与对应 SPU 字段保持一致；`image_url` 为 HTTPS 地址、`/product-images/` 下的同源路径或 `null`。主图素材不存在时报告继续生成，并以 `null` 触发网页占位图降级。
 
 ## 核心审计结构
 
