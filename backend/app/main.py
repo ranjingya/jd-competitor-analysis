@@ -10,12 +10,10 @@ from fastapi import FastAPI
 
 from .api.dependencies import get_database
 from .api.reports import router as reports_router
+from .logging_config import configure_backend_logging
 
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(name)s - %(message)s",
-)
+configure_backend_logging()
 LOGGER = logging.getLogger(__name__)
 
 
