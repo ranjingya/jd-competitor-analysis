@@ -42,8 +42,18 @@ class ReportMergeTest(unittest.TestCase):
 
         report = base_report()
         deterministic_summary = report["meta"]["summary"]
+        deterministic_weakness = report["meta"]["weakness_summary"]
         result = {
-            "summary": "流量领先，但转化效率仍是主要短板。",
+            "summary": {
+                "advantage": {
+                    "brief": "流量规模领先",
+                    "detail": "本品访客规模领先竞品估算值。",
+                },
+                "weakness": {
+                    "brief": "转化效率落后",
+                    "detail": "本品成交转化率低于竞品估算值。",
+                },
+            },
             "findings": [
                 {
                     "source_id": "traffic",
@@ -60,8 +70,12 @@ class ReportMergeTest(unittest.TestCase):
 
         merged = merge_ai_result(report, result)
 
-        self.assertEqual(merged["meta"]["summary"], result["summary"])
+        self.assertEqual(merged["meta"]["summary"], "流量规模领先")
+        self.assertEqual(merged["meta"]["summary_detail"], "本品访客规模领先竞品估算值。")
+        self.assertEqual(merged["meta"]["weakness_summary"], "转化效率落后")
+        self.assertEqual(merged["meta"]["weakness_summary_detail"], "本品成交转化率低于竞品估算值。")
         self.assertEqual(merged["meta"]["deterministic_summary"], deterministic_summary)
+        self.assertEqual(merged["meta"]["deterministic_weakness_summary"], deterministic_weakness)
         self.assertEqual(merged["ai_findings"], result["findings"])
         self.assertEqual(merged["ai_recommendations"], result["recommendations"])
         self.assertEqual(report["ai_findings"], [])
@@ -70,7 +84,14 @@ class ReportMergeTest(unittest.TestCase):
         """证据不足时可以完成分析但不生成建议。"""
 
         validated = validate_ai_result(
-            {"summary": "当前数据不足。", "findings": [], "recommendations": []}
+            {
+                "summary": {
+                    "advantage": {"brief": "暂无明显优势", "detail": "当前数据不足。"},
+                    "weakness": {"brief": "暂无明显短板", "detail": "当前数据不足。"},
+                },
+                "findings": [],
+                "recommendations": [],
+            }
         )
 
         self.assertEqual(validated["recommendations"], [])
@@ -81,7 +102,10 @@ class ReportMergeTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "缺少字段"):
             validate_ai_result(
                 {
-                    "summary": "测试总结",
+                    "summary": {
+                        "advantage": {"brief": "流量领先", "detail": "本品流量领先。"},
+                        "weakness": {"brief": "转化落后", "detail": "本品转化落后。"},
+                    },
                     "findings": [{"source_id": "traffic", "target": "搜索"}],
                     "recommendations": [],
                 }

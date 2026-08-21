@@ -1174,13 +1174,33 @@ a.product-card:hover {
 }
 
 .hero {
+  appearance: none;
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.35fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
   gap: 24px;
   align-items: center;
   min-height: 88px;
   padding: 14px 22px;
   margin-bottom: var(--card-gap);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
+}
+
+.hero:hover {
+  border-color: var(--interactive-hover-border);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.hero:active {
+  transform: translateY(1px);
+}
+
+.hero:focus-visible {
+  outline: 3px solid rgba(15, 123, 115, 0.24);
+  outline-offset: 2px;
 }
 
 .hero-block {
@@ -1215,12 +1235,139 @@ a.product-card:hover {
 .weakness-text {
   margin: 0;
   min-width: 0;
-  overflow: hidden;
-  font-size: clamp(18px, 1.7vw, 22px);
+  font-size: clamp(16px, 1.45vw, 20px);
   font-weight: 900;
-  line-height: 1.25;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.35;
+}
+
+.summary-dialog {
+  width: min(620px, calc(100vw - 32px));
+  max-width: none;
+  max-height: min(520px, calc(100vh - 48px));
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 24px 64px rgba(31, 41, 51, 0.2);
+}
+
+.summary-dialog[open] {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.summary-dialog::backdrop {
+  background: rgba(31, 41, 51, 0.42);
+  backdrop-filter: blur(2px);
+}
+
+.summary-dialog-header,
+.summary-dialog-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+  background: var(--panel);
+}
+
+.summary-dialog-header {
+  border-bottom: 1px solid var(--line);
+}
+
+.summary-dialog-header h2 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.4;
+}
+
+.summary-dialog-close {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 25px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.summary-dialog-close:hover {
+  background: rgba(102, 112, 133, 0.1);
+  color: var(--text);
+}
+
+.summary-dialog-close:focus-visible,
+.summary-dialog-done:focus-visible {
+  outline: 2px solid rgba(15, 123, 115, 0.34);
+  outline-offset: 2px;
+}
+
+.summary-dialog-body {
+  display: grid;
+  gap: 12px;
+  min-height: 0;
+  padding: 22px 20px;
+  overflow: auto;
+}
+
+.summary-dialog-section {
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-left: 3px solid currentColor;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.48);
+}
+
+.summary-dialog-section.advantage {
+  color: var(--amber);
+}
+
+.summary-dialog-section.warning {
+  color: var(--teal);
+}
+
+.summary-dialog-section p {
+  margin: 0;
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+}
+
+.summary-dialog-section .summary-dialog-label {
+  margin-bottom: 5px;
+  color: currentColor;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.4;
+}
+
+.summary-dialog-footer {
+  justify-content: flex-end;
+  border-top: 1px solid var(--line);
+}
+
+.summary-dialog-done {
+  height: 36px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--teal);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.summary-dialog-done:hover {
+  background: #0b6c65;
 }
 
 .metrics-trend {
@@ -2140,7 +2287,7 @@ a.product-card:hover {
 
   .summary,
   .weakness-text {
-    font-size: 22px;
+    font-size: 19px;
   }
 
   .insight-grid {

@@ -12,6 +12,35 @@ from jd_competitor_analysis.recommendations import validate_recommendations
 
 LOGGER = logging.getLogger(__name__)
 FINDING_FIELDS = {"source_id", "target", "judgement", "evidence"}
+SUMMARY_KINDS = {"advantage", "weakness"}
+SUMMARY_FIELDS = {"brief", "detail"}
+
+
+def validate_summary(summary: Any) -> dict[str, dict[str, str]]:
+    """校验 AI 生成的优点与弱点摘要。
+
+    功能说明：要求优点和弱点都包含首屏短结论与弹窗完整说明，并限制短结论长度。
+    参数 summary：AI 回传的摘要对象。
+    返回值：去除首尾空白后的双摘要对象。
+    """
+
+    if not isinstance(summary, dict) or set(summary) != SUMMARY_KINDS:
+        raise ValueError("AI summary 必须包含 advantage 和 weakness")
+    validated: dict[str, dict[str, str]] = {}
+    for kind in ("advantage", "weakness"):
+        item = summary[kind]
+        if not isinstance(item, dict) or set(item) != SUMMARY_FIELDS:
+            raise ValueError(f"AI summary.{kind} 必须包含 brief 和 detail")
+        brief = item.get("brief")
+        detail = item.get("detail")
+        if not isinstance(brief, str) or not brief.strip():
+            raise ValueError(f"AI summary.{kind}.brief 不能为空")
+        if len(brief.strip()) > 30:
+            raise ValueError(f"AI summary.{kind}.brief 不能超过 30 个字符")
+        if not isinstance(detail, str) or not detail.strip():
+            raise ValueError(f"AI summary.{kind}.detail 不能为空")
+        validated[kind] = {"brief": brief.strip(), "detail": detail.strip()}
+    return validated
 
 
 def validate_findings(items: Any) -> list[dict[str, Any]]:
@@ -38,16 +67,14 @@ def validate_findings(items: Any) -> list[dict[str, Any]]:
 def validate_ai_result(result: dict[str, Any]) -> dict[str, Any]:
     """校验模型生成内容。
 
-    功能说明：只接受总结、发现和建议三个 AI 字段；有建议时沿用正式建议约束，证据不足时允许空建议。
+    功能说明：只接受双摘要、发现和建议三个 AI 字段；有建议时沿用正式建议约束，证据不足时允许空建议。
     参数 result：通过 API 基础 Schema 后的 AI 结果对象。
     返回值：经过复制和结构校验的 AI 结果。
     """
 
     if set(result) != {"summary", "findings", "recommendations"}:
         raise ValueError("AI 结果只能包含 summary、findings 和 recommendations")
-    summary = result.get("summary")
-    if not isinstance(summary, str) or not summary.strip():
-        raise ValueError("AI summary 不能为空")
+    summary = validate_summary(result.get("summary"))
     findings = validate_findings(result.get("findings"))
     recommendations = result.get("recommendations")
     if recommendations:
@@ -55,7 +82,7 @@ def validate_ai_result(result: dict[str, Any]) -> dict[str, Any]:
     elif recommendations != []:
         raise ValueError("AI recommendations 必须是数组")
     return {
-        "summary": summary.strip(),
+        "summary": summary,
         "findings": copy.deepcopy(findings),
         "recommendations": copy.deepcopy(recommendations),
     }
@@ -64,7 +91,7 @@ def validate_ai_result(result: dict[str, Any]) -> dict[str, Any]:
 def merge_ai_result(report: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]:
     """把 AI 生成部分合并到基础报告。
 
-    功能说明：保留固定公式摘要用于审计，用 AI 总结更新看板摘要，并写入 AI 发现和建议后校验最终报告契约。
+    功能说明：保留固定公式摘要用于审计，用 AI 双摘要更新看板优缺点及详情，并写入 AI 发现和建议后校验最终报告契约。
     参数 report：Backend 固定公式生成的基础看板报告。
     参数 result：DeepSeek 只生成的总结、发现和建议。
     返回值：可直接保存到 `reports.report_json` 的完整报告。
@@ -76,7 +103,12 @@ def merge_ai_result(report: dict[str, Any], result: dict[str, Any]) -> dict[str,
     if not isinstance(meta, dict):
         raise ValueError("基础报告缺少 meta 对象")
     meta.setdefault("deterministic_summary", meta.get("summary"))
-    meta["summary"] = validated_result["summary"]
+    meta.setdefault("deterministic_weakness_summary", meta.get("weakness_summary"))
+    summary = validated_result["summary"]
+    meta["summary"] = summary["advantage"]["brief"]
+    meta["summary_detail"] = summary["advantage"]["detail"]
+    meta["weakness_summary"] = summary["weakness"]["brief"]
+    meta["weakness_summary_detail"] = summary["weakness"]["detail"]
     merged["ai_findings"] = validated_result["findings"]
     merged["ai_recommendations"] = validated_result["recommendations"]
     validate_contract(merged)

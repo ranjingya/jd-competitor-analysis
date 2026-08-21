@@ -9,6 +9,7 @@ import {
   reportsForPair
 } from "./report-selection.js";
 import { bindSkuDialog, closeSkuDialog } from "./sku-dialog.js";
+import { bindHeroSummaryDialog } from "./hero-summary.js";
 
 const granularityLabels = {
   day: "日",
@@ -61,6 +62,7 @@ function renderPairSelector() {
       closePeriodPicker(document.querySelector("#period-picker"), periodPickerState);
     },
     onPairChange(pairKey) {
+      closePairPicker(document.querySelector("#pair-picker"), pairPickerState, true);
       if (pairKey === state.activePairKey) {
         return;
       }
@@ -252,6 +254,10 @@ async function initialize() {
       document.querySelector("#sku-trigger"),
       document.querySelector("#sku-dialog"),
       () => state.currentEntry
+    );
+    bindHeroSummaryDialog(
+      document.querySelector("#summary-dialog"),
+      document.querySelector("#hero-summary-trigger")
     );
     await selectActiveReport();
   } catch (error) {

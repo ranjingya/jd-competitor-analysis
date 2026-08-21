@@ -63,7 +63,7 @@ class DeepSeekAnalyzer:
 
         功能说明：把结构化事实发送给 DeepSeek，要求返回 JSON，并完成基础 Schema 与业务字段校验。
         参数 payload：包含日期、商品对、本品 SPU 汇总值和五张来源表处理结果的 AI 输入。
-        返回值：仅包含 summary、findings 和 recommendations 的结构化结果。
+        返回值：仅包含优缺点双摘要、findings 和 recommendations 的结构化结果。
         """
 
         started_at = perf_counter()

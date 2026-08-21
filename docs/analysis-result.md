@@ -14,6 +14,7 @@
 - [元信息与审计映射](#元信息与审计映射)
 - [核心审计结构](#核心审计结构)
 - [分析模块映射](#分析模块映射)
+- [AI 双摘要](#ai-双摘要)
 - [AI 劣势建议](#ai_recommendations)
 - [AI 输入事实](#ai-输入事实)
 - [缺失与审计约定](#缺失与审计约定)
@@ -49,7 +50,9 @@
 | `meta.competitor_name` | `keyword_rows[].商品名称` | 按竞品 SPU 筛选并唯一化。 |
 | `meta.self_product`、`meta.competitor_product` | 商品 ID、分析商品名、`backend/assets/product-images.json` | 组装商品 ID、名称和 HTTPS 主图地址，商品名优先采用分析数据。 |
 | `meta.title` | 任务参数 | 使用调用方标题。 |
-| `meta.summary`、`meta.weakness_summary` | `core_metrics[]` | 汇总主要优势和短板，不生成行动建议。 |
+| `meta.deterministic_summary`、`meta.deterministic_weakness_summary` | `core_metrics[]` | 保存固定公式汇总的主要优势和短板，用于审计。 |
+| `meta.summary`、`meta.weakness_summary` | DeepSeek `summary.*.brief` | 保存不超过 30 个字符的优点与弱点短结论，供看板首屏直接展示。 |
+| `meta.summary_detail`、`meta.weakness_summary_detail` | DeepSeek `summary.*.detail` | 保存优点与弱点的完整说明，供看板结论详情弹窗展示。 |
 | `source_files[]` | `source_files[]` | 保留角色、文件、工作表、状态和警告。 |
 | `risks[]` | `warnings`、转换检查 | 汇总缺失、冲突、降级和口径风险。 |
 
@@ -166,6 +169,27 @@
 每个 Tab 至少包含 `id`、`label`、`headline`、`highlights`、`columns`、`rows` 和 `notes`。客户画像 Tab 同时包含 `dimension_field` 和 `dimension_label`。
 
 `highlights` 只保存重点对象、实际值、差距和状态，不包含行动建议。完整行保留页面排序和人工复核需要的字段。
+
+## AI 双摘要
+
+DeepSeek 返回的 `summary` 同时包含优点与弱点：
+
+```json
+{
+  "summary": {
+    "advantage": {
+      "brief": "成交金额与访客规模领先",
+      "detail": "完整说明优势、成因和必要的数据限制。"
+    },
+    "weakness": {
+      "brief": "成交转化率落后",
+      "detail": "完整说明弱点、成因和必要的数据限制。"
+    }
+  }
+}
+```
+
+`brief` 为首屏短结论，长度不超过 30 个字符；`detail` 保存完整分析。看板把优点与弱点合并在同一个摘要面板中，点击面板后同时展示两侧详情。
 
 ## `ai_recommendations[]`
 

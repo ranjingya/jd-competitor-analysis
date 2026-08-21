@@ -50,7 +50,10 @@ def ai_analyzer() -> Mock:
     analyzer = Mock()
     analyzer.model = "deepseek-v4-pro"
     analyzer.analyze.return_value = {
-        "summary": "AI 总结",
+        "summary": {
+            "advantage": {"brief": "流量规模领先", "detail": "本品流量规模领先。"},
+            "weakness": {"brief": "转化效率落后", "detail": "本品转化效率落后。"},
+        },
         "findings": [],
         "recommendations": [],
     }

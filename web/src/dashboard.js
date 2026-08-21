@@ -3,6 +3,7 @@ import { LineChart } from "echarts/charts";
 import { GridComponent, LegendComponent, TooltipComponent } from "echarts/components";
 import { SVGRenderer } from "echarts/renderers";
 import { mountAnalysisVxeTable, unmountAnalysisVxeTable } from "./analysis-vxe-table.js";
+import { compactHeroSummary } from "./hero-summary.js";
 
 echarts.use([LineChart, GridComponent, LegendComponent, TooltipComponent, SVGRenderer]);
 
@@ -521,11 +522,17 @@ export function renderDashboard(data, activeMetricId = "") {
   renderProductComparison(meta);
   const summary = meta.summary || "-";
   const weakness = meta.weakness_summary || "-";
-  document.querySelector("#summary").textContent = summary;
-  document.querySelector("#summary").title = summary;
-  document.querySelector("#weakness").textContent = weakness;
-  document.querySelector("#weakness").title = weakness;
   const metricItems = data.core_metrics || [];
+  const hasStructuredSummary = Boolean(meta.summary_detail || meta.weakness_summary_detail);
+  document.querySelector("#summary").textContent = hasStructuredSummary
+    ? summary
+    : compactHeroSummary(metricItems, "advantage");
+  document.querySelector("#weakness").textContent = hasStructuredSummary
+    ? weakness
+    : compactHeroSummary(metricItems, "warning");
+  const heroTrigger = document.querySelector("#hero-summary-trigger");
+  heroTrigger.dataset.advantageDetail = meta.summary_detail || summary;
+  heroTrigger.dataset.weaknessDetail = meta.weakness_summary_detail || weakness;
   const preferredMetricId = activeMetricId || dashboardState.activeMetricId;
   dashboardState.activeMetricId = metricItems.some((item) => item.id === preferredMetricId)
     ? preferredMetricId

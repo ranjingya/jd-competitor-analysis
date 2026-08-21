@@ -75,7 +75,10 @@ function createPairOption(pair, activePairKey, onPairChange) {
   check.textContent = selected ? "✓" : "";
   check.setAttribute("aria-hidden", "true");
   button.append(check);
-  button.addEventListener("click", () => onPairChange(pair.key));
+  button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    onPairChange(pair.key);
+  });
   return button;
 }
 
@@ -140,10 +143,6 @@ export function renderPairPicker(options) {
   const popover = container.querySelector("#pair-popover");
   trigger.disabled = !pairs.length;
   popover.replaceChildren(...pairs.map((pair) => createPairOption(pair, activePairKey, (pairKey) => {
-    pickerState.open = false;
-    pickerState.closing = false;
-    pickerState.animateOpen = false;
-    syncPickerState(container, pickerState);
     onPairChange(pairKey);
   })));
   syncPickerState(container, pickerState);

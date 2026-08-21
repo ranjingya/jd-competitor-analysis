@@ -21,7 +21,7 @@ FastAPI 和 CLI 是 Backend 容器中的独立进程，共享 `/app/data/backend
   → backend.db 保存不可变数据集
   → 确定性分析报告
   → AI 执行记录进入 processing
-  → DeepSeek V4 Pro 生成总结、发现和建议
+  → DeepSeek V4 Pro 生成优缺点双摘要、发现和建议
   → Backend 校验结构化结果
   → 原子保存 AI 原始结果并合并基础报告
   → 报告状态更新为 ready

@@ -47,16 +47,16 @@
     <section class="page-state" id="page-state" aria-live="polite">正在加载报告数据</section>
 
     <div id="dashboard" hidden>
-      <section class="hero">
-        <div class="hero-block">
-          <p class="hero-label advantage">优点</p>
-          <p class="summary" id="summary">-</p>
-        </div>
-        <div class="hero-block">
-          <p class="hero-label warning">弱点</p>
-          <p class="weakness-text" id="weakness">-</p>
-        </div>
-      </section>
+      <button class="hero" id="hero-summary-trigger" type="button" aria-haspopup="dialog" aria-controls="summary-dialog" aria-label="查看优点与弱点详情">
+        <span class="hero-block">
+          <span class="hero-label advantage">优点</span>
+          <span class="summary" id="summary">-</span>
+        </span>
+        <span class="hero-block">
+          <span class="hero-label warning">弱点</span>
+          <span class="weakness-text" id="weakness">-</span>
+        </span>
+      </button>
 
       <section class="metrics-trend" aria-label="核心指标与趋势">
         <section class="metrics" id="metrics" aria-label="核心指标选择"></section>
@@ -103,6 +103,30 @@
     <footer class="sku-dialog-footer">
       <form method="dialog">
         <button class="sku-dialog-done" type="submit">关闭</button>
+      </form>
+    </footer>
+  </dialog>
+
+  <dialog class="summary-dialog" id="summary-dialog" aria-labelledby="summary-dialog-title">
+    <header class="summary-dialog-header">
+      <h2 id="summary-dialog-title">结论详情</h2>
+      <form method="dialog">
+        <button class="summary-dialog-close" type="submit" aria-label="关闭结论详情">×</button>
+      </form>
+    </header>
+    <div class="summary-dialog-body">
+      <section class="summary-dialog-section advantage">
+        <p class="summary-dialog-label">优点</p>
+        <p id="summary-dialog-advantage">-</p>
+      </section>
+      <section class="summary-dialog-section warning">
+        <p class="summary-dialog-label">弱点</p>
+        <p id="summary-dialog-weakness">-</p>
+      </section>
+    </div>
+    <footer class="summary-dialog-footer">
+      <form method="dialog">
+        <button class="summary-dialog-done" type="submit">关闭</button>
       </form>
     </footer>
   </dialog>

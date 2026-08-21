@@ -58,7 +58,10 @@ class DeepSeekAnalyzerTest(unittest.TestCase):
             prompt_path.write_text("请只返回 JSON。", encoding="utf-8")
             analyzer = self._analyzer(prompt_path)
             model_result = {
-                "summary": "流量需要持续观察",
+                "summary": {
+                    "advantage": {"brief": "流量领先", "detail": "本品流量规模领先。"},
+                    "weakness": {"brief": "转化落后", "detail": "本品转化效率落后。"},
+                },
                 "findings": [],
                 "recommendations": [],
             }

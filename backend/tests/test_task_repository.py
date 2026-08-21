@@ -46,7 +46,10 @@ class TaskRepositoryTest(unittest.TestCase):
         )
         self.repository = TaskRepository(self.database)
         self.result = {
-            "summary": "存在流量差距",
+            "summary": {
+                "advantage": {"brief": "流量规模领先", "detail": "本品流量规模领先。"},
+                "weakness": {"brief": "转化效率落后", "detail": "本品转化效率落后。"},
+            },
             "findings": [
                 {
                     "source_id": "traffic",
@@ -82,7 +85,8 @@ class TaskRepositoryTest(unittest.TestCase):
         self.assertEqual(task["model"], "deepseek-v4-pro")
         self.assertEqual(task["attempt_count"], 1)
         self.assertEqual(report["status"], "ready")
-        self.assertEqual(report["report"]["meta"]["summary"], "存在流量差距")
+        self.assertEqual(report["report"]["meta"]["summary"], "流量规模领先")
+        self.assertEqual(report["report"]["meta"]["weakness_summary"], "转化效率落后")
 
     def test_completed_same_input_is_reused(self) -> None:
         """相同输入已完成时不应再次调用模型。"""
