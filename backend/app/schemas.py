@@ -13,7 +13,7 @@ class AISummaryItem(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     brief: str = Field(min_length=1, max_length=30)
-    detail: str = Field(min_length=1)
+    detail: list[str] = Field(min_length=1, max_length=6)
 
 
 class AISummary(BaseModel):

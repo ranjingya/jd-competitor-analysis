@@ -47,11 +47,11 @@ class ReportMergeTest(unittest.TestCase):
             "summary": {
                 "advantage": {
                     "brief": "流量规模领先",
-                    "detail": "本品访客规模领先竞品估算值。",
+                    "detail": ["本品访客规模领先竞品估算值。", "本品成交客单价更高。"],
                 },
                 "weakness": {
                     "brief": "转化效率落后",
-                    "detail": "本品成交转化率低于竞品估算值。",
+                    "detail": ["本品成交转化率低于竞品估算值。"],
                 },
             },
             "findings": [
@@ -71,9 +71,12 @@ class ReportMergeTest(unittest.TestCase):
         merged = merge_ai_result(report, result)
 
         self.assertEqual(merged["meta"]["summary"], "流量规模领先")
-        self.assertEqual(merged["meta"]["summary_detail"], "本品访客规模领先竞品估算值。")
+        self.assertEqual(
+            merged["meta"]["summary_detail"],
+            ["本品访客规模领先竞品估算值。", "本品成交客单价更高。"],
+        )
         self.assertEqual(merged["meta"]["weakness_summary"], "转化效率落后")
-        self.assertEqual(merged["meta"]["weakness_summary_detail"], "本品成交转化率低于竞品估算值。")
+        self.assertEqual(merged["meta"]["weakness_summary_detail"], ["本品成交转化率低于竞品估算值。"])
         self.assertEqual(merged["meta"]["deterministic_summary"], deterministic_summary)
         self.assertEqual(merged["meta"]["deterministic_weakness_summary"], deterministic_weakness)
         self.assertEqual(merged["ai_findings"], result["findings"])
@@ -86,8 +89,8 @@ class ReportMergeTest(unittest.TestCase):
         validated = validate_ai_result(
             {
                 "summary": {
-                    "advantage": {"brief": "暂无明显优势", "detail": "当前数据不足。"},
-                    "weakness": {"brief": "暂无明显短板", "detail": "当前数据不足。"},
+                    "advantage": {"brief": "暂无明显优势", "detail": ["当前数据不足。"]},
+                    "weakness": {"brief": "暂无明显短板", "detail": ["当前数据不足。"]},
                 },
                 "findings": [],
                 "recommendations": [],
@@ -103,10 +106,25 @@ class ReportMergeTest(unittest.TestCase):
             validate_ai_result(
                 {
                     "summary": {
-                        "advantage": {"brief": "流量领先", "detail": "本品流量领先。"},
-                        "weakness": {"brief": "转化落后", "detail": "本品转化落后。"},
+                        "advantage": {"brief": "流量领先", "detail": ["本品流量领先。"]},
+                        "weakness": {"brief": "转化落后", "detail": ["本品转化落后。"]},
                     },
                     "findings": [{"source_id": "traffic", "target": "搜索"}],
+                    "recommendations": [],
+                }
+            )
+
+    def test_summary_detail_must_be_point_list(self) -> None:
+        """详情必须按要点数组返回，长段落字符串不得进入报告。"""
+
+        with self.assertRaisesRegex(ValueError, "detail 必须包含"):
+            validate_ai_result(
+                {
+                    "summary": {
+                        "advantage": {"brief": "流量领先", "detail": "本品流量领先。"},
+                        "weakness": {"brief": "转化落后", "detail": ["本品转化落后。"]},
+                    },
+                    "findings": [],
                     "recommendations": [],
                 }
             )

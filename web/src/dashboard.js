@@ -531,8 +531,8 @@ export function renderDashboard(data, activeMetricId = "") {
     ? weakness
     : compactHeroSummary(metricItems, "warning");
   const heroTrigger = document.querySelector("#hero-summary-trigger");
-  heroTrigger.dataset.advantageDetail = meta.summary_detail || summary;
-  heroTrigger.dataset.weaknessDetail = meta.weakness_summary_detail || weakness;
+  heroTrigger.dataset.advantageDetail = JSON.stringify(meta.summary_detail || summary);
+  heroTrigger.dataset.weaknessDetail = JSON.stringify(meta.weakness_summary_detail || weakness);
   const preferredMetricId = activeMetricId || dashboardState.activeMetricId;
   dashboardState.activeMetricId = metricItems.some((item) => item.id === preferredMetricId)
     ? preferredMetricId

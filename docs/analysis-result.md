@@ -52,7 +52,7 @@
 | `meta.title` | 任务参数 | 使用调用方标题。 |
 | `meta.deterministic_summary`、`meta.deterministic_weakness_summary` | `core_metrics[]` | 保存固定公式汇总的主要优势和短板，用于审计。 |
 | `meta.summary`、`meta.weakness_summary` | DeepSeek `summary.*.brief` | 保存不超过 30 个字符的优点与弱点短结论，供看板首屏直接展示。 |
-| `meta.summary_detail`、`meta.weakness_summary_detail` | DeepSeek `summary.*.detail` | 保存优点与弱点的完整说明，供看板结论详情弹窗展示。 |
+| `meta.summary_detail`、`meta.weakness_summary_detail` | DeepSeek `summary.*.detail` | 保存优点与弱点的详情要点数组，供看板结论详情弹窗逐条展示。 |
 | `source_files[]` | `source_files[]` | 保留角色、文件、工作表、状态和警告。 |
 | `risks[]` | `warnings`、转换检查 | 汇总缺失、冲突、降级和口径风险。 |
 
@@ -179,17 +179,23 @@ DeepSeek 返回的 `summary` 同时包含优点与弱点：
   "summary": {
     "advantage": {
       "brief": "成交金额与访客规模领先",
-      "detail": "完整说明优势、成因和必要的数据限制。"
+      "detail": [
+        "本品访客规模领先竞品估算值。",
+        "本品成交客单价高于竞品估算值。"
+      ]
     },
     "weakness": {
       "brief": "成交转化率落后",
-      "detail": "完整说明弱点、成因和必要的数据限制。"
+      "detail": [
+        "本品成交转化率低于竞品估算值。",
+        "转化效率是当前成交增长的主要限制。"
+      ]
     }
   }
 }
 ```
 
-`brief` 为首屏短结论，长度不超过 30 个字符；`detail` 保存完整分析。看板把优点与弱点合并在同一个摘要面板中，点击面板后同时展示两侧详情。
+`brief` 为首屏短结论，长度不超过 30 个字符；`detail` 包含 1 至 6 个独立分析要点。看板把优点与弱点合并在同一个摘要面板中，点击面板后以列表形式同时展示两侧详情。字符串形式的详情由 Web 按换行和中文句末标点拆分展示。
 
 ## `ai_recommendations[]`
 

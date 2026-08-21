@@ -16,17 +16,17 @@ SUMMARY_KINDS = {"advantage", "weakness"}
 SUMMARY_FIELDS = {"brief", "detail"}
 
 
-def validate_summary(summary: Any) -> dict[str, dict[str, str]]:
+def validate_summary(summary: Any) -> dict[str, dict[str, Any]]:
     """校验 AI 生成的优点与弱点摘要。
 
-    功能说明：要求优点和弱点都包含首屏短结论与弹窗完整说明，并限制短结论长度。
+    功能说明：要求优点和弱点都包含首屏短结论与弹窗要点列表，并限制短结论和要点数量。
     参数 summary：AI 回传的摘要对象。
     返回值：去除首尾空白后的双摘要对象。
     """
 
     if not isinstance(summary, dict) or set(summary) != SUMMARY_KINDS:
         raise ValueError("AI summary 必须包含 advantage 和 weakness")
-    validated: dict[str, dict[str, str]] = {}
+    validated: dict[str, dict[str, Any]] = {}
     for kind in ("advantage", "weakness"):
         item = summary[kind]
         if not isinstance(item, dict) or set(item) != SUMMARY_FIELDS:
@@ -37,9 +37,14 @@ def validate_summary(summary: Any) -> dict[str, dict[str, str]]:
             raise ValueError(f"AI summary.{kind}.brief 不能为空")
         if len(brief.strip()) > 30:
             raise ValueError(f"AI summary.{kind}.brief 不能超过 30 个字符")
-        if not isinstance(detail, str) or not detail.strip():
-            raise ValueError(f"AI summary.{kind}.detail 不能为空")
-        validated[kind] = {"brief": brief.strip(), "detail": detail.strip()}
+        if not isinstance(detail, list) or not 1 <= len(detail) <= 6:
+            raise ValueError(f"AI summary.{kind}.detail 必须包含 1 至 6 个要点")
+        if any(not isinstance(point, str) or not point.strip() for point in detail):
+            raise ValueError(f"AI summary.{kind}.detail 存在空要点")
+        validated[kind] = {
+            "brief": brief.strip(),
+            "detail": [point.strip() for point in detail],
+        }
     return validated
 
 

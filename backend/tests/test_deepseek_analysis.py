@@ -59,8 +59,8 @@ class DeepSeekAnalyzerTest(unittest.TestCase):
             analyzer = self._analyzer(prompt_path)
             model_result = {
                 "summary": {
-                    "advantage": {"brief": "流量领先", "detail": "本品流量规模领先。"},
-                    "weakness": {"brief": "转化落后", "detail": "本品转化效率落后。"},
+                    "advantage": {"brief": "流量领先", "detail": ["本品流量规模领先。"]},
+                    "weakness": {"brief": "转化落后", "detail": ["本品转化效率落后。"]},
                 },
                 "findings": [],
                 "recommendations": [],

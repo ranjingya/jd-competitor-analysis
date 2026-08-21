@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { compactHeroSummary } from "../src/hero-summary.js";
+import { compactHeroSummary, detailPoints } from "../src/hero-summary.js";
 
 
 test("核心指标生成可完整展示的优点和弱点短摘要", () => {
@@ -19,4 +19,9 @@ test("核心指标生成可完整展示的优点和弱点短摘要", () => {
 test("没有匹配指标时返回稳定短摘要", () => {
   assert.equal(compactHeroSummary([], "advantage"), "暂无明显优势");
   assert.equal(compactHeroSummary([], "warning"), "暂无明显短板");
+});
+
+test("新旧详情结构都转换为逐条展示内容", () => {
+  assert.deepEqual(detailPoints(["访客规模领先。", "客单价更高。"]), ["访客规模领先。", "客单价更高。"]);
+  assert.deepEqual(detailPoints("访客规模领先。客单价更高。"), ["访客规模领先。", "客单价更高。"]);
 });

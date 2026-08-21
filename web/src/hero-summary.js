@@ -17,6 +17,51 @@ export function compactHeroSummary(metrics, kind) {
 }
 
 /**
+ * 功能说明：把详情统一转换为逐条展示的文本数组。
+ * 参数 value：详情数组或详情字符串。
+ * 返回值：过滤空值后的详情要点；无内容时返回占位项。
+ */
+export function detailPoints(value) {
+  if (Array.isArray(value)) {
+    const points = value.map((item) => String(item || "").trim()).filter(Boolean);
+    return points.length ? points : ["-"];
+  }
+  const text = String(value || "").trim();
+  if (!text) return ["-"];
+  const lines = text.split(/\n+/u).map((item) => item.replace(/^\s*[-•·]\s*/u, "").trim()).filter(Boolean);
+  if (lines.length > 1) return lines;
+  const sentences = text.match(/[^。！？；]+[。！？；]?/gu)?.map((item) => item.trim()).filter(Boolean) || [];
+  return sentences.length ? sentences : [text];
+}
+
+/**
+ * 功能说明：把结论详情按无序列表写入弹窗。
+ * 参数 container：承载详情条目的列表元素。
+ * 参数 value：详情数组或详情字符串。
+ * 返回值：无；直接替换列表中的详情条目。
+ */
+function renderDetailPoints(container, value) {
+  container.replaceChildren(...detailPoints(value).map((point) => {
+    const item = document.createElement("li");
+    item.textContent = point;
+    return item;
+  }));
+}
+
+/**
+ * 功能说明：读取摘要按钮中经过 JSON 编码的详情数据。
+ * 参数 value：按钮 dataset 中保存的字符串。
+ * 返回值：解析后的详情数组或兼容的原始字符串。
+ */
+function parseDetail(value) {
+  try {
+    return JSON.parse(value || "\"-\"");
+  } catch {
+    return value || "-";
+  }
+}
+
+/**
  * 功能说明：绑定优点与弱点摘要的详情弹窗。
  * 参数 dialog：用于展示完整结论的原生 dialog 元素。
  * 参数 trigger：打开优缺点详情的摘要面板按钮。
@@ -24,8 +69,14 @@ export function compactHeroSummary(metrics, kind) {
  */
 export function bindHeroSummaryDialog(dialog, trigger) {
   trigger.addEventListener("click", () => {
-    dialog.querySelector("#summary-dialog-advantage").textContent = trigger.dataset.advantageDetail || "-";
-    dialog.querySelector("#summary-dialog-weakness").textContent = trigger.dataset.weaknessDetail || "-";
+    renderDetailPoints(
+      dialog.querySelector("#summary-dialog-advantage"),
+      parseDetail(trigger.dataset.advantageDetail)
+    );
+    renderDetailPoints(
+      dialog.querySelector("#summary-dialog-weakness"),
+      parseDetail(trigger.dataset.weaknessDetail)
+    );
     dialog.showModal();
   });
   dialog.addEventListener("click", (event) => {
