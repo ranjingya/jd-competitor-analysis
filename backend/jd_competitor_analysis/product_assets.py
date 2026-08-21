@@ -14,21 +14,6 @@ from . import SCRIPTS_DIR
 
 LOGGER = logging.getLogger(__name__)
 PRODUCT_IMAGES_PATH = SCRIPTS_DIR / "assets" / "product-images.json"
-LOCAL_PRODUCT_IMAGE_PREFIX = "/product-images/"
-
-
-def is_valid_product_image_url(value: str) -> bool:
-    """判断商品主图地址是否可供 Web 安全加载。
-
-    功能说明：接受完整 HTTPS 地址或 Web 公共目录中的同源商品主图路径，拒绝其他协议和越级路径。
-    参数 value：待校验的商品主图地址。
-    返回值：地址符合商品主图规则时返回 True，否则返回 False。
-    """
-
-    if value.startswith(LOCAL_PRODUCT_IMAGE_PREFIX):
-        return ".." not in value and len(value) > len(LOCAL_PRODUCT_IMAGE_PREFIX)
-    parsed_url = urlparse(value)
-    return parsed_url.scheme == "https" and bool(parsed_url.netloc)
 
 
 def load_product_images(path: Path = PRODUCT_IMAGES_PATH) -> dict[str, dict[str, str | None]]:
@@ -62,10 +47,11 @@ def load_product_images(path: Path = PRODUCT_IMAGES_PATH) -> dict[str, dict[str,
             raise ValueError(f"商品主图素材 name 必须是字符串或 null：{product_id}")
         if image_url is not None:
             if not isinstance(image_url, str):
-                raise ValueError(f"商品主图素材 image_url 必须使用 HTTPS 或同源路径：{product_id}")
+                raise ValueError(f"商品主图素材 image_url 必须使用 HTTPS：{product_id}")
             image_url = image_url.strip()
-            if not is_valid_product_image_url(image_url):
-                raise ValueError(f"商品主图素材 image_url 必须使用 HTTPS 或同源路径：{product_id}")
+            parsed_url = urlparse(image_url)
+            if parsed_url.scheme != "https" or not parsed_url.netloc:
+                raise ValueError(f"商品主图素材 image_url 必须使用 HTTPS：{product_id}")
         products[product_id] = {
             "name": name.strip() if isinstance(name, str) and name.strip() else None,
             "image_url": image_url,
