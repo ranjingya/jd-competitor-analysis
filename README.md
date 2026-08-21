@@ -28,6 +28,25 @@ npm run dev
 
 前端只访问同源 `/api`。Vite 开发服务器将该路径转发到 `127.0.0.1:8000`；生产环境由 Web 容器内的 Nginx 转发到 Backend 容器。
 
+## 商品主图配置
+
+商品主图在 `backend/assets/product-images.json` 中按商品 ID 维护：
+
+```json
+{
+  "schema_version": "1.0",
+  "updated_at": "2026-08-21",
+  "products": {
+    "商品 ID": {
+      "name": "商品名称",
+      "image_url": "https://example.com/product.jpg"
+    }
+  }
+}
+```
+
+`image_url` 使用完整 HTTPS 地址，可以直接手动增加或修改。商品没有配置主图时，报告正常生成，Web 使用缺图占位。日分析任务启动时读取一次该文件，已经入库的报告继续使用生成报告时保存的主图地址。
+
 ## 部署
 
 服务器部署目录保存：
