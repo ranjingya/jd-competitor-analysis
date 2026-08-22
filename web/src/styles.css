@@ -126,11 +126,6 @@ h1 {
   min-width: 0;
 }
 
-.pair-picker {
-  border-radius: 11px 0 0 11px;
-  transition: box-shadow 160ms ease, transform 160ms ease;
-}
-
 .pair-panel {
   height: 100%;
   padding: 14px 16px;
@@ -153,16 +148,6 @@ h1 {
 .pair-panel:hover .pair-panel-trigger,
 .pair-picker.is-open .pair-panel-trigger {
   border-color: var(--interactive-hover-border);
-}
-
-.pair-picker:hover,
-.pair-picker.is-open {
-  box-shadow: var(--interactive-hover-shadow);
-  transform: translateY(-1px);
-}
-
-.pair-picker:has(.pair-panel-trigger:active) {
-  transform: translateY(1px);
 }
 
 .pair-panel-trigger:focus-visible {
@@ -242,12 +227,18 @@ h1 {
   font-weight: 800;
   white-space: nowrap;
   cursor: pointer;
-  transition: border-color 160ms ease, background-color 160ms ease;
+  transition: border-color 160ms ease, background-color 160ms ease,
+    box-shadow 160ms ease, transform 160ms ease;
 }
 
 .sku-control button:hover:not(:disabled) {
-  border-color: rgba(15, 123, 115, 0.55);
-  background: var(--soft-teal);
+  border-color: var(--interactive-hover-border);
+  box-shadow: var(--interactive-hover-shadow);
+  transform: translateY(-1px);
+}
+
+.sku-control button:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 .sku-control button:disabled {
@@ -415,7 +406,8 @@ h1 {
   color: var(--text);
   text-decoration: none;
   pointer-events: auto;
-  transition: border-color 150ms ease, background-color 150ms ease;
+  transition: border-color 160ms ease, background-color 160ms ease,
+    box-shadow 160ms ease, transform 160ms ease;
 }
 
 .product-card:focus-visible {
@@ -428,8 +420,13 @@ h1 {
 }
 
 a.product-card:hover {
-  border-color: rgba(15, 123, 115, 0.2);
-  background: rgba(223, 241, 236, 0.48);
+  border-color: var(--interactive-hover-border);
+  box-shadow: var(--interactive-hover-shadow);
+  transform: translateY(-1px);
+}
+
+a.product-card:active {
+  transform: translateY(1px);
 }
 
 .product-card:last-child {
@@ -1205,17 +1202,11 @@ a.product-card:hover {
   color: inherit;
   text-align: left;
   cursor: pointer;
-  transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+  transition: border-color 140ms ease;
 }
 
 .hero:hover {
   border-color: var(--interactive-hover-border);
-  box-shadow: var(--interactive-hover-shadow);
-  transform: translateY(-1px);
-}
-
-.hero:active {
-  transform: translateY(1px);
 }
 
 .hero:focus-visible {
@@ -2192,7 +2183,7 @@ a.product-card:hover {
 
 @media (prefers-reduced-motion: reduce) {
   .product-card,
-  .pair-picker,
+  .pair-panel-trigger,
   .hero,
   .metric-card,
   .tab,
@@ -2203,9 +2194,9 @@ a.product-card:hover {
   }
 
   a.product-card:hover,
-  .pair-picker:hover,
-  .pair-picker.is-open,
-  .hero:hover,
+  a.product-card:active,
+  .sku-control button:hover:not(:disabled),
+  .sku-control button:active:not(:disabled),
   .metric-card:hover,
   .tab:hover,
   .dimension-tab:hover {
@@ -2225,10 +2216,6 @@ a.product-card:hover {
   }
 
   .pair-panel-trigger {
-    border-radius: 11px 11px 0 0;
-  }
-
-  .pair-picker {
     border-radius: 11px 11px 0 0;
   }
 
