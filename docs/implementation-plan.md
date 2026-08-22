@@ -74,6 +74,7 @@ updated_at
 
 ```text
 /app/data/data.db
+/app/data/product-images.json
 ```
 
 暂不建立商品对配置表、运行记录表、独立 AI 结果表和迁移框架。
@@ -144,7 +145,7 @@ updated_at
 
 ## 第六步：Docker 部署
 
-- [ ] Backend 使用宿主机数据目录：
+- [x] Backend 使用宿主机数据目录：
 
 ```yaml
 volumes:
@@ -152,6 +153,7 @@ volumes:
 ```
 
 - [ ] `.env` 放在 `~/yatui/jd-competitor-analysis/.env`。
+- [x] 商品主图配置保存在宿主机 `data/product-images.json`，日任务自动同步已有报告。
 - [ ] Web 和 Backend 保持两个容器。
 - [ ] 删除 reports 业务目录挂载。
 - [ ] 手动执行一次真实日期分析并检查页面。

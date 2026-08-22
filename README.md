@@ -30,7 +30,7 @@ npm run dev
 
 ## 商品主图配置
 
-商品主图在 `backend/assets/product-images.json` 中按商品 ID 维护：
+商品主图在运行数据目录的 `data/product-images.json` 中按商品 ID 维护：
 
 ```json
 {
@@ -45,7 +45,13 @@ npm run dev
 }
 ```
 
-`image_url` 使用完整 HTTPS 地址，可以直接手动增加或修改。商品没有配置主图时，报告正常生成，Web 使用缺图占位。日分析任务启动时读取一次该文件，已经入库的报告继续使用生成报告时保存的主图地址。
+`image_url` 使用完整 HTTPS 地址，可以直接手动增加或修改。商品没有配置主图时，报告正常生成，Web 使用缺图占位。日分析任务启动时读取一次该文件，先将新地址同步到已有报告，再使用同一份配置生成当天报告。
+
+需要立即同步已有报告时执行：
+
+```bash
+backend/.venv/bin/python backend/cli.py sync-product-images
+```
 
 ## 部署
 
@@ -55,6 +61,8 @@ npm run dev
 .env
 docker-compose.yaml
 data/
+  data.db
+  product-images.json
 ```
 
 启动服务：
@@ -84,4 +92,5 @@ docker compose up -d
 - 同一日期和商品对只有一份当前报告及一条非过期 AI 执行记录。
 - StarRocks 连接探测和确定性分析逻辑统一位于 Backend。
 - `warehouse-daily-run` 按商品对串行完成数仓读取、固定公式、DeepSeek 分析和报告入库。
+- 商品主图由宿主机 `data/product-images.json` 维护，日任务自动同步到已有报告。
 - 日分析使用进程锁防止同一服务器重复执行，单个商品对失败后继续处理下一组。

@@ -8,6 +8,7 @@ import sqlite3
 import uuid
 from datetime import date
 from pathlib import Path
+from time import perf_counter
 from typing import Any
 
 from jd_competitor_analysis.report import build_tabs, gap_text, relative_gap_pct
@@ -169,6 +170,61 @@ class ReportRepository:
         """初始化统一数据库。"""
 
         self.database.initialize()
+
+    def sync_product_images(
+        self,
+        product_images: dict[str, dict[str, Any]],
+    ) -> dict[str, int]:
+        """把商品主图配置同步到已有报告。
+
+        功能说明：按 SPU 更新报告中的本品和竞品主图字段，仅处理配置中出现的商品，
+        并在同一事务中完成全部更新。
+        参数 product_images：按商品 ID 索引且已完成校验的主图配置。
+        返回值：包含配置商品数、本品字段更新数、竞品字段更新数和总更新数的摘要。
+        """
+
+        started_at = perf_counter()
+        self_updated = 0
+        competitor_updated = 0
+        with self.database.connection() as connection:
+            connection.execute("BEGIN")
+            try:
+                for product_id, asset in product_images.items():
+                    image_url = asset.get("image_url")
+                    self_updated += connection.execute(
+                        """
+                        UPDATE reports
+                        SET self_image_url = ?
+                        WHERE self_spu = ? AND self_image_url IS NOT ?
+                        """,
+                        (image_url, product_id, image_url),
+                    ).rowcount
+                    competitor_updated += connection.execute(
+                        """
+                        UPDATE reports
+                        SET competitor_image_url = ?
+                        WHERE competitor_spu = ? AND competitor_image_url IS NOT ?
+                        """,
+                        (image_url, product_id, image_url),
+                    ).rowcount
+            except Exception:
+                connection.rollback()
+                raise
+            connection.commit()
+        summary = {
+            "products": len(product_images),
+            "self_reports": self_updated,
+            "competitor_reports": competitor_updated,
+            "updated_fields": self_updated + competitor_updated,
+        }
+        LOGGER.info(
+            "商品主图同步完成：products=%s，self_reports=%s，competitor_reports=%s，耗时=%.3fs",
+            summary["products"],
+            summary["self_reports"],
+            summary["competitor_reports"],
+            perf_counter() - started_at,
+        )
+        return summary
 
     def upsert(
         self,

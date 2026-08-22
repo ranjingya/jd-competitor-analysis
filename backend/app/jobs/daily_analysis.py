@@ -342,6 +342,8 @@ def run_warehouse_daily_analysis(args: Any) -> None:
         )
         database = Database(settings.database_path)
         database.initialize()
+        product_images = load_product_images(settings.product_images_path)
+        product_images_sync = ReportRepository(database).sync_product_images(product_images)
         engine = create_warehouse_engine(warehouse_config)
         mapping_client = LarkBaseMappingClient(lark_config)
         try:
@@ -356,7 +358,7 @@ def run_warehouse_daily_analysis(args: Any) -> None:
                 database,
                 ai_analyzer,
                 title=args.title,
-                product_images=load_product_images(),
+                product_images=product_images,
             )
         finally:
             engine.dispose()
@@ -364,6 +366,8 @@ def run_warehouse_daily_analysis(args: Any) -> None:
     summary = {
         "date": selected_date,
         "database_path": str(Path(settings.database_path)),
+        "product_images_path": str(settings.product_images_path),
+        "product_images_sync": product_images_sync,
         "counts": {
             status: sum(item["status"] == status for item in results)
             for status in ("ready", "ai_failed", "invalid", "skipped", "failed")

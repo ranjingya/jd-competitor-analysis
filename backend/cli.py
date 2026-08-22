@@ -8,6 +8,7 @@ from pathlib import Path
 from time import perf_counter
 
 from app.jobs.daily_analysis import run_warehouse_daily_analysis
+from app.jobs.product_images import run_product_image_sync
 from jd_competitor_analysis.lark_mapping import run_lark_mapping_check
 from jd_competitor_analysis.warehouse import run_warehouse_probe
 from jd_competitor_analysis.warehouse_daily import run_warehouse_daily_check
@@ -16,7 +17,7 @@ from jd_competitor_analysis.warehouse_daily import run_warehouse_daily_check
 def parse_args() -> argparse.Namespace:
     """解析统一入口的子命令和参数。
 
-    功能说明：提供数仓连接探测、飞书映射检查、日数据来源检查和正式日分析，
+    功能说明：提供数仓连接探测、飞书映射检查、日数据来源检查、主图同步和正式日分析，
     并为每个操作注册独立参数。
     返回值：包含子命令、处理函数和业务参数的命名空间。
     """
@@ -68,6 +69,13 @@ def parse_args() -> argparse.Namespace:
     daily_run_parser.add_argument("--title", help="可选看板标题。")
     daily_run_parser.add_argument("--log-level", default="INFO", help="日志级别。")
     daily_run_parser.set_defaults(handler=run_warehouse_daily_analysis)
+
+    image_sync_parser = subparsers.add_parser(
+        "sync-product-images",
+        help="把运行数据目录中的商品主图配置同步到已有报告。",
+    )
+    image_sync_parser.add_argument("--log-level", default="INFO", help="日志级别。")
+    image_sync_parser.set_defaults(handler=run_product_image_sync)
 
     return parser.parse_args()
 

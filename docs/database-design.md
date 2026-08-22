@@ -1,14 +1,15 @@
 # Backend 数据库设计
 
-## 数据库位置
+## 运行数据位置
 
-Backend 使用一个 SQLite 数据库保存标准化日数据、日周月报告和 DeepSeek 执行记录：
+Backend 使用一个 SQLite 数据库保存标准化日数据、日周月报告和 DeepSeek 执行记录，并在同一运行数据目录读取商品主图配置：
 
 ```text
 /app/data/data.db
+/app/data/product-images.json
 ```
 
-本地开发默认使用项目 `data/data.db`。运行时可以通过 `BACKEND_DATABASE_PATH` 指定路径。数据库目录整体挂载到容器 `/app/data`，Web 只通过 Backend API 读取数据。
+本地开发默认使用项目 `data/data.db`，商品主图配置固定使用同目录的 `product-images.json`。运行时可以通过 `BACKEND_DATABASE_PATH` 指定数据库路径，主图配置随数据库目录自动定位。数据目录整体挂载到容器 `/app/data`，Web 只通过 Backend API 读取数据。
 
 数据库结构版本写入 SQLite `PRAGMA user_version`，当前版本为 `2`。应用启动和 CLI 运行时都会初始化当前结构。
 

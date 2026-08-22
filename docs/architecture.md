@@ -16,7 +16,8 @@ FastAPI 和 CLI 是 Backend 容器中的独立进程，共享 `/app/data/data.db
 
 ```text
 宿主机 cron
-  → Backend CLI 获取飞书映射与 StarRocks 日数据
+  → Backend CLI 读取 product-images.json 并同步已有报告主图
+  → 获取飞书映射与 StarRocks 日数据
   → SKU→SPU 与日数据标准化
   → data.db 按模块保存不可变日数据集
   → 确定性分析报告
@@ -44,9 +45,10 @@ GET  /api/reports/{granularity}/{start_date}/{end_date}
 ## 持久化
 
 - `data/data.db`：按模块保存的标准化日数据、AI 执行状态和最终看板报告。
+- `data/product-images.json`：按商品 SPU 维护的 HTTPS 主图地址，由 Backend CLI 同步到报告主图字段。
 - StarRocks：业务事实来源，不保存应用的 AI 执行状态。
 
-服务器通过 Docker volume 持久化 `data/`。Web 容器不直接挂载或读取该目录，只通过 Backend API 获取报告。
+服务器通过 Docker volume 将宿主机 `data/` 挂载到 Backend 的 `/app/data`。数据库和商品主图配置都由宿主机持久化，Web 容器不直接挂载或读取该目录，只通过 Backend API 获取报告。
 
 ## 定时执行
 
@@ -58,3 +60,10 @@ docker compose exec -T jd-competitor-analysis-backend \
 ```
 
 CLI 使用 `/app/data/warehouse-daily-run.lock` 进程锁。同一任务仍在运行时，后续触发直接退出，避免重复读取数仓和覆盖报告。
+
+手动修改宿主机 `data/product-images.json` 后，可以等待下一次日任务，也可以立即执行：
+
+```bash
+docker compose exec -T jd-competitor-analysis-backend \
+  python /app/cli.py sync-product-images
+```

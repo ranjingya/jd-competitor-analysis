@@ -119,6 +119,49 @@ class ReportRepositoryTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "必须相同"):
             self.repository.read_report("day", "2026-08-17", "2026-08-18")
 
+    def test_product_images_are_synced_to_existing_reports(self) -> None:
+        """外部主图配置应按 SPU 更新已有报告的两侧主图字段。"""
+
+        self.repository.upsert(
+            self.dataset_id,
+            {
+                "meta": {
+                    "title": "日报",
+                    "self_product": {
+                        "name": "本品名称",
+                        "image_url": "https://example.com/old-self.jpg",
+                    },
+                    "competitor_product": {
+                        "name": "竞品名称",
+                        "image_url": "https://example.com/old-competitor.jpg",
+                    },
+                }
+            },
+            report_id="report-1",
+        )
+
+        result = self.repository.sync_product_images(
+            {
+                "10001": {"name": "本品名称", "image_url": "https://example.com/new-self.jpg"},
+                "20001": {
+                    "name": "竞品名称",
+                    "image_url": "https://example.com/new-competitor.jpg",
+                },
+                "30001": {"name": "未使用商品", "image_url": None},
+            }
+        )
+        entry = self.repository.read_index()["reports"]["day"][0]
+
+        self.assertEqual(result["products"], 3)
+        self.assertEqual(result["self_reports"], 1)
+        self.assertEqual(result["competitor_reports"], 1)
+        self.assertEqual(result["updated_fields"], 2)
+        self.assertEqual(entry["self_image_url"], "https://example.com/new-self.jpg")
+        self.assertEqual(
+            entry["competitor_image_url"],
+            "https://example.com/new-competitor.jpg",
+        )
+
     def test_report_skus_come_from_dataset_snapshot(self) -> None:
         """日报 SKU 接口数据应来自生成报告时的数据集快照。"""
 

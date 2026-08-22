@@ -10,14 +10,14 @@ from typing import Any
 from urllib.parse import urlparse
 
 LOGGER = logging.getLogger(__name__)
-PRODUCT_IMAGES_PATH = Path(__file__).resolve().parents[1] / "assets" / "product-images.json"
+PRODUCT_IMAGES_PATH = Path("data/product-images.json")
 
 
 def load_product_images(path: Path = PRODUCT_IMAGES_PATH) -> dict[str, dict[str, str | None]]:
     """读取商品主图素材字典。
 
     功能说明：读取并校验按商品 ID 索引的主图素材，返回供报告生成阶段查询的稳定字典。
-    参数 path：商品主图素材 JSON 路径，默认读取 Backend 目录下的正式素材文件。
+    参数 path：商品主图素材 JSON 路径，默认读取当前工作目录下的运行数据文件。
     返回值：键为商品 ID、值包含维护名称和 HTTPS 主图地址的字典。
     """
 

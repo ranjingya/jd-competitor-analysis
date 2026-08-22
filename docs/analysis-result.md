@@ -46,7 +46,7 @@
 | `meta.self_spu`、`meta.competitor_spu` | `meta` | 直接复制。 |
 | `meta.self_name` | `self_real.商品名称` | 清洗文本。 |
 | `meta.competitor_name` | `keyword_rows[].商品名称` | 按竞品 SPU 筛选并唯一化。 |
-| `meta.self_product`、`meta.competitor_product` | 商品 ID、分析商品名、`backend/assets/product-images.json` | 组装商品 ID、名称和 HTTPS 主图地址，商品名优先采用分析数据。 |
+| `meta.self_product`、`meta.competitor_product` | 商品 ID、分析商品名、`data/product-images.json` | 组装商品 ID、名称和 HTTPS 主图地址，商品名优先采用分析数据。 |
 | `meta.title` | 任务参数 | 使用调用方标题。 |
 | `meta.deterministic_summary`、`meta.deterministic_weakness_summary` | `core_metrics[]` | 保存固定公式汇总的主要优势和短板，用于审计。 |
 | `meta.summary`、`meta.weakness_summary` | DeepSeek `summary.*.brief` | 保存不超过 30 个字符的优点与弱点短结论，供看板首屏直接展示。 |
@@ -56,7 +56,7 @@
 
 `meta` 必须包含 `period`、`period_start`、`period_end`、`period_key`、`granularity`、`self_product` 和 `competitor_product`。`period_key` 在同一商品对的报告索引中唯一。
 
-两侧商品对象都包含 `id`、`name` 和 `image_url`。`id` 与对应 SPU 字段保持一致；`image_url` 为 HTTPS 地址或 `null`。主图素材不存在时报告继续生成，并以 `null` 触发网页占位图降级。
+两侧商品对象都包含 `id`、`name` 和 `image_url`。`id` 与对应 SPU 字段保持一致；`image_url` 为 HTTPS 地址或 `null`。主图素材不存在时报告继续生成，并以 `null` 触发网页占位图降级。Backend CLI 根据 `data.db` 所在目录读取 `product-images.json`，日任务开始时将配置中的地址同步到已有报告。
 
 ## 核心审计结构
 

@@ -32,6 +32,7 @@ class Settings:
     """保存后端运行参数。"""
 
     database_path: Path
+    product_images_path: Path
     analysis_lock_path: Path
     deepseek_api_key: str | None
     deepseek_base_url: str
@@ -58,6 +59,7 @@ def get_settings() -> Settings:
     ).expanduser().resolve()
     return Settings(
         database_path=database_path,
+        product_images_path=database_path.parent / "product-images.json",
         analysis_lock_path=lock_path,
         deepseek_api_key=os.getenv("DEEPSEEK_API_KEY", "").strip() or None,
         deepseek_base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com").strip().rstrip("/"),
