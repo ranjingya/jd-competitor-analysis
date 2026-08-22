@@ -1,53 +1,35 @@
-"""定义后端 API 数据结构。"""
+"""定义后端内部数据结构。"""
 
 from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
-class ClaimRequest(BaseModel):
-    """领取 AI 分析任务时提交的 Worker 信息。"""
+class AISummaryItem(BaseModel):
+    """DeepSeek 生成的一类结论摘要。"""
 
-    worker_id: str = Field(min_length=1, max_length=100)
+    model_config = ConfigDict(extra="forbid")
+
+    brief: str = Field(min_length=1, max_length=30)
+    detail: list[str] = Field(min_length=1, max_length=6)
 
 
-class ClaimedTask(BaseModel):
-    """后端返回给 Codex 的已领取任务。"""
+class AISummary(BaseModel):
+    """DeepSeek 生成的优点与弱点摘要。"""
 
-    analysis_id: str
-    source_hash: str
-    lease_token: str
-    lease_expires_at: str
-    payload: dict[str, Any]
+    model_config = ConfigDict(extra="forbid")
+
+    advantage: AISummaryItem
+    weakness: AISummaryItem
 
 
 class AIAnalysisResult(BaseModel):
-    """Codex 生成的结构化分析结果。"""
+    """DeepSeek 生成的结构化分析结果。"""
 
-    summary: str = Field(min_length=1)
+    model_config = ConfigDict(extra="forbid")
+
+    summary: AISummary
     findings: list[dict[str, Any]] = Field(default_factory=list)
     recommendations: list[dict[str, Any]] = Field(default_factory=list)
-
-
-class CompleteTaskRequest(BaseModel):
-    """完成任务时提交的租约、数据版本和 AI 结果。"""
-
-    source_hash: str = Field(min_length=1)
-    lease_token: str = Field(min_length=1)
-    result: AIAnalysisResult
-
-
-class FailTaskRequest(BaseModel):
-    """任务失败时提交的租约和错误原因。"""
-
-    lease_token: str = Field(min_length=1)
-    error: str = Field(min_length=1, max_length=4000)
-
-
-class TaskStatusResponse(BaseModel):
-    """任务状态变更结果。"""
-
-    analysis_id: str
-    status: str

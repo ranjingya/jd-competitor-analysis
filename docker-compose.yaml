@@ -30,7 +30,6 @@ services:
       - "8000"
     volumes:
       - ./data:/app/data
-      - ./reports:/app/data/reports
     networks:
       - app-internal
       - kocotree-skills

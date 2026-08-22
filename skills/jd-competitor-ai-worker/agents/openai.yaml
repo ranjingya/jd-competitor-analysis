@@ -1,4 +1,0 @@
-interface:
-  display_name: "京东竞品 AI Worker"
-  short_description: "领取后端任务并生成、回传京东竞品 AI 分析"
-  default_prompt: "使用 $jd-competitor-ai-worker 领取待分析任务，根据结构化事实生成分析并回传；没有任务时直接结束。"

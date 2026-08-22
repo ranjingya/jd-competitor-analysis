@@ -1,203 +1,184 @@
-"""使用 SQLite 持久化 AI 分析任务。"""
+"""使用 SQLite 持久化后端内部 AI 执行记录。"""
 
 from __future__ import annotations
 
 import json
 import logging
-import secrets
 import sqlite3
 import uuid
-from datetime import datetime, timedelta, timezone
+from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+from ..database import Database
+from ..report_merge import validate_ai_result
 
 
 LOGGER = logging.getLogger(__name__)
 
 
 class TaskConflictError(RuntimeError):
-    """任务状态、租约或数据版本冲突。"""
+    """任务状态或数据版本发生冲突。"""
 
 
-def _utc_now() -> datetime:
+@dataclass(frozen=True)
+class TaskStartResult:
+    """保存内部 AI 执行启动结果。"""
+
+    analysis_id: str
+    should_execute: bool
+
+
+def _utc_now_text() -> str:
     """返回带时区的当前 UTC 时间。"""
 
-    return datetime.now(timezone.utc)
-
-
-def _iso(value: datetime) -> str:
-    """把时间转换为稳定的 ISO 字符串。"""
-
-    return value.isoformat(timespec="seconds")
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
 class TaskRepository:
-    """管理 AI 任务的创建、领取、完成与失败状态。"""
+    """管理后端内部 AI 执行记录。"""
 
-    def __init__(self, database_path: Path) -> None:
-        self.database_path = database_path
+    def __init__(self, database: Database | Path) -> None:
+        self.database = database if isinstance(database, Database) else Database(database)
 
     def initialize(self) -> None:
-        """初始化任务数据库。
+        """初始化统一数据库。
 
-        功能说明：创建持久化目录和 AI 任务表，已有数据库保持原数据不变。
+        功能说明：创建持久化目录、三张业务表和索引。
         返回值：无。
         """
 
-        self.database_path.parent.mkdir(parents=True, exist_ok=True)
-        with self._connect() as connection:
-            connection.execute(
-                """
-                CREATE TABLE IF NOT EXISTS analysis_tasks (
-                    analysis_id TEXT PRIMARY KEY,
-                    source_hash TEXT NOT NULL,
-                    payload_json TEXT NOT NULL,
-                    result_json TEXT,
-                    status TEXT NOT NULL,
-                    worker_id TEXT,
-                    lease_token TEXT,
-                    lease_expires_at TEXT,
-                    attempt_count INTEGER NOT NULL DEFAULT 0,
-                    error_message TEXT,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL,
-                    completed_at TEXT
-                )
-                """
-            )
-            connection.execute(
-                "CREATE INDEX IF NOT EXISTS idx_analysis_tasks_status_created "
-                "ON analysis_tasks(status, created_at)"
-            )
-            connection.execute(
-                "CREATE UNIQUE INDEX IF NOT EXISTS idx_analysis_tasks_source_hash "
-                "ON analysis_tasks(source_hash)"
-            )
-        LOGGER.info("AI 任务数据库初始化完成：%s", self.database_path)
+        self.database.initialize()
 
-    def enqueue(
+    def start(
         self,
+        report_id: str,
         source_hash: str,
         payload: dict[str, Any],
+        model: str,
+        analysis_version: str,
+        prompt_hash: str,
         analysis_id: str | None = None,
-    ) -> str:
-        """创建待分析任务。
+    ) -> TaskStartResult:
+        """启动一次内部 AI 分析。
 
-        功能说明：把后端脚本生成的结构化事实保存为 pending 任务，供 Mac Codex 后续领取。
-        参数 source_hash：当前分析输入的稳定内容哈希。
-        参数 payload：只包含分析所需事实的结构化输入。
-        参数 analysis_id：可选任务 ID；为空时自动生成。
-        返回值：创建后的任务 ID。
+        功能说明：相同输入已完成时直接复用；失败或中断时复用原记录重试；输入变化时将旧记录标记为 expired 并创建 processing 记录。
+        参数 report_id：AI 结果最终写入的唯一报告 ID。
+        参数 source_hash：AI 输入的稳定内容哈希。
+        参数 payload：只包含模型分析所需事实的结构化输入。
+        参数 model：本次调用使用的模型标识。
+        参数 analysis_version：AI 分析规则版本。
+        参数 prompt_hash：提示词内容哈希。
+        参数 analysis_id：可选执行记录 ID；为空时自动生成。
+        返回值：执行记录 ID 与本次是否需要调用模型。
         """
 
         task_id = analysis_id or str(uuid.uuid4())
-        now = _iso(_utc_now())
-        with self._connect() as connection:
-            try:
-                connection.execute(
-                    """
-                    INSERT INTO analysis_tasks (
-                        analysis_id, source_hash, payload_json, status, created_at, updated_at
-                    ) VALUES (?, ?, ?, 'pending', ?, ?)
-                    """,
-                    (task_id, source_hash, json.dumps(payload, ensure_ascii=False), now, now),
-                )
-            except sqlite3.IntegrityError as error:
-                existing = connection.execute(
-                    "SELECT analysis_id FROM analysis_tasks WHERE source_hash = ?",
-                    (source_hash,),
-                ).fetchone()
-                if existing is None:
-                    raise error
-                LOGGER.info(
-                    "相同数据版本的 AI 任务已存在：analysis_id=%s，source_hash=%s",
-                    existing["analysis_id"],
-                    source_hash,
-                )
-                return str(existing["analysis_id"])
-        LOGGER.info("AI 分析任务已创建：analysis_id=%s", task_id)
-        return task_id
-
-    def claim(self, worker_id: str, lease_seconds: int) -> dict[str, Any] | None:
-        """原子领取一条待分析任务。
-
-        功能说明：回收过期租约后按创建时间领取一条 pending 任务，并生成本次提交所需租约令牌。
-        参数 worker_id：领取任务的 Codex Worker 标识。
-        参数 lease_seconds：本次任务租约有效秒数。
-        返回值：已领取任务；没有可用任务时返回 None。
-        """
-
-        now = _utc_now()
-        now_text = _iso(now)
-        lease_expires_at = _iso(now + timedelta(seconds=lease_seconds))
-        lease_token = secrets.token_urlsafe(32)
+        now = _utc_now_text()
         connection = self._connect()
         try:
             connection.execute("BEGIN IMMEDIATE")
-            connection.execute(
-                """
-                UPDATE analysis_tasks
-                SET status = 'pending', worker_id = NULL, lease_token = NULL,
-                    lease_expires_at = NULL, updated_at = ?
-                WHERE status = 'processing' AND lease_expires_at < ?
-                """,
-                (now_text, now_text),
-            )
-            row = connection.execute(
-                """
-                SELECT analysis_id, source_hash, payload_json
-                FROM analysis_tasks
-                WHERE status = 'pending'
-                ORDER BY created_at, analysis_id
-                LIMIT 1
-                """
+            report = connection.execute(
+                "SELECT report_id FROM reports WHERE report_id = ?",
+                (report_id,),
             ).fetchone()
-            if row is None:
+            if report is None:
+                raise TaskConflictError("AI 执行关联的报告不存在")
+            existing = connection.execute(
+                """
+                SELECT analysis_id, source_hash, status
+                FROM analysis_tasks
+                WHERE report_id = ? AND status <> 'expired'
+                """,
+                (report_id,),
+            ).fetchone()
+            if existing is not None and existing["source_hash"] == source_hash:
+                existing_id = str(existing["analysis_id"])
+                if existing["status"] == "completed":
+                    connection.commit()
+                    LOGGER.info(
+                        "相同 AI 输入已完成，复用结果：analysis_id=%s，report_id=%s",
+                        existing_id,
+                        report_id,
+                    )
+                    return TaskStartResult(existing_id, False)
+                connection.execute(
+                    """
+                    UPDATE analysis_tasks
+                    SET model = ?, analysis_version = ?, prompt_hash = ?, payload_json = ?,
+                        status = 'processing', result_json = NULL,
+                        attempt_count = attempt_count + 1, error_message = NULL,
+                        updated_at = ?, completed_at = NULL
+                    WHERE analysis_id = ?
+                    """,
+                    (
+                        model,
+                        analysis_version,
+                        prompt_hash,
+                        json.dumps(payload, ensure_ascii=False),
+                        now,
+                        existing_id,
+                    ),
+                )
                 connection.commit()
-                return None
+                LOGGER.info("AI 分析重新执行：analysis_id=%s，model=%s", existing_id, model)
+                return TaskStartResult(existing_id, True)
+            if existing is not None:
+                connection.execute(
+                    "UPDATE analysis_tasks SET status = 'expired', updated_at = ? WHERE analysis_id = ?",
+                    (now, existing["analysis_id"]),
+                )
+                LOGGER.info(
+                    "旧 AI 执行记录已标记过期：analysis_id=%s，report_id=%s",
+                    existing["analysis_id"],
+                    report_id,
+                )
             connection.execute(
                 """
-                UPDATE analysis_tasks
-                SET status = 'processing', worker_id = ?, lease_token = ?, lease_expires_at = ?,
-                    attempt_count = attempt_count + 1, error_message = NULL, updated_at = ?
-                WHERE analysis_id = ? AND status = 'pending'
+                INSERT INTO analysis_tasks (
+                    analysis_id, report_id, model, analysis_version, prompt_hash,
+                    source_hash, payload_json, status, attempt_count, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'processing', 1, ?, ?)
                 """,
-                (worker_id, lease_token, lease_expires_at, now_text, row["analysis_id"]),
+                (
+                    task_id,
+                    report_id,
+                    model,
+                    analysis_version,
+                    prompt_hash,
+                    source_hash,
+                    json.dumps(payload, ensure_ascii=False),
+                    now,
+                    now,
+                ),
             )
             connection.commit()
-            LOGGER.info("AI 分析任务已领取：analysis_id=%s，worker_id=%s", row["analysis_id"], worker_id)
-            return {
-                "analysis_id": row["analysis_id"],
-                "source_hash": row["source_hash"],
-                "payload": json.loads(row["payload_json"]),
-                "lease_token": lease_token,
-                "lease_expires_at": lease_expires_at,
-            }
         except Exception:
             connection.rollback()
             raise
         finally:
             connection.close()
+        LOGGER.info(
+            "AI 分析执行已创建：analysis_id=%s，report_id=%s，model=%s",
+            task_id,
+            report_id,
+            model,
+        )
+        return TaskStartResult(task_id, True)
 
-    def complete(
-        self,
-        analysis_id: str,
-        source_hash: str,
-        lease_token: str,
-        result: dict[str, Any],
-    ) -> None:
-        """完成已领取任务。
+    def complete(self, analysis_id: str, result: dict[str, Any]) -> None:
+        """完成内部 AI 分析。
 
-        功能说明：校验任务版本和有效租约后原子保存 AI 结果；相同结果的重复提交视为成功。
-        参数 analysis_id：待完成的任务 ID。
-        参数 source_hash：领取任务时返回的数据版本哈希。
-        参数 lease_token：领取任务时返回的租约令牌。
-        参数 result：通过 API Schema 校验的 AI 分析结果。
+        功能说明：在同一事务中校验并保存 AI 原始结果、合并基础报告，将任务和报告分别标记为 completed、ready。
+        参数 analysis_id：需要完成的内部执行记录 ID。
+        参数 result：模型返回的总结、发现和建议。
         返回值：无。
         """
 
-        result_json = json.dumps(result, ensure_ascii=False, sort_keys=True)
-        now_text = _iso(_utc_now())
+        validated_result = validate_ai_result(result)
+        result_json = json.dumps(validated_result, ensure_ascii=False, sort_keys=True)
+        now = _utc_now_text()
         connection = self._connect()
         try:
             connection.execute("BEGIN IMMEDIATE")
@@ -208,40 +189,40 @@ class TaskRepository:
             if row is None:
                 raise FileNotFoundError(analysis_id)
             if row["status"] == "completed":
-                if row["source_hash"] == source_hash and row["result_json"] == result_json:
+                if row["result_json"] == result_json:
                     connection.commit()
                     return
-                raise TaskConflictError("任务已经完成，不能覆盖已有 AI 结果")
-            self._validate_active_lease(row, source_hash, lease_token, now_text)
+                raise TaskConflictError("AI 执行已经完成，不能覆盖已有结果")
+            if row["status"] != "processing":
+                raise TaskConflictError(f"AI 执行当前状态不能完成：{row['status']}")
+            self._merge_report(connection, row["report_id"], validated_result, now)
             connection.execute(
                 """
                 UPDATE analysis_tasks
-                SET status = 'completed', result_json = ?, lease_token = NULL,
-                    lease_expires_at = NULL, error_message = NULL,
+                SET status = 'completed', result_json = ?, error_message = NULL,
                     updated_at = ?, completed_at = ?
                 WHERE analysis_id = ?
                 """,
-                (result_json, now_text, now_text, analysis_id),
+                (result_json, now, now, analysis_id),
             )
             connection.commit()
-            LOGGER.info("AI 分析任务已完成：analysis_id=%s", analysis_id)
+            LOGGER.info("AI 分析执行已完成：analysis_id=%s", analysis_id)
         except Exception:
             connection.rollback()
             raise
         finally:
             connection.close()
 
-    def fail(self, analysis_id: str, lease_token: str, error_message: str) -> None:
-        """记录已领取任务失败。
+    def fail(self, analysis_id: str, error_message: str) -> None:
+        """记录内部 AI 分析失败。
 
-        功能说明：校验当前租约后保存失败原因，避免不完整 AI 结果进入正式报告。
-        参数 analysis_id：失败任务 ID。
-        参数 lease_token：领取任务时返回的租约令牌。
-        参数 error_message：本次分析失败的可排查原因。
+        功能说明：保存可排查错误，并将当前数据版本的报告标记为 ai_failed，下一次日任务可复用该记录重试。
+        参数 analysis_id：失败的内部执行记录 ID。
+        参数 error_message：本次调用失败的简洁原因。
         返回值：无。
         """
 
-        now_text = _iso(_utc_now())
+        now = _utc_now_text()
         connection = self._connect()
         try:
             connection.execute("BEGIN IMMEDIATE")
@@ -251,46 +232,114 @@ class TaskRepository:
             ).fetchone()
             if row is None:
                 raise FileNotFoundError(analysis_id)
-            self._validate_active_lease(row, row["source_hash"], lease_token, now_text)
+            if row["status"] != "processing":
+                raise TaskConflictError(f"AI 执行当前状态不能失败：{row['status']}")
+            report_update = connection.execute(
+                """
+                UPDATE reports
+                SET status = 'ai_failed', updated_at = ?
+                WHERE report_id = ?
+                """,
+                (now, row["report_id"]),
+            )
+            if report_update.rowcount != 1:
+                raise TaskConflictError("AI 执行所属基础报告不存在")
             connection.execute(
                 """
                 UPDATE analysis_tasks
-                SET status = 'failed', error_message = ?, lease_token = NULL,
-                    lease_expires_at = NULL, updated_at = ?
+                SET status = 'failed', error_message = ?, updated_at = ?
                 WHERE analysis_id = ?
                 """,
-                (error_message, now_text, analysis_id),
+                (error_message[:4000], now, analysis_id),
             )
             connection.commit()
-            LOGGER.warning("AI 分析任务执行失败：analysis_id=%s，error=%s", analysis_id, error_message)
+            LOGGER.warning("AI 分析执行失败：analysis_id=%s，error=%s", analysis_id, error_message)
         except Exception:
             connection.rollback()
             raise
         finally:
             connection.close()
 
-    @staticmethod
-    def _validate_active_lease(
-        row: sqlite3.Row,
-        source_hash: str,
-        lease_token: str,
-        now_text: str,
-    ) -> None:
-        """校验任务状态、数据版本和租约。"""
+    def list_recent(self, status: str | None = None, limit: int = 20) -> list[dict[str, Any]]:
+        """读取最近的内部 AI 执行摘要。
 
-        if row["status"] != "processing":
-            raise TaskConflictError(f"任务当前状态不能提交：{row['status']}")
-        if row["source_hash"] != source_hash:
-            raise TaskConflictError("任务数据版本已经变化")
-        if row["lease_token"] != lease_token:
-            raise TaskConflictError("任务租约无效")
-        if not row["lease_expires_at"] or row["lease_expires_at"] < now_text:
-            raise TaskConflictError("任务租约已经过期")
+        功能说明：供后端测试和本地排查使用，不作为 Web API 对外开放。
+        参数 status：可选执行状态筛选条件。
+        参数 limit：最多返回的记录数量。
+        返回值：包含日期、商品对、模型、状态和时间的摘要列表。
+        """
+
+        conditions = "WHERE task.status = ?" if status else ""
+        parameters: tuple[Any, ...] = (status, limit) if status else (limit,)
+        with self.database.connection() as connection:
+            rows = connection.execute(
+                f"""
+                SELECT
+                    task.analysis_id, task.report_id,
+                    report.granularity, report.start_date, report.end_date,
+                    report.start_date AS report_date,
+                    report.self_spu || '+' || report.competitor_spu AS compare_number,
+                    report.self_spu, report.competitor_spu,
+                    task.model, task.analysis_version, task.prompt_hash,
+                    task.status, task.attempt_count,
+                    task.created_at, task.updated_at, task.completed_at,
+                    task.error_message
+                FROM analysis_tasks AS task
+                JOIN reports AS report ON report.report_id = task.report_id
+                {conditions}
+                ORDER BY task.created_at DESC, task.analysis_id DESC
+                LIMIT ?
+                """,
+                parameters,
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    @staticmethod
+    def _merge_report(
+        connection: sqlite3.Connection,
+        report_id: str,
+        result: dict[str, Any],
+        updated_at: str,
+    ) -> None:
+        """在当前事务中更新任务所属报告的 AI 字段。
+
+        功能说明：把已校验的双摘要、详情、发现和建议写入分字段报告并标记为 ready。
+        参数 connection：当前事务使用的数据库连接。
+        参数 report_id：AI 执行关联的报告 ID。
+        参数 result：已校验的 AI 结构化结果。
+        参数 updated_at：报告更新时间。
+        返回值：无。
+        """
+
+        report_exists = connection.execute(
+            "SELECT 1 FROM reports WHERE report_id = ?", (report_id,)
+        ).fetchone()
+        if report_exists is None:
+            raise TaskConflictError("AI 执行所属基础报告不存在")
+        summary = result["summary"]
+        connection.execute(
+            """
+            UPDATE reports
+            SET status = 'ready',
+                advantage_summary = ?, advantage_detail_json = ?,
+                weakness_summary = ?, weakness_detail_json = ?,
+                ai_findings_json = ?, ai_recommendations_json = ?,
+                updated_at = ?
+            WHERE report_id = ?
+            """,
+            (
+                summary["advantage"]["brief"],
+                json.dumps(summary["advantage"]["detail"], ensure_ascii=False),
+                summary["weakness"]["brief"],
+                json.dumps(summary["weakness"]["detail"], ensure_ascii=False),
+                json.dumps(result["findings"], ensure_ascii=False),
+                json.dumps(result["recommendations"], ensure_ascii=False),
+                updated_at,
+                report_id,
+            ),
+        )
 
     def _connect(self) -> sqlite3.Connection:
         """创建启用字典行和外键约束的 SQLite 连接。"""
 
-        connection = sqlite3.connect(self.database_path, timeout=30, isolation_level=None)
-        connection.row_factory = sqlite3.Row
-        connection.execute("PRAGMA foreign_keys = ON")
-        return connection
+        return self.database.connect()

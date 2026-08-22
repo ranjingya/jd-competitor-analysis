@@ -1,17 +1,13 @@
-"""兼容旧报告文件的结构化 AI 劣势建议写入。"""
+"""校验结构化 AI 劣势建议。"""
 
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 from typing import Any
-
-from .contracts import read_json, validate_contract, write_json
-from .output_paths import analysis_path_from_period_key
 
 
 LOGGER = logging.getLogger(__name__)
-ALLOWED_SOURCES = {"traffic", "keywords", "customer_profile"}
+ALLOWED_SOURCES = {"traffic", "keywords", "customer_profile", "promotion"}
 REQUIRED_STATUS = "warning"
 REQUIRED_FIELDS = {
     "source_id",
@@ -28,7 +24,7 @@ def validate_recommendations(items: Any) -> list[dict[str, Any]]:
     """校验 AI 劣势建议结构。
 
     功能说明：检查劣势建议数量、来源、状态、证据、动作和验收条件，阻止不完整内容写入正式报告。
-    参数 items：待导入旧报告的建议数组。
+    参数 items：DeepSeek 返回的建议数组。
     返回值：通过校验的建议数组。
     """
 
@@ -56,26 +52,3 @@ def validate_recommendations(items: Any) -> list[dict[str, Any]]:
         raise ValueError("AI 劣势建议必须覆盖至少两个不同来源")
     LOGGER.info("AI 劣势建议结构校验通过：%s 项", len(items))
     return items
-
-
-def apply_recommendations(recommendations_path: Path) -> None:
-    """把建议写入分析结果。
-
-    功能说明：读取结构化建议，按周期定位兼容输出目录中的正式分析结果并原子更新 `ai_recommendations`。
-    参数 recommendations_path：包含 `period_key` 和 `ai_recommendations` 的输入 JSON 路径。
-    返回值：无；成功后原子覆盖分析结果文件。
-    """
-
-    payload = read_json(recommendations_path)
-    analysis_path = analysis_path_from_period_key(str(payload.get("period_key") or ""))
-    if not analysis_path.is_file():
-        raise FileNotFoundError(f"固定输出目录中不存在分析结果：{analysis_path}")
-    LOGGER.info("开始写入 AI 劣势建议：%s", analysis_path)
-    analysis = read_json(analysis_path)
-    expected_period = analysis.get("meta", {}).get("period_key")
-    if payload.get("period_key") != expected_period:
-        raise ValueError(f"建议周期与分析结果不一致：{payload.get('period_key')} != {expected_period}")
-    analysis["ai_recommendations"] = validate_recommendations(payload.get("ai_recommendations"))
-    validate_contract(analysis)
-    write_json(analysis_path, analysis)
-    LOGGER.info("AI 劣势建议写入完成：%s", analysis_path)

@@ -5,19 +5,19 @@ from __future__ import annotations
 from functools import lru_cache
 
 from ..config import get_settings
+from ..database import Database
 from ..repositories.report_repository import ReportRepository
-from ..repositories.task_repository import TaskRepository
+
+
+@lru_cache(maxsize=1)
+def get_database() -> Database:
+    """返回共享统一数据库。"""
+
+    return Database(get_settings().database_path)
 
 
 @lru_cache(maxsize=1)
 def get_report_repository() -> ReportRepository:
     """返回共享报告仓库。"""
 
-    return ReportRepository(get_settings().reports_dir)
-
-
-@lru_cache(maxsize=1)
-def get_task_repository() -> TaskRepository:
-    """返回共享任务仓库。"""
-
-    return TaskRepository(get_settings().task_database_path)
+    return ReportRepository(get_database())

@@ -1,0 +1,146 @@
+"""测试 AI 生成内容与基础报告合并。"""
+
+from __future__ import annotations
+
+import unittest
+
+from app.report_merge import merge_ai_result, validate_ai_result
+from report_fixture import build_report_fixture
+
+
+def base_report() -> dict[str, object]:
+    """读取通过最终契约校验的基础报告。"""
+
+    return build_report_fixture()
+
+
+def recommendation(source_id: str, source_label: str) -> dict[str, object]:
+    """生成一条结构完整的 AI 建议。"""
+
+    return {
+        "source_id": source_id,
+        "source_label": source_label,
+        "target": "测试对象",
+        "status": "warning",
+        "evidence": "本品指标低于竞品估算值",
+        "actions": ["调整对应运营动作"],
+        "validation": "后续日数据差距缩小",
+    }
+
+
+class ReportMergeTest(unittest.TestCase):
+    """验证 AI 字段边界、报告投影和最终契约。"""
+
+    def test_ai_result_is_merged_without_losing_deterministic_summary(self) -> None:
+        """AI 总结应成为看板摘要，同时保留固定公式摘要用于审计。"""
+
+        report = base_report()
+        deterministic_summary = report["meta"]["summary"]
+        deterministic_weakness = report["meta"]["weakness_summary"]
+        result = {
+            "summary": {
+                "advantage": {
+                    "brief": "流量规模领先",
+                    "detail": ["本品访客规模领先竞品估算值。", "本品成交客单价更高。"],
+                },
+                "weakness": {
+                    "brief": "转化效率落后",
+                    "detail": ["本品成交转化率低于竞品估算值。"],
+                },
+            },
+            "findings": [
+                {
+                    "source_id": "traffic",
+                    "target": "搜索渠道",
+                    "judgement": "流量规模领先但转化偏低",
+                    "evidence": "访客领先，成交转化率落后",
+                }
+            ],
+            "recommendations": [
+                recommendation("traffic", "流量来源"),
+                recommendation("promotion", "推广数据"),
+            ],
+        }
+
+        merged = merge_ai_result(report, result)
+
+        self.assertEqual(merged["meta"]["summary"], "流量规模领先")
+        self.assertEqual(
+            merged["meta"]["summary_detail"],
+            ["本品访客规模领先竞品估算值。", "本品成交客单价更高。"],
+        )
+        self.assertEqual(merged["meta"]["weakness_summary"], "转化效率落后")
+        self.assertEqual(merged["meta"]["weakness_summary_detail"], ["本品成交转化率低于竞品估算值。"])
+        self.assertEqual(merged["meta"]["deterministic_summary"], deterministic_summary)
+        self.assertEqual(merged["meta"]["deterministic_weakness_summary"], deterministic_weakness)
+        self.assertEqual(merged["ai_findings"], result["findings"])
+        self.assertEqual(merged["ai_recommendations"], result["recommendations"])
+        self.assertEqual(report["ai_findings"], [])
+
+    def test_empty_recommendations_are_allowed_when_evidence_is_insufficient(self) -> None:
+        """证据不足时可以完成分析但不生成建议。"""
+
+        validated = validate_ai_result(
+            {
+                "summary": {
+                    "advantage": {"brief": "暂无明显优势", "detail": ["当前数据不足。"]},
+                    "weakness": {"brief": "暂无明显短板", "detail": ["当前数据不足。"]},
+                },
+                "findings": [],
+                "recommendations": [],
+            }
+        )
+
+        self.assertEqual(validated["recommendations"], [])
+
+    def test_incomplete_finding_is_rejected(self) -> None:
+        """缺少证据字段的 AI 发现不得进入报告。"""
+
+        with self.assertRaisesRegex(ValueError, "缺少字段"):
+            validate_ai_result(
+                {
+                    "summary": {
+                        "advantage": {"brief": "流量领先", "detail": ["本品流量领先。"]},
+                        "weakness": {"brief": "转化落后", "detail": ["本品转化落后。"]},
+                    },
+                    "findings": [{"source_id": "traffic", "target": "搜索"}],
+                    "recommendations": [],
+                }
+            )
+
+    def test_summary_detail_must_be_point_list(self) -> None:
+        """详情必须按要点数组返回，长段落字符串不得进入报告。"""
+
+        with self.assertRaisesRegex(ValueError, "detail 必须包含"):
+            validate_ai_result(
+                {
+                    "summary": {
+                        "advantage": {"brief": "流量领先", "detail": "本品流量领先。"},
+                        "weakness": {"brief": "转化落后", "detail": ["本品转化落后。"]},
+                    },
+                    "findings": [],
+                    "recommendations": [],
+                }
+            )
+
+    def test_summary_brief_must_fit_dashboard(self) -> None:
+        """首屏摘要超过三十个字符时不得进入正式报告。"""
+
+        with self.assertRaisesRegex(ValueError, "brief 不能超过 30 个字符"):
+            validate_ai_result(
+                {
+                    "summary": {
+                        "advantage": {
+                            "brief": "本品成交金额和访客规模均领先竞品但转化效率仍然落后需要持续关注",
+                            "detail": ["本品成交金额和访客规模领先。"],
+                        },
+                        "weakness": {"brief": "转化落后", "detail": ["本品转化落后。"]},
+                    },
+                    "findings": [],
+                    "recommendations": [],
+                }
+            )
+
+
+if __name__ == "__main__":
+    unittest.main()

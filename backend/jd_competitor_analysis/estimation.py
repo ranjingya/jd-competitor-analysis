@@ -1,4 +1,4 @@
-"""执行区间解析、P 候选、核心约束与置信度计算。"""
+"""执行区间解析、P 候选与核心约束计算。"""
 
 from __future__ import annotations
 
@@ -6,9 +6,10 @@ import logging
 import re
 from dataclasses import dataclass
 from statistics import fmean
+from time import perf_counter
 from typing import Any
 
-from .sources import clean_text
+from .values import clean_text
 
 
 LOGGER = logging.getLogger(__name__)
@@ -64,7 +65,6 @@ CORE_METRICS = (
 )
 
 CORE_CARD_IDS = {"gmv", "visitors", "conversion_rate", "customer_price"}
-CRITICAL_METRIC_IDS = {"gmv", "visitors", "conversion_rate", "customer_price"}
 
 PHistory = dict[str, list[dict[str, Any]]]
 
@@ -412,36 +412,13 @@ def _solve_constraints(
     return final, buyers, checks, adjustments
 
 
-def _metric_confidence(source: str, adjusted: bool, range_consistent: bool | None, conflicts: list[str]) -> str:
-    """根据候选来源与约束情况判断单指标置信度。"""
-
-    if source in {"historical_p", "median"} or range_consistent is not True or conflicts:
-        return "low"
-    if adjusted:
-        return "medium"
-    return "high"
-
-
-def _report_confidence(conversions: list[dict[str, Any]], checks: dict[str, Any], validation: list[dict[str, Any]]) -> str:
-    """根据关键指标、公式约束和本品区间校验判断报告置信度。"""
-
-    critical = [item for item in conversions if item["metric_id"] in CRITICAL_METRIC_IDS]
-    if any(item["confidence"] == "low" for item in critical):
-        return "low"
-    if checks["gmv_formula_consistent"] is False or checks["traffic_consistent"] is False or checks["conflicts"]:
-        return "low"
-    if all(item["confidence"] == "high" for item in conversions) and all(item["in_range"] is True for item in validation):
-        return "high"
-    return "medium"
-
-
 def analyze_core(normalized: dict[str, Any], history: PHistory | None = None) -> dict[str, Any]:
     """生成核心指标估算与审计结果。
 
     功能说明：从标准化事实计算当期 P、历史 P、候选值和最终约束结果，并生成可供报告层消费的核心分析对象。
     参数 normalized：单周期标准化事实数据。
     参数 history：同商品、同粒度、此前周期的有效 P 样本，按指标 ID 分组。
-    返回值：包含校验、转换、最终值、成交人数、置信度、风险和新增 P 样本的字典。
+    返回值：包含校验、转换、最终值、成交人数、风险和新增 P 样本的字典。
     """
 
     history = history or {}
@@ -458,6 +435,7 @@ def analyze_core(normalized: dict[str, Any], history: PHistory | None = None) ->
     risks: list[str] = []
     p_samples: list[dict[str, Any]] = []
 
+    started_at = perf_counter()
     LOGGER.info("开始核心估算：%s", meta["period_key"])
     for metric in CORE_METRICS:
         actual = to_number(self_row.get(metric.label))
@@ -496,9 +474,9 @@ def analyze_core(normalized: dict[str, Any], history: PHistory | None = None) ->
         if valid is False:
             risks.append(f"本品{metric.label}未落入本品区间，当期 P 已停用")
         if source == "historical_p":
-            risks.append(f"竞品{metric.label}使用同粒度历史 P 低置信度回退")
+            risks.append(f"竞品{metric.label}使用同粒度历史 P 回退")
         elif source == "median":
-            risks.append(f"竞品{metric.label}使用区间中位值低置信度回退")
+            risks.append(f"竞品{metric.label}使用区间中位值回退")
         if current_p_valid:
             p_samples.append({"metric_id": metric.id, "position_p": current_p, "period_key": meta["period_key"]})
         ranges[metric.id] = competitor_interval
@@ -520,10 +498,6 @@ def analyze_core(normalized: dict[str, Any], history: PHistory | None = None) ->
     for metric in CORE_METRICS:
         value = final.get(metric.id)
         interval = ranges[metric.id]
-        adjusted = bool(adjustments[metric.id])
-        confidence = _metric_confidence(
-            candidate_sources[metric.id], adjusted, in_range(value, interval), checks["conflicts"]
-        )
         basis_labels = {
             "same_period_p": "同周期本品 P 候选",
             "historical_p": "同粒度历史 P 候选",
@@ -541,7 +515,6 @@ def analyze_core(normalized: dict[str, Any], history: PHistory | None = None) ->
                 "selected_candidate": candidates[metric.id],
                 "final_value": value,
                 "basis": "；".join([basis_labels[candidate_sources[metric.id]], *adjustments[metric.id]]),
-                "confidence": confidence,
                 "checks": {
                     "range_consistent": in_range(value, interval),
                     "traffic_consistent": checks["traffic_consistent"],
@@ -553,10 +526,13 @@ def analyze_core(normalized: dict[str, Any], history: PHistory | None = None) ->
             }
         )
 
-    report_confidence = _report_confidence(conversions, checks, validation)
     if checks["conflicts"]:
         risks.extend(checks["conflicts"])
-    LOGGER.info("核心估算完成：%s，置信度=%s", meta["period_key"], report_confidence)
+    LOGGER.info(
+        "核心估算完成：%s，耗时=%.3fs",
+        meta["period_key"],
+        perf_counter() - started_at,
+    )
     return {
         "validation": validation,
         "conversions": conversions,
@@ -564,7 +540,6 @@ def analyze_core(normalized: dict[str, Any], history: PHistory | None = None) ->
         "final_values": final,
         "competitor_buyers": buyers,
         "checks": checks,
-        "report_confidence": report_confidence,
         "risks": list(dict.fromkeys(risks)),
         "p_samples": p_samples,
     }

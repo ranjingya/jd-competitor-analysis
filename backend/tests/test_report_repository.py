@@ -1,64 +1,255 @@
-"""测试报告 API 数据仓库。"""
+"""测试数据库报告仓库。"""
 
 from __future__ import annotations
 
-import json
 import tempfile
 import unittest
 from pathlib import Path
 
+from app.repositories.dataset_repository import DatasetRepository
 from app.repositories.report_repository import ReportRepository
 
 
 class ReportRepositoryTest(unittest.TestCase):
-    """验证空索引、路径转换和安全读取。"""
+    """验证报告写入、更新、索引和周期读取。"""
 
-    def test_empty_index_and_legacy_path_conversion(self) -> None:
-        """无报告时返回空结构，旧静态路径应转换为 API 路径。"""
+    def setUp(self) -> None:
+        """创建统一数据库和一份标准化数据集。"""
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            reports_dir = Path(temp_dir)
-            repository = ReportRepository(reports_dir)
-            self.assertEqual(repository.read_index()["reports"]["day"], [])
-
-            index = {
-                "schema_version": "1.0",
-                "reports": {
-                    "day": [
-                        {
-                            "period_key": "day:2026-08-17",
-                            "path": "/reports/day/2026-08-17/analysis_result.json",
-                        }
-                    ],
-                    "week": [],
-                    "month": [],
+        self.temporary_directory = tempfile.TemporaryDirectory()
+        database_path = Path(self.temporary_directory.name) / "data.db"
+        datasets = DatasetRepository(database_path)
+        datasets.initialize()
+        self.dataset_id = datasets.store(
+            {
+                "report_date": "2026-08-17",
+                "pair": {
+                    "compare_number": "10001+20001",
+                    "self_spu": "10001",
+                    "competitor_spu": "20001",
                 },
+                "self_product": {
+                    "sku_components": [
+                        {
+                            "spu_id": "10001",
+                            "sku_id": "30001",
+                            "barcode_69": "69001",
+                            "product_name": "测试商品",
+                            "specification": "蓝色",
+                        }
+                    ]
+                },
+                "quality": {"status": "partial"},
+            },
+            dataset_id="dataset-1",
+        )
+        self.datasets = datasets
+        self.repository = ReportRepository(database_path)
+
+    def tearDown(self) -> None:
+        """清理测试数据库。"""
+
+        self.temporary_directory.cleanup()
+
+    def test_empty_index_and_report_upsert(self) -> None:
+        """空库返回稳定索引，同一数据集重复写入应更新原报告。"""
+
+        self.assertEqual(self.repository.read_index()["reports"]["day"], [])
+        report_id = self.repository.upsert(
+            self.dataset_id,
+            {
+                "meta": {
+                    "title": "日报",
+                    "summary": "基础报告",
+                    "self_product": {"name": "本品名称"},
+                    "competitor_product": {"name": "竞品名称"},
+                }
+            },
+            report_id="report-1",
+        )
+        repeated_id = self.repository.upsert(
+            self.dataset_id,
+            {
+                "meta": {
+                    "title": "日报",
+                    "summary": "AI 已完成",
+                    "self_product": {
+                        "name": "本品名称",
+                        "image_url": "https://example.com/self.jpg",
+                    },
+                    "competitor_product": {
+                        "name": "竞品名称",
+                        "image_url": "https://example.com/competitor.jpg",
+                    },
+                }
+            },
+            status="ready",
+            report_id="report-other",
+        )
+        terminal_id = self.repository.upsert(
+            self.dataset_id,
+            {"meta": {"title": "日报", "summary": "重复生成的基础报告"}},
+            status="pending_ai",
+        )
+
+        self.assertEqual(report_id, "report-1")
+        self.assertEqual(repeated_id, "report-1")
+        self.assertEqual(terminal_id, "report-1")
+        self.assertEqual(self.repository.get("report-1")["meta"]["summary"], "AI 已完成")
+        entry = self.repository.read_index()["reports"]["day"][0]
+        self.assertEqual(entry["path"], "/api/reports/report-1")
+        self.assertEqual(entry["status"], "ready")
+        self.assertEqual(entry["quality_status"], "partial")
+        self.assertEqual(entry["self_name"], "本品名称")
+        self.assertEqual(entry["competitor_name"], "竞品名称")
+        self.assertEqual(entry["self_image_url"], "https://example.com/self.jpg")
+        self.assertEqual(entry["competitor_image_url"], "https://example.com/competitor.jpg")
+
+    def test_day_lookup_and_invalid_path(self) -> None:
+        """日报可按起止日期读取，无效日期应被拒绝。"""
+
+        self.repository.upsert(self.dataset_id, {"meta": {"title": "日报"}}, report_id="report-1")
+
+        self.assertEqual(
+            self.repository.read_report("day", "2026-08-17", "2026-08-17")["meta"]["title"],
+            "日报",
+        )
+        with self.assertRaisesRegex(ValueError, "日期格式"):
+            self.repository.read_report("day", "../../.env", "2026-08-17")
+        with self.assertRaisesRegex(ValueError, "必须相同"):
+            self.repository.read_report("day", "2026-08-17", "2026-08-18")
+
+    def test_product_images_are_synced_to_existing_reports(self) -> None:
+        """外部主图配置应按 SPU 更新已有报告的两侧主图字段。"""
+
+        self.repository.upsert(
+            self.dataset_id,
+            {
+                "meta": {
+                    "title": "日报",
+                    "self_product": {
+                        "name": "本品名称",
+                        "image_url": "https://example.com/old-self.jpg",
+                    },
+                    "competitor_product": {
+                        "name": "竞品名称",
+                        "image_url": "https://example.com/old-competitor.jpg",
+                    },
+                }
+            },
+            report_id="report-1",
+        )
+
+        result = self.repository.sync_product_images(
+            {
+                "10001": {"name": "本品名称", "image_url": "https://example.com/new-self.jpg"},
+                "20001": {
+                    "name": "竞品名称",
+                    "image_url": "https://example.com/new-competitor.jpg",
+                },
+                "30001": {"name": "未使用商品", "image_url": None},
             }
-            (reports_dir / "report-index.json").write_text(
-                json.dumps(index, ensure_ascii=False),
-                encoding="utf-8",
-            )
-            converted = repository.read_index()
+        )
+        entry = self.repository.read_index()["reports"]["day"][0]
 
-        self.assertEqual(converted["reports"]["day"][0]["path"], "/api/reports/day/2026-08-17")
+        self.assertEqual(result["products"], 3)
+        self.assertEqual(result["self_reports"], 1)
+        self.assertEqual(result["competitor_reports"], 1)
+        self.assertEqual(result["updated_fields"], 2)
+        self.assertEqual(entry["self_image_url"], "https://example.com/new-self.jpg")
+        self.assertEqual(
+            entry["competitor_image_url"],
+            "https://example.com/new-competitor.jpg",
+        )
 
-    def test_current_api_path_is_preserved(self) -> None:
-        """当前 API 路径应直接解析周期目录，不依赖周期键格式。"""
+    def test_report_skus_come_from_dataset_snapshot(self) -> None:
+        """日报 SKU 接口数据应来自生成报告时的数据集快照。"""
 
-        entry = {
-            "period_key": "day:2026-08-17_2026-08-17",
-            "path": "/api/reports/day/2026-08-17",
+        self.repository.upsert(self.dataset_id, {"meta": {"title": "日报"}}, report_id="report-1")
+
+        result = self.repository.get_skus("report-1")
+
+        self.assertEqual(result["spu_id"], "10001")
+        self.assertEqual(result["sku_count"], 1)
+        self.assertEqual(
+            result["items"][0],
+            {
+                "spu_id": "10001",
+                "sku_id": "30001",
+                "barcode_69": "69001",
+                "product_name": "测试商品",
+                "specification": "蓝色",
+            },
+        )
+
+    def test_new_dataset_version_updates_same_business_report(self) -> None:
+        """同一日期商品对的新数据版本应更新原报告，不新增第二份报告。"""
+
+        report_id = self.repository.upsert(
+            self.dataset_id,
+            {"meta": {"title": "旧版本"}},
+            status="ready",
+            report_id="report-1",
+        )
+        new_dataset_id = self.datasets.store(
+            {
+                "report_date": "2026-08-17",
+                "pair": {
+                    "compare_number": "10001+20001",
+                    "self_spu": "10001",
+                    "competitor_spu": "20001",
+                },
+                "quality": {"status": "ready"},
+                "revision": 2,
+            },
+            dataset_id="dataset-2",
+        )
+
+        updated_report_id = self.repository.upsert(
+            new_dataset_id,
+            {"meta": {"title": "新版本"}},
+            report_id="report-2",
+        )
+
+        self.assertEqual(updated_report_id, report_id)
+        self.assertEqual(self.repository.get_record(report_id)["dataset_id"], new_dataset_id)
+        self.assertEqual(self.repository.read_index()["reports"]["day"][0]["status"], "pending_ai")
+        self.assertEqual(len(self.repository.read_index()["reports"]["day"]), 1)
+
+    def test_week_report_uses_period_without_dataset(self) -> None:
+        """周报应按起止日期保存，且不绑定单个日数据集。"""
+
+        self.repository.upsert(
+            self.dataset_id,
+            {"meta": {"title": "日报"}},
+            report_id="report-day",
+        )
+        weekly_report = {
+            "meta": {
+                "title": "自然周报告",
+                "granularity": "week",
+                "period_start": "2026-08-17",
+                "period_end": "2026-08-23",
+                "self_spu": "10001",
+                "competitor_spu": "20001",
+                "source_report_ids": ["report-day"],
+            }
         }
 
-        self.assertEqual(ReportRepository._period_directory_from_entry(entry), "2026-08-17")
+        report_id = self.repository.upsert(None, weekly_report, report_id="report-week")
+        record = self.repository.get_record(report_id)
+        weekly_entry = self.repository.read_index()["reports"]["week"][0]
 
-    def test_report_path_is_validated(self) -> None:
-        """报告读取不得接受目录穿越路径。"""
-
-        with tempfile.TemporaryDirectory() as temp_dir:
-            repository = ReportRepository(Path(temp_dir))
-            with self.assertRaisesRegex(ValueError, "格式无效"):
-                repository.read_report("day", "../../.env")
+        self.assertIsNone(record["dataset_id"])
+        self.assertEqual(record["granularity"], "week")
+        self.assertEqual(record["start_date"], "2026-08-17")
+        self.assertEqual(record["end_date"], "2026-08-23")
+        self.assertEqual(weekly_entry["period_key"], "week:2026-08-17:2026-08-23")
+        self.assertEqual(
+            self.repository.read_report("week", "2026-08-17", "2026-08-23")["meta"]["title"],
+            "自然周报告",
+        )
+        self.assertEqual(self.repository.get_skus(report_id)["sku_count"], 1)
 
 
 if __name__ == "__main__":

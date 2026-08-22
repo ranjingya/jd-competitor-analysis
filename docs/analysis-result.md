@@ -2,11 +2,9 @@
 
 ## 定位
 
-`analysis_result.json` 保存当前周期的准真实估算值、差距、审计信息、AI 劣势建议和风险，是 Vite 看板与人工复核共同使用的最终数据契约。
+最终报告保存当前周期的准真实估算值、差距、审计信息、AI 发现、AI 劣势建议和风险，是 Vite 看板与人工复核共同使用的数据契约。基础报告中的 `ai_findings` 和 `ai_recommendations` 使用空数组；DeepSeek 返回结构化结果后由 Backend 合并填充。
 
-本文档是标准化事实到分析结果的字段映射和最终 JSON 结构的唯一规范。输入事实见 [normalized-data.md](normalized-data.md)，计算规则见 [estimation.md](estimation.md)，AI 分析规则位于 `skills/jd-competitor-ai-worker/references/analysis-guidelines.md`，页面消费规则见 [dashboard.md](dashboard.md)。
-
-可执行样例位于 `backend/assets/analysis-result.example.json`；空结构位于 `backend/assets/analysis-result.template.json`。
+本文档是标准化事实到分析结果的字段映射和最终 JSON 结构的唯一规范。输入事实见 [normalized-data.md](normalized-data.md)，计算规则见 [estimation.md](estimation.md)，AI 分析规则位于 `backend/assets/ai-analysis-prompt.md`，页面消费规则见 [dashboard.md](dashboard.md)。
 
 ## 导航
 
@@ -14,7 +12,9 @@
 - [元信息与审计映射](#元信息与审计映射)
 - [核心审计结构](#核心审计结构)
 - [分析模块映射](#分析模块映射)
+- [AI 双摘要](#ai-双摘要)
 - [AI 劣势建议](#ai_recommendations)
+- [AI 输入事实](#ai-输入事实)
 - [缺失与审计约定](#缺失与审计约定)
 
 ## 顶层结构
@@ -22,7 +22,7 @@
 | 字段 | 类型 | 要求 | 说明 |
 |---|---|---|---|
 | `schema_version` | string | 必须 | 当前结构版本。 |
-| `meta` | object | 必须 | 周期、粒度、分析对象、置信度和首屏判断。 |
+| `meta` | object | 必须 | 周期、粒度、分析对象和首屏判断。 |
 | `source_files` | array | 必须 | 输入文件、工作表、状态和读取风险。 |
 | `self_validation` | array | 必须 | 本品真实值落区间校验和本品 P。 |
 | `competitor_core_conversions` | array | 必须 | 竞品候选值、最终值、转换依据和约束检查。 |
@@ -33,7 +33,7 @@
 | `customer_profile` | object | 完整看板必需 | 性别、年龄、省份、城市画像对比。 |
 | `promotion` | object | 必须 | 推广模块稳定容器；缺失时以 `available=false` 表示。 |
 | `tabs` | array | 必须 | 三个差距来源 Tab 的直接渲染数据。 |
-| `ai_recommendations` | array | 必须 | Skill 生成的结构化 AI 劣势建议；基础分析阶段为空数组。 |
+| `ai_recommendations` | array | 必须 | DeepSeek 生成的结构化 AI 劣势建议；基础分析阶段为空数组。 |
 | `risks` | array | 必须 | 缺失、冲突、降级和口径风险。 |
 
 顶层字段保持稳定。数据不足时保留对应字段，使用空数组、空对象或字段内 `null` 表达，并在 `risks[]` 记录原因。
@@ -46,16 +46,17 @@
 | `meta.self_spu`、`meta.competitor_spu` | `meta` | 直接复制。 |
 | `meta.self_name` | `self_real.商品名称` | 清洗文本。 |
 | `meta.competitor_name` | `keyword_rows[].商品名称` | 按竞品 SPU 筛选并唯一化。 |
-| `meta.self_product`、`meta.competitor_product` | 商品 ID、分析商品名、`backend/assets/product-images.json` | 组装商品 ID、名称和 HTTPS 主图地址，商品名优先采用分析数据。 |
+| `meta.self_product`、`meta.competitor_product` | 商品 ID、分析商品名、`data/product-images.json` | 组装商品 ID、名称和 HTTPS 主图地址，商品名优先采用分析数据。 |
 | `meta.title` | 任务参数 | 使用调用方标题。 |
-| `meta.confidence` | 本品校验与竞品约束检查 | 按 [estimation.md](estimation.md) 综合判断。 |
-| `meta.summary`、`meta.weakness_summary` | `core_metrics[]` | 汇总主要优势和短板，不生成行动建议。 |
+| `meta.deterministic_summary`、`meta.deterministic_weakness_summary` | `core_metrics[]` | 保存固定公式汇总的主要优势和短板，用于审计。 |
+| `meta.summary`、`meta.weakness_summary` | DeepSeek `summary.*.brief` | 保存不超过 30 个字符的优点与弱点短结论，供看板首屏直接展示。 |
+| `meta.summary_detail`、`meta.weakness_summary_detail` | DeepSeek `summary.*.detail` | 保存优点与弱点的详情要点数组，供看板结论详情弹窗逐条展示。 |
 | `source_files[]` | `source_files[]` | 保留角色、文件、工作表、状态和警告。 |
 | `risks[]` | `warnings`、转换检查 | 汇总缺失、冲突、降级和口径风险。 |
 
 `meta` 必须包含 `period`、`period_start`、`period_end`、`period_key`、`granularity`、`self_product` 和 `competitor_product`。`period_key` 在同一商品对的报告索引中唯一。
 
-两侧商品对象都包含 `id`、`name` 和 `image_url`。`id` 与对应 SPU 字段保持一致；`image_url` 为 HTTPS 地址或 `null`。主图素材不存在时报告继续生成，并以 `null` 触发网页占位图降级。
+两侧商品对象都包含 `id`、`name` 和 `image_url`。`id` 与对应 SPU 字段保持一致；`image_url` 为 HTTPS 地址或 `null`。主图素材不存在时报告继续生成，并以 `null` 触发网页占位图降级。Backend CLI 根据 `data.db` 所在目录读取 `product-images.json`，日任务开始时将配置中的地址同步到已有报告。
 
 ## 核心审计结构
 
@@ -99,7 +100,6 @@
 - `selected_candidate`
 - `final_value`
 - `basis`
-- `confidence`
 - `checks`
 
 `candidate_source` 取 `same_period_p`、`historical_p` 或 `median`，对应当期有效 P、同粒度历史有效 P 均值和中位值兜底。`checks` 记录原始区间、成交公式、顶层流量约束、件单关系、调整结果和无法消解的冲突；未生成的候选字段为 `null`。
@@ -168,13 +168,40 @@
 
 `highlights` 只保存重点对象、实际值、差距和状态，不包含行动建议。完整行保留页面排序和人工复核需要的字段。
 
+## AI 双摘要
+
+DeepSeek 返回的 `summary` 同时包含优点与弱点：
+
+```json
+{
+  "summary": {
+    "advantage": {
+      "brief": "成交金额与访客规模领先",
+      "detail": [
+        "本品访客规模领先竞品估算值。",
+        "本品成交客单价高于竞品估算值。"
+      ]
+    },
+    "weakness": {
+      "brief": "成交转化率落后",
+      "detail": [
+        "本品成交转化率低于竞品估算值。",
+        "转化效率是当前成交增长的主要限制。"
+      ]
+    }
+  }
+}
+```
+
+`brief` 为首屏短结论，长度不超过 30 个字符；`detail` 包含 1 至 6 个独立分析要点。看板把优点与弱点合并在同一个摘要面板中，点击面板后以列表形式同时展示两侧详情。字符串形式的详情由 Web 按换行和中文句末标点拆分展示。
+
 ## `ai_recommendations[]`
 
-基础分析流程只初始化空数组。Backend 把完整结构化事实写入 AI 任务，Mac Codex Skill 生成有证据支持的分析结果并通过任务完成接口回传。Backend 校验任务 ID、数据哈希和租约后保存结果；Web 不直接写入该字段。
+基础分析流程只初始化空数组。Backend 把完整准真实值分析事实写入 AI 执行记录，调用 DeepSeek 生成有证据支持的分析结果，校验结构后保存并合并到报告；Web 不直接写入该字段。
 
 每项至少包含：
 
-- `source_id`：`traffic`、`keywords` 或 `customer_profile`。
+- `source_id`：`traffic`、`keywords`、`customer_profile` 或 `promotion`。
 - `source_label`：页面展示的差距来源名称。
 - `target`：建议针对的具体渠道、关键词或画像项。
 - `status`：固定为 `warning`。
@@ -184,12 +211,34 @@
 
 空数组仅用于基础分析阶段。正式 AI 分析完成后数组包含多条劣势建议。网页只展示该数组，不根据数值、Tab 或固定句库生成建议。
 
+## AI 输入事实
+
+DeepSeek 接收后端处理完成的业务数据，输入固定包含：
+
+- `period`：分析粒度及 `start_date`、`end_date` 周期范围。
+- `pair`：本品与竞品 SPU 商品对。
+- `self_spu_data`：数仓汇总的本品 SPU 真实指标。
+- `tables.core_metrics`：核心指标处理结果。
+- `tables.traffic_sources`：完整流量来源处理结果。
+- `tables.traffic_keywords`：关键词覆盖汇总和完整关键词明细。
+- `tables.customer_profiles`：完整客户画像维度和明细。
+- `tables.promotion`：推广处理结果。
+
+AI 输入不包含：
+
+- 标准化数据集 ID、质量状态和 SKU 映射信息。
+- 原始区间、本品 P、历史 P、候选值、转换依据和约束检查。
+- 报告摘要、风险、商品图片和页面展示结构。
+- 已有 AI 发现和建议。
+
+本品字段是真实值，竞品字段是固定公式生成的准真实估算值。关键词、客户画像和流量来源保留后端确定性报告中的完整业务行，不做抽样、截断或排序筛选。
+
 ## 缺失与审计约定
 
 1. `-`、空值和不可解析内容按缺失处理，不转成 `0`。
 2. 核心必需数据缺失或冲突时停止正式分析。
 3. 关键词或画像缺失时保留对应对象和 Tab，使用空数组并写入 `risks[]`。
 4. 本品值始终标记为真实值，竞品值始终标记为准真实估算值。
-5. 关键结果保留 `source`、`basis` 或 `method`、`confidence`、`checks` 或 `warnings`。
+5. 关键结果保留 `source`、`basis` 或 `method`、`checks` 或 `warnings`。
 6. 网页不执行区间解析、候选选择、公式校正或 AI 劣势建议生成。
 7. 不使用示例数据补齐缺失模块。

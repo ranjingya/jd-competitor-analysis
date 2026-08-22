@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import json
 import logging
-from pathlib import Path
 from typing import Any
 
 from .report import build_tabs
@@ -43,7 +41,6 @@ def empty_contract() -> dict[str, Any]:
             "competitor_name": None,
             "competitor_spu": None,
             "competitor_product": {"id": None, "name": None, "image_url": None},
-            "confidence": None,
             "summary": None,
             "weakness_summary": None,
         },
@@ -64,6 +61,7 @@ def empty_contract() -> dict[str, Any]:
             "notes": [],
         },
         "tabs": build_tabs([], empty_keywords, empty_profile),
+        "ai_findings": [],
         "ai_recommendations": [],
         "risks": [],
     }
@@ -91,6 +89,7 @@ def validate_contract(data: dict[str, Any], allow_empty: bool = False) -> None:
         "customer_profile",
         "promotion",
         "tabs",
+        "ai_findings",
         "ai_recommendations",
         "risks",
     }
@@ -128,6 +127,8 @@ def validate_contract(data: dict[str, Any], allow_empty: bool = False) -> None:
             raise ValueError(f"analysis_result.meta.{product_field}.image_url 必须是 HTTPS 地址或 null")
     if not isinstance(data["risks"], list) or any(not isinstance(item, str) for item in data["risks"]):
         raise ValueError("risks 必须是字符串数组")
+    if not isinstance(data["ai_findings"], list):
+        raise ValueError("ai_findings 必须是数组")
     if not isinstance(data["ai_recommendations"], list):
         raise ValueError("ai_recommendations 必须是数组")
     recommendation_count = len(data["ai_recommendations"])
@@ -187,24 +188,7 @@ def validate_contract(data: dict[str, Any], allow_empty: bool = False) -> None:
                 if field not in item:
                     raise ValueError(f"核心指标卡缺少字段：{field}")
         for item in data["competitor_core_conversions"]:
-            for field in ("metric_id", "candidate_source", "selected_candidate", "final_value", "confidence", "checks"):
+            for field in ("metric_id", "candidate_source", "selected_candidate", "final_value", "checks"):
                 if field not in item:
                     raise ValueError(f"核心转换审计缺少字段：{field}")
     LOGGER.info("JSON 契约校验通过：allow_empty=%s", allow_empty)
-
-
-def read_json(path: Path) -> Any:
-    """读取 UTF-8 JSON。"""
-
-    LOGGER.info("读取 JSON：%s", path)
-    return json.loads(path.read_text(encoding="utf-8"))
-
-
-def write_json(path: Path, data: Any) -> None:
-    """以 UTF-8 和缩进格式原子写入 JSON。"""
-
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temp_path = path.with_suffix(f"{path.suffix}.tmp")
-    temp_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-    temp_path.replace(path)
-    LOGGER.info("已写入 JSON：%s", path)

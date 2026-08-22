@@ -7,7 +7,7 @@ from typing import Any
 from .dimensions import analyze_keywords, analyze_profile, analyze_promotion, analyze_traffic
 from .estimation import CORE_CARD_IDS, CORE_METRICS, to_number
 from .product_assets import resolve_product_reference
-from .sources import clean_identifier, clean_text
+from .values import clean_identifier, clean_text
 
 
 def format_number(value: float | None, digits: int = 2) -> str:
@@ -406,7 +406,6 @@ def build_analysis_result(
             "competitor_product": resolve_product_reference(
                 meta["competitor_spu"], competitor_name, product_images
             ),
-            "confidence": core["report_confidence"],
             "summary": f"本品{'、'.join(advantage_labels)}领先。" if advantage_labels else "本品核心指标暂无明显优势。",
             "weakness_summary": f"本品{'、'.join(warning_labels)}落后，需要优先优化。" if warning_labels else "本品核心指标暂无明显短板。",
             "generated_at": meta["generated_at"],
@@ -421,6 +420,7 @@ def build_analysis_result(
         "customer_profile": profile,
         "promotion": promotion,
         "tabs": tabs,
+        "ai_findings": [],
         "ai_recommendations": [],
         "risks": list(dict.fromkeys(risks)),
     }

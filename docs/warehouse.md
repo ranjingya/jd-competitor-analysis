@@ -8,6 +8,16 @@
 
 项目根目录的 `.env` 保存实际连接参数且不进入版本控制，`.env.example` 保存可提交的字段模板。
 
+正式日分析还需要配置 DeepSeek：
+
+```dotenv
+DEEPSEEK_API_KEY=<API Key>
+DEEPSEEK_BASE_URL=https://api.deepseek.com
+DEEPSEEK_MODEL=deepseek-v4-pro
+DEEPSEEK_TIMEOUT_SECONDS=300
+DEEPSEEK_MAX_ATTEMPTS=2
+```
+
 项目数仓为 StarRocks，使用 MySQL 协议连接：
 
 ```dotenv
@@ -46,9 +56,100 @@ uv run --project backend python backend/cli.py warehouse-probe `
 
 命令先执行 `SELECT 1`，然后对目标表执行带 `LIMIT` 的读取。成功输出包含数据库方言、列名和样例行；日志不会输出连接密码。
 
-## 当前边界
+## 正式日数据来源
 
-- 仅支持只读连通性和样例读取，不参与正式分析。
+竞品侧按 `dt + compare_number` 查询。`compare_number` 的固定格式为：
+
+```text
+<本品 SPU>+<竞品 SPU>
+```
+
+系统使用一个连接顺序读取以下五张表，避免超过数仓并发限制：
+
+```text
+ods_rpa_jdzy_competitor_data_compare_f
+ods_rpa_jdzy_traffic_source_compare_f
+ods_rpa_jdzy_traffic_keyword_compare_f
+ods_rpa_jdzy_deal_customer_compare_f
+ods_rpa_jdzy_promotion_data_compare_f
+```
+
+本品侧先以飞书应用身份只读查询 SPU/SKU 映射，再从 `ods_rpa_jd_jd_business_product_detail_f` 按 `dt + SKU ID` 读取 `natural_day` 数据。同一 SKU 存在多条同步记录时保留 `create_time` 最新的一条，查询层不会把 SPU 当成 SKU。
+
+飞书映射配置：
+
+```dotenv
+LARK_APP_ID=<飞书自建应用 App ID>
+LARK_APP_SECRET=<飞书自建应用 App Secret>
+LARK_BASE_TOKEN=<多维表格 Base Token>
+LARK_TABLE_ID=<映射数据表 ID>
+LARK_PAIR_TABLE_ID=<商品对数据表 ID>
+LARK_REQUEST_TIMEOUT=30
+LARK_PAGE_SIZE=500
+```
+
+应用需要获得目标多维表格的只读文档权限，并在开发者后台开通读取多维表格记录所需的应用权限。运行时只调用获取应用凭证和列出记录接口，不调用多维表写入、更新或删除接口。
+
+映射读取固定保留五个业务字段：
+
+```text
+主商品条码 -> spu_id
+子商品条码 -> sku_id
+69码       -> barcode_69
+商品名称   -> product_name
+规格       -> specification
+```
+
+只读检查一个 SPU 的映射：
+
+```powershell
+uv run --project backend python backend/cli.py lark-mapping-check `
+  --spu-id 100174558585
+```
+
+检查指定商品对的五张竞品表、飞书映射和本品 SKU 日数据：
+
+```powershell
+uv run --project backend python backend/cli.py warehouse-daily-check `
+  --date 2026-08-11 `
+  --compare-number 100174558585+100112260075
+```
+
+独立排查飞书映射问题时，可以重复传入 `--sku-id` 临时覆盖映射：
+
+```powershell
+uv run --project backend python backend/cli.py warehouse-daily-check `
+  --date 2026-08-11 `
+  --compare-number 100174558585+100112260075 `
+  --sku-id 10001 --sku-id 10002
+```
+
+该命令只输出商品对解析结果和各来源记录数量，不输出连接密码或完整业务数据。
+
+执行指定日期的正式分析并写入 `data.db`：
+
+```powershell
+uv run --project backend python backend/cli.py warehouse-daily-run `
+  --date 2026-08-17 `
+  --compare-number 100174558585+100112260075
+```
+
+可重复提供 `--compare-number`。不提供时，程序从 `LARK_PAIR_TABLE_ID` 对应的商品对表读取全部候选，再以当天核心指标表为准跳过无数据组合。
+
+服务器定时任务可使用昨天作为业务日期：
+
+```bash
+docker compose exec -T jd-competitor-analysis-backend \
+  python /app/cli.py warehouse-daily-run --yesterday
+```
+
+商品对表和 SPU/SKU 映射表都需要向飞书应用开放只读权限。用户账号能够读取多维表，不代表 Bot 应用身份自动拥有相同权限。
+
+## 读取边界
+
+- StarRocks 和飞书多维表操作均只读，按日期和商品标识过滤。
+- 五张竞品表顺序读取，不并发占用数仓连接。
+- 竞品 `json_data` 必须是 JSON 对象，格式错误时停止当前批次。
 - 测试表名只接受数据库标识符及 `数据库.表`、`schema.表` 形式，不接受任意 SQL。
 - 样例最多读取 100 行。
 - 生产账号应只授予分析所需表的读取权限。

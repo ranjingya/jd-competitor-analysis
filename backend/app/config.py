@@ -31,29 +31,39 @@ def _positive_integer(name: str, default: int) -> int:
 class Settings:
     """保存后端运行参数。"""
 
-    reports_dir: Path
-    task_database_path: Path
-    ai_worker_token: str | None
-    task_lease_seconds: int
+    database_path: Path
+    product_images_path: Path
+    analysis_lock_path: Path
+    deepseek_api_key: str | None
+    deepseek_base_url: str
+    deepseek_model: str
+    deepseek_timeout_seconds: int
+    deepseek_max_attempts: int
 
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     """加载后端配置。
 
-    功能说明：加载项目根目录 `.env` 与进程环境变量，解析报告目录、任务数据库和 Worker 鉴权参数。
+    功能说明：加载项目根目录 `.env` 与进程环境变量，解析统一数据库、任务锁和 DeepSeek 参数。
     返回值：完成基础校验的后端配置对象。
     """
 
     load_dotenv(PROJECT_ROOT / ".env", override=False)
-    reports_dir = Path(os.getenv("REPORTS_DIR", str(BACKEND_ROOT / "output"))).expanduser().resolve()
-    task_database_path = Path(
-        os.getenv("TASK_DATABASE_PATH", str(PROJECT_ROOT / "data" / "analysis-tasks.db"))
+    database_path = Path(
+        os.getenv("BACKEND_DATABASE_PATH", str(PROJECT_ROOT / "data" / "data.db"))
     ).expanduser().resolve()
-    token = os.getenv("AI_WORKER_TOKEN", "").strip() or None
+    lock_value = os.getenv("ANALYSIS_LOCK_PATH", "").strip()
+    lock_path = Path(
+        lock_value or database_path.parent / "warehouse-daily-run.lock"
+    ).expanduser().resolve()
     return Settings(
-        reports_dir=reports_dir,
-        task_database_path=task_database_path,
-        ai_worker_token=token,
-        task_lease_seconds=_positive_integer("TASK_LEASE_SECONDS", 1800),
+        database_path=database_path,
+        product_images_path=database_path.parent / "product-images.json",
+        analysis_lock_path=lock_path,
+        deepseek_api_key=os.getenv("DEEPSEEK_API_KEY", "").strip() or None,
+        deepseek_base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com").strip().rstrip("/"),
+        deepseek_model=os.getenv("DEEPSEEK_MODEL", "deepseek-v4-pro").strip(),
+        deepseek_timeout_seconds=_positive_integer("DEEPSEEK_TIMEOUT_SECONDS", 300),
+        deepseek_max_attempts=_positive_integer("DEEPSEEK_MAX_ATTEMPTS", 2),
     )

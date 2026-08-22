@@ -8,15 +8,12 @@ from typing import AsyncIterator
 
 from fastapi import FastAPI
 
-from .api.analysis_tasks import router as analysis_tasks_router
-from .api.dependencies import get_task_repository
+from .api.dependencies import get_database
 from .api.reports import router as reports_router
+from .logging_config import configure_backend_logging
 
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(name)s - %(message)s",
-)
+configure_backend_logging()
 LOGGER = logging.getLogger(__name__)
 
 
@@ -24,20 +21,19 @@ LOGGER = logging.getLogger(__name__)
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     """管理后端应用生命周期。
 
-    功能说明：应用启动时初始化 AI 任务持久化表，关闭时记录停止日志。
+    功能说明：应用启动时初始化统一 Backend 数据库，关闭时记录停止日志。
     参数 _：FastAPI 应用实例，当前无需直接读取。
     返回值：异步生命周期上下文。
     """
 
     LOGGER.info("京东竞品分析后端开始启动")
-    get_task_repository().initialize()
+    get_database().initialize()
     yield
     LOGGER.info("京东竞品分析后端已停止")
 
 
 app = FastAPI(title="京东竞品分析 API", lifespan=lifespan)
 app.include_router(reports_router)
-app.include_router(analysis_tasks_router)
 
 
 @app.get("/healthz", tags=["system"])

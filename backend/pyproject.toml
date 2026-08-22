@@ -5,7 +5,6 @@ description = "京东自营竞品分析后端、数据处理与任务服务"
 requires-python = ">=3.10"
 dependencies = [
     "fastapi>=0.116,<1",
-    "openpyxl>=3.1.5,<4",
     "pymysql>=1.1,<2",
     "python-dotenv>=1.0,<2",
     "sqlalchemy>=2.0,<3",
