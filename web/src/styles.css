@@ -126,6 +126,11 @@ h1 {
   min-width: 0;
 }
 
+.pair-picker {
+  border-radius: 11px 0 0 11px;
+  transition: box-shadow 160ms ease, transform 160ms ease;
+}
+
 .pair-panel {
   height: 100%;
   padding: 14px 16px;
@@ -138,14 +143,26 @@ h1 {
   width: 100%;
   height: 100%;
   padding: 0;
-  border: 0;
+  border: 1px solid transparent;
   border-radius: 11px 0 0 11px;
   background: transparent;
   cursor: pointer;
+  transition: border-color 160ms ease;
 }
 
-.pair-panel-trigger:hover {
-  background: rgba(15, 123, 115, 0.035);
+.pair-panel:hover .pair-panel-trigger,
+.pair-picker.is-open .pair-panel-trigger {
+  border-color: var(--interactive-hover-border);
+}
+
+.pair-picker:hover,
+.pair-picker.is-open {
+  box-shadow: var(--interactive-hover-shadow);
+  transform: translateY(-1px);
+}
+
+.pair-picker:has(.pair-panel-trigger:active) {
+  transform: translateY(1px);
 }
 
 .pair-panel-trigger:focus-visible {
@@ -1188,12 +1205,13 @@ a.product-card:hover {
   color: inherit;
   text-align: left;
   cursor: pointer;
-  transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
+  transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
 }
 
 .hero:hover {
   border-color: var(--interactive-hover-border);
-  background: rgba(255, 255, 255, 0.72);
+  box-shadow: var(--interactive-hover-shadow);
+  transform: translateY(-1px);
 }
 
 .hero:active {
@@ -2174,6 +2192,8 @@ a.product-card:hover {
 
 @media (prefers-reduced-motion: reduce) {
   .product-card,
+  .pair-picker,
+  .hero,
   .metric-card,
   .tab,
   .dimension-tab,
@@ -2183,6 +2203,9 @@ a.product-card:hover {
   }
 
   a.product-card:hover,
+  .pair-picker:hover,
+  .pair-picker.is-open,
+  .hero:hover,
   .metric-card:hover,
   .tab:hover,
   .dimension-tab:hover {
@@ -2202,6 +2225,10 @@ a.product-card:hover {
   }
 
   .pair-panel-trigger {
+    border-radius: 11px 11px 0 0;
+  }
+
+  .pair-picker {
     border-radius: 11px 11px 0 0;
   }
 
