@@ -116,7 +116,7 @@ updated_at
 - [x] 从 StarRocks 读取五张竞品表和本品 SKU 日数据。
 - [x] 本品 SKU 数量、金额等可加总指标汇总到 SPU。
 - [x] 生成标准化数据集并写入数据库。
-- [x] 执行现有确定性分析并生成基础报告。
+- [x] 执行确定性分析并生成基础报告。
 - [x] 创建内部 AI 执行记录并完成模型分析。
 
 完成标准：一个真实商品对能够从数据源走到数据库中的完整报告。
@@ -138,7 +138,7 @@ updated_at
 - [x] `GET /api/reports/{granularity}/{start_date}/{end_date}` 按数据库周期字段返回完整报告。
 - [x] `GET /api/reports/{report_id}/skus` 返回生成报告时的本品 SKU 构成快照。
 - [x] Web 从 API 获取列表和报告详情。
-- [x] Web 不再读取 `report-index.json` 和 `analysis_result.json`。
+- [x] Web 通过 Backend API 获取报告索引和报告详情。
 
 完成标准：更新数据库报告后无需重新构建 Web 镜像，页面能够直接展示新结果。
 

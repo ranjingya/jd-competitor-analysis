@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -14,6 +13,7 @@ from app.repositories.dataset_repository import DatasetRepository
 from app.repositories.report_repository import ReportRepository
 from app.repositories.task_repository import TaskRepository
 from jd_competitor_analysis.warehouse_sources import ProductPair
+from report_fixture import build_report_fixture
 
 
 def dataset_payload(status: str = "partial") -> dict[str, object]:
@@ -38,10 +38,7 @@ def dataset_payload(status: str = "partial") -> dict[str, object]:
 def report_payload() -> dict[str, object]:
     """读取可通过最终报告契约校验的基础报告。"""
 
-    report_path = Path(__file__).resolve().parents[1] / "assets" / "analysis-result.example.json"
-    report = json.loads(report_path.read_text(encoding="utf-8"))
-    report["ai_recommendations"] = []
-    return report
+    return build_report_fixture("2026-08-18")
 
 
 def ai_analyzer() -> Mock:

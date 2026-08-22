@@ -9,7 +9,7 @@ from statistics import fmean
 from time import perf_counter
 from typing import Any
 
-from .sources import clean_text
+from .values import clean_text
 
 
 LOGGER = logging.getLogger(__name__)

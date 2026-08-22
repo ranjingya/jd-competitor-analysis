@@ -9,7 +9,7 @@ from time import perf_counter
 from typing import Any, Callable, Iterable
 
 from .lark_mapping import SkuMapping
-from .sources import clean_identifier, clean_text
+from .values import clean_identifier, clean_text
 from .warehouse_sources import COMPETITOR_TABLES, SELF_SKU_TABLE, ProductPair, parse_report_date
 
 

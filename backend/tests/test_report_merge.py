@@ -2,22 +2,16 @@
 
 from __future__ import annotations
 
-import json
 import unittest
-from pathlib import Path
 
 from app.report_merge import merge_ai_result, validate_ai_result
-
-
-ASSET_PATH = Path(__file__).resolve().parents[1] / "assets" / "analysis-result.example.json"
+from report_fixture import build_report_fixture
 
 
 def base_report() -> dict[str, object]:
     """读取通过最终契约校验的基础报告。"""
 
-    report = json.loads(ASSET_PATH.read_text(encoding="utf-8"))
-    report["ai_recommendations"] = []
-    return report
+    return build_report_fixture()
 
 
 def recommendation(source_id: str, source_label: str) -> dict[str, object]:

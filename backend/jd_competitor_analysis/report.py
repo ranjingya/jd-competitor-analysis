@@ -7,7 +7,7 @@ from typing import Any
 from .dimensions import analyze_keywords, analyze_profile, analyze_promotion, analyze_traffic
 from .estimation import CORE_CARD_IDS, CORE_METRICS, to_number
 from .product_assets import resolve_product_reference
-from .sources import clean_identifier, clean_text
+from .values import clean_identifier, clean_text
 
 
 def format_number(value: float | None, digits: int = 2) -> str:

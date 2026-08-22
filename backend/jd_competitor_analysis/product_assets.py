@@ -9,11 +9,8 @@ from time import perf_counter
 from typing import Any
 from urllib.parse import urlparse
 
-from . import SCRIPTS_DIR
-
-
 LOGGER = logging.getLogger(__name__)
-PRODUCT_IMAGES_PATH = SCRIPTS_DIR / "assets" / "product-images.json"
+PRODUCT_IMAGES_PATH = Path(__file__).resolve().parents[1] / "assets" / "product-images.json"
 
 
 def load_product_images(path: Path = PRODUCT_IMAGES_PATH) -> dict[str, dict[str, str | None]]:

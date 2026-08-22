@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from .estimation import parse_range
-from .sources import clean_identifier, clean_text
+from .values import clean_identifier, clean_text
 
 
 DIMENSION_NAMES = {"性别", "年龄", "地区", "省份", "城市", "其他"}

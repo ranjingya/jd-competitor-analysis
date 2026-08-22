@@ -94,7 +94,7 @@ reports（日/周/月） 1 ─── N  analysis_tasks
 | `generated_at` | TEXT NULL | 报告数据生成时间。 |
 | `created_at` / `updated_at` | TEXT NOT NULL | 创建和更新时间。 |
 
-报告仓库在写入时拆分字段，在完整报告接口读取时组装现有前端契约。各模块具备独立查询和传输的数据边界。
+报告仓库在写入时拆分字段，在完整报告接口读取时组装前端契约。各模块具备独立查询和传输的数据边界。
 
 ## `analysis_tasks`
 

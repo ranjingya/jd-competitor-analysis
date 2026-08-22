@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -11,6 +10,7 @@ from app.database import Database
 from app.repositories.dataset_repository import DatasetRepository
 from app.repositories.report_repository import ReportRepository
 from app.repositories.task_repository import TaskRepository
+from report_fixture import build_report_fixture
 
 
 class TaskRepositoryTest(unittest.TestCase):
@@ -35,9 +35,7 @@ class TaskRepositoryTest(unittest.TestCase):
             },
             dataset_id="dataset-1",
         )
-        report_path = Path(__file__).resolve().parents[1] / "assets" / "analysis-result.example.json"
-        self.base_report = json.loads(report_path.read_text(encoding="utf-8"))
-        self.base_report["ai_recommendations"] = []
+        self.base_report = build_report_fixture("2026-08-11")
         self.reports = ReportRepository(self.database)
         self.report_id = self.reports.upsert(
             self.dataset_id,
@@ -144,7 +142,7 @@ class TaskRepositoryTest(unittest.TestCase):
     def test_week_report_task_does_not_require_dataset(self) -> None:
         """周报 AI 执行应仅通过报告关联，并允许数据集 ID 为空。"""
 
-        weekly_report = json.loads(json.dumps(self.base_report))
+        weekly_report = build_report_fixture("2026-08-10")
         weekly_report["meta"].update(
             {
                 "granularity": "week",

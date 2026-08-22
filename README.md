@@ -82,6 +82,6 @@ docker compose up -d
 - 标准化日数据、AI 执行记录和看板报告统一保存在 `data/data.db`。
 - 日数据与报告按业务模块拆分保存，完整报告接口由数据库字段实时组装。
 - 同一日期和商品对只有一份当前报告及一条非过期 AI 执行记录。
-- StarRocks 连接探测和原 Excel 分析逻辑保留在 Backend。
+- StarRocks 连接探测和确定性分析逻辑统一位于 Backend。
 - `warehouse-daily-run` 按商品对串行完成数仓读取、固定公式、DeepSeek 分析和报告入库。
 - 日分析使用进程锁防止同一服务器重复执行，单个商品对失败后继续处理下一组。

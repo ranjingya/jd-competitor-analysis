@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import json
 import logging
-from pathlib import Path
 from typing import Any
 
 from .report import build_tabs
@@ -194,20 +192,3 @@ def validate_contract(data: dict[str, Any], allow_empty: bool = False) -> None:
                 if field not in item:
                     raise ValueError(f"核心转换审计缺少字段：{field}")
     LOGGER.info("JSON 契约校验通过：allow_empty=%s", allow_empty)
-
-
-def read_json(path: Path) -> Any:
-    """读取 UTF-8 JSON。"""
-
-    LOGGER.info("读取 JSON：%s", path)
-    return json.loads(path.read_text(encoding="utf-8"))
-
-
-def write_json(path: Path, data: Any) -> None:
-    """以 UTF-8 和缩进格式原子写入 JSON。"""
-
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temp_path = path.with_suffix(f"{path.suffix}.tmp")
-    temp_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-    temp_path.replace(path)
-    LOGGER.info("已写入 JSON：%s", path)

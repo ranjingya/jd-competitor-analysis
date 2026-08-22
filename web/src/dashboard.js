@@ -34,7 +34,7 @@ function escapeHtml(value) {
 }
 
 /**
- * 功能说明：标准化报告中的商品引用，兼容只包含旧版商品字段的报告。
+ * 功能说明：标准化报告中的商品引用，并为缺少完整商品对象的报告补齐字段。
  * 参数 meta：分析结果中的元信息对象。
  * 参数 role：商品角色，取值为 self 或 competitor。
  * 返回值：包含商品 ID、名称、主图和京东详情地址的展示对象。
@@ -381,7 +381,7 @@ export function showTrendState(message, isError = false) {
 
 /**
  * 功能说明：使用多个周期的分析结果绘制本品和竞品趋势折线图。
- * 参数 reports：按时间升序排列的 `analysis_result.json` 数组。
+ * 参数 reports：按时间升序排列的报告对象数组。
  * 参数 metricId：当前选择的核心指标 ID。
  * 参数 granularity：当前报告粒度。
  * 参数 selectedPeriodStart：当前选中报告的开始日期，用于标记趋势中的当前点。
@@ -505,7 +505,7 @@ export function renderTrendChart(reports, metricId, granularity, selectedPeriodS
 
 /**
  * 功能说明：把一份分析结果渲染到看板。
- * 参数 data：当前粒度和周期的 `analysis_result.json`。
+ * 参数 data：当前粒度和周期的报告对象。
  * 参数 activeMetricId：当前选中的趋势指标 ID。
  * 返回值：无；直接更新页面内容。
  */

@@ -6,8 +6,6 @@
 
 本文档是标准化事实到分析结果的字段映射和最终 JSON 结构的唯一规范。输入事实见 [normalized-data.md](normalized-data.md)，计算规则见 [estimation.md](estimation.md)，AI 分析规则位于 `backend/assets/ai-analysis-prompt.md`，页面消费规则见 [dashboard.md](dashboard.md)。
 
-可执行样例位于 `backend/assets/analysis-result.example.json`；空结构位于 `backend/assets/analysis-result.template.json`。
-
 ## 导航
 
 - [顶层结构](#顶层结构)

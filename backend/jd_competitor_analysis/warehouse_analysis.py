@@ -1,4 +1,4 @@
-"""将数仓标准化日数据接入现有确定性分析。"""
+"""将数仓标准化日数据接入确定性分析。"""
 
 from __future__ import annotations
 
@@ -35,18 +35,18 @@ PROFILE_DIMENSION_LABELS = {
 
 
 def _metric_raw(metric: Any) -> Any:
-    """从固定指标对象提取供现有公式解析的源值。"""
+    """从固定指标对象提取供确定性公式解析的源值。"""
 
     return metric.get("raw") if isinstance(metric, dict) else None
 
 
 def _analysis_source_status(source: dict[str, Any]) -> str:
-    """把数仓字段质量状态转换为旧版分析使用的来源可用状态。
+    """把数仓字段质量状态转换为分析来源可用状态。
 
-    功能说明：旧版分析只区分整块来源是否可读取；数仓的 partial 表示部分字段未披露，
+    功能说明：确定性分析区分整块来源是否可读取；数仓的 partial 表示部分字段未披露，
     但记录仍可用于分析，因此应继续按 ready 处理。只有整块来源不可用时才返回 missing。
     参数 source：包含 records 和 quality 的数仓标准化来源对象。
-    返回值：旧版确定性分析使用的 ready 或 missing 状态。
+    返回值：确定性分析使用的 ready 或 missing 状态。
     """
 
     quality_status = source.get("quality", {}).get("status")
@@ -68,7 +68,7 @@ def _first_product_name(dataset: dict[str, Any]) -> str | None:
 
 
 def _adapt_core(dataset: dict[str, Any]) -> dict[str, Any]:
-    """把固定核心指标对象转换为现有分析公式输入。"""
+    """把固定核心指标对象转换为确定性公式输入。"""
 
     records = dataset["sources"]["core_metrics"]["records"]
     if not records:
@@ -84,7 +84,7 @@ def _adapt_core(dataset: dict[str, Any]) -> dict[str, Any]:
 
 
 def _adapt_traffic(dataset: dict[str, Any]) -> list[dict[str, Any]]:
-    """把流量来源固定记录转换为现有渠道分析输入。"""
+    """把流量来源固定记录转换为渠道分析输入。"""
 
     rows = []
     for record in dataset["sources"]["traffic_sources"]["records"]:
@@ -105,7 +105,7 @@ def _adapt_traffic(dataset: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _adapt_keywords(dataset: dict[str, Any]) -> list[dict[str, Any]]:
-    """把关键词固定记录转换为现有关键词分析输入。"""
+    """把关键词固定记录转换为关键词分析输入。"""
 
     return [
         {
@@ -120,7 +120,7 @@ def _adapt_keywords(dataset: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _adapt_profiles(dataset: dict[str, Any]) -> list[dict[str, Any]]:
-    """把画像固定记录恢复为带维度标题的现有分析输入。"""
+    """把画像固定记录转换为带维度标题的分析输入。"""
 
     rows: list[dict[str, Any]] = []
     current_dimension: str | None = None
@@ -142,7 +142,7 @@ def _adapt_profiles(dataset: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _adapt_promotion(dataset: dict[str, Any]) -> list[dict[str, Any]]:
-    """把推广固定记录转换为现有推广分析输入。"""
+    """把推广固定记录转换为推广分析输入。"""
 
     rows = []
     for record in dataset["sources"]["promotion"]["records"]:
@@ -166,7 +166,7 @@ def _adapt_promotion(dataset: dict[str, Any]) -> list[dict[str, Any]]:
 def adapt_daily_dataset(dataset: dict[str, Any], title: str | None = None) -> dict[str, Any]:
     """将数仓标准化日数据转换为确定性分析输入。
 
-    功能说明：保留本品 SPU 真实汇总值和竞品区间原文，将五个来源映射到现有 P 值、约束和分析域函数需要的稳定字段。
+    功能说明：保留本品 SPU 真实汇总值和竞品区间原文，将五个来源映射为 P 值、约束和分析域函数需要的稳定字段。
     参数 dataset：符合数仓日数据标准化契约的完整数据集。
     参数 title：可选看板标题。
     返回值：可直接传给 `analyze_normalized` 的日维度分析输入。
@@ -233,7 +233,7 @@ def analyze_daily_dataset(
 ) -> dict[str, Any]:
     """对一份数仓标准化日数据执行固定公式分析。
 
-    功能说明：适配数仓事实后执行现有 P 值、区间约束、差距和分析域计算，不调用 AI。
+    功能说明：适配数仓事实后执行 P 值、区间约束、差距和分析域计算，不调用 AI。
     参数 dataset：完整标准化日数据集。
     参数 title：可选看板标题。
     参数 product_images：可选商品主图索引；测试时可传空对象。
