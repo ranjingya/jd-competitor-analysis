@@ -54,7 +54,7 @@ class ReportRepositoryTest(unittest.TestCase):
     def test_empty_index_and_report_upsert(self) -> None:
         """空库返回稳定索引，同一数据集重复写入应更新原报告。"""
 
-        self.assertEqual(self.repository.read_index()["reports"]["day"], [])
+        self.assertEqual(self.repository.list_product_pairs()["items"], [])
         report_id = self.repository.upsert(
             self.dataset_id,
             {
@@ -96,7 +96,7 @@ class ReportRepositoryTest(unittest.TestCase):
         self.assertEqual(repeated_id, "report-1")
         self.assertEqual(terminal_id, "report-1")
         self.assertEqual(self.repository.get("report-1")["meta"]["summary"], "AI 已完成")
-        entry = self.repository.read_index()["reports"]["day"][0]
+        entry = self.repository.list_product_pairs()["items"][0]["latest_reports"]["day"]
         self.assertEqual(entry["path"], "/api/reports/report-1")
         self.assertEqual(entry["status"], "ready")
         self.assertEqual(entry["quality_status"], "partial")
@@ -118,6 +118,71 @@ class ReportRepositoryTest(unittest.TestCase):
             self.repository.read_report("day", "../../.env", "2026-08-17")
         with self.assertRaisesRegex(ValueError, "必须相同"):
             self.repository.read_report("day", "2026-08-17", "2026-08-18")
+
+    def test_product_pairs_periods_and_trends_are_lightweight(self) -> None:
+        """首次导航、周期选择和趋势查询应返回各自需要的轻量数据。"""
+
+        previous_dataset_id = self.datasets.store(
+            {
+                "report_date": "2026-08-16",
+                "pair": {
+                    "compare_number": "10001+20001",
+                    "self_spu": "10001",
+                    "competitor_spu": "20001",
+                },
+                "quality": {"status": "ready"},
+            },
+            dataset_id="dataset-previous",
+        )
+        for dataset_id, report_id, report_date, self_gmv, competitor_gmv in (
+            (previous_dataset_id, "report-previous", "2026-08-16", 100.0, 80.0),
+            (self.dataset_id, "report-latest", "2026-08-17", 120.0, 90.0),
+        ):
+            self.repository.upsert(
+                dataset_id,
+                {
+                    "meta": {
+                        "title": "日报",
+                        "period_start": report_date,
+                        "period_end": report_date,
+                        "self_product": {"name": "本品名称"},
+                        "competitor_product": {"name": "竞品名称"},
+                    },
+                    "comparison": [
+                        {
+                            "metric_id": "gmv",
+                            "self_value": self_gmv,
+                            "competitor_value": competitor_gmv,
+                        }
+                    ],
+                },
+                status="ready",
+                report_id=report_id,
+            )
+
+        pairs = self.repository.list_product_pairs()
+        periods = self.repository.list_periods(
+            "10001", "20001", "day", "2026-08"
+        )
+        trends = self.repository.read_trends(
+            "10001", "20001", "day", "2026-08-16", "2026-08-17"
+        )
+
+        self.assertEqual(len(pairs["items"]), 1)
+        self.assertEqual(
+            pairs["items"][0]["latest_reports"]["day"]["report_id"],
+            "report-latest",
+        )
+        self.assertEqual(pairs["items"][0]["report_counts"]["day"], 2)
+        self.assertEqual(periods["contexts"], ["2026-08"])
+        self.assertEqual(periods["report_count"], 2)
+        self.assertEqual(
+            [entry["report_id"] for entry in periods["items"]],
+            ["report-previous", "report-latest"],
+        )
+        self.assertEqual(len(trends["items"]), 2)
+        self.assertEqual(trends["items"][0]["core_metrics"][0]["self_value"], 100.0)
+        self.assertNotIn("traffic_sources", trends["items"][0])
 
     def test_product_images_are_synced_to_existing_reports(self) -> None:
         """外部主图配置应按 SPU 更新已有报告的两侧主图字段。"""
@@ -150,7 +215,7 @@ class ReportRepositoryTest(unittest.TestCase):
                 "30001": {"name": "未使用商品", "image_url": None},
             }
         )
-        entry = self.repository.read_index()["reports"]["day"][0]
+        entry = self.repository.list_product_pairs()["items"][0]["latest_reports"]["day"]
 
         self.assertEqual(result["products"], 3)
         self.assertEqual(result["self_reports"], 1)
@@ -213,8 +278,9 @@ class ReportRepositoryTest(unittest.TestCase):
 
         self.assertEqual(updated_report_id, report_id)
         self.assertEqual(self.repository.get_record(report_id)["dataset_id"], new_dataset_id)
-        self.assertEqual(self.repository.read_index()["reports"]["day"][0]["status"], "pending_ai")
-        self.assertEqual(len(self.repository.read_index()["reports"]["day"]), 1)
+        pair = self.repository.list_product_pairs()["items"][0]
+        self.assertEqual(pair["latest_reports"]["day"]["status"], "pending_ai")
+        self.assertEqual(pair["report_counts"]["day"], 1)
 
     def test_week_report_uses_period_without_dataset(self) -> None:
         """周报应按起止日期保存，且不绑定单个日数据集。"""
@@ -238,7 +304,7 @@ class ReportRepositoryTest(unittest.TestCase):
 
         report_id = self.repository.upsert(None, weekly_report, report_id="report-week")
         record = self.repository.get_record(report_id)
-        weekly_entry = self.repository.read_index()["reports"]["week"][0]
+        weekly_entry = self.repository.list_product_pairs()["items"][0]["latest_reports"]["week"]
 
         self.assertIsNone(record["dataset_id"])
         self.assertEqual(record["granularity"], "week")

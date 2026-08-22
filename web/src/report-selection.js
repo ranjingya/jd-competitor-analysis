@@ -1,5 +1,42 @@
 const granularities = ["day", "week", "month"];
 
+function compareReportEntries(left, right) {
+  return String(left.start_date || "").localeCompare(String(right.start_date || ""))
+    || String(left.end_date || "").localeCompare(String(right.end_date || ""))
+    || String(left.updated_at || "").localeCompare(String(right.updated_at || ""))
+    || String(left.report_id || "").localeCompare(String(right.report_id || ""));
+}
+
+/**
+ * 功能说明：把商品对接口转换为页面内部使用的轻量导航状态。
+ * 参数 payload：Backend 返回的商品对、最新报告和报告数量。
+ * 返回值：包含商品对和各粒度最新报告的页面索引对象。
+ */
+export function indexFromProductPairs(payload) {
+  const reports = { day: [], week: [], month: [] };
+  const pairs = (payload?.items || []).map((item) => {
+    const pair = {
+      key: `${item.self_spu}::${item.competitor_spu}`,
+      selfSpu: String(item.self_spu),
+      competitorSpu: String(item.competitor_spu),
+      selfName: String(item.self_name || "").trim(),
+      selfImageUrl: String(item.self_image_url || "").trim(),
+      competitorName: String(item.competitor_name || "").trim(),
+      competitorImageUrl: String(item.competitor_image_url || "").trim(),
+      reportCounts: { day: 0, week: 0, month: 0, ...(item.report_counts || {}) }
+    };
+    for (const granularity of granularities) {
+      const entry = item.latest_reports?.[granularity];
+      if (entry) reports[granularity].push(entry);
+    }
+    return pair;
+  });
+  for (const granularity of granularities) {
+    reports[granularity].sort(compareReportEntries);
+  }
+  return { updated_at: payload?.updated_at || null, pairs, reports };
+}
+
 /**
  * 功能说明：生成商品对在前端状态中的稳定唯一标识。
  * 参数 entry：包含本品和竞品 SPU 的报告索引条目。
@@ -17,6 +54,9 @@ export function reportPairKey(entry) {
  * 返回值：按本品和竞品 SPU 排序的唯一商品对数组。
  */
 export function reportPairs(index) {
+  if (Array.isArray(index?.pairs)) {
+    return index.pairs;
+  }
   const pairs = new Map();
   for (const granularity of granularities) {
     for (const entry of index?.reports?.[granularity] || []) {
@@ -44,6 +84,37 @@ export function reportPairs(index) {
     left.selfSpu.localeCompare(right.selfSpu)
       || left.competitorSpu.localeCompare(right.competitorSpu)
   );
+}
+
+/**
+ * 功能说明：返回指定商品对的导航信息。
+ * 参数 index：页面轻量导航状态。
+ * 参数 pairKey：商品对唯一标识。
+ * 返回值：商品对对象；不存在时返回 null。
+ */
+export function reportPair(index, pairKey) {
+  return reportPairs(index).find((pair) => pair.key === pairKey) || null;
+}
+
+/**
+ * 功能说明：合并一个日历上下文内的报告条目并保持稳定时间顺序。
+ * 参数 index：页面轻量导航状态。
+ * 参数 granularity：day、week 或 month。
+ * 参数 pairKey：商品对唯一标识。
+ * 参数 context：日报/周报月份 YYYY-MM，或月报年份 YYYY。
+ * 参数 entries：当前上下文的报告条目。
+ * 返回值：无；直接更新 index 中相应粒度的轻量条目。
+ */
+export function mergePeriodEntries(index, granularity, pairKey, context, entries) {
+  const contextLength = granularity === "month" ? 4 : 7;
+  const retained = (index?.reports?.[granularity] || []).filter((entry) =>
+    reportPairKey(entry) !== pairKey
+      || String(entry.start_date || "").slice(0, contextLength) !== context
+  );
+  const byId = new Map(
+    [...retained, ...(entries || [])].map((entry) => [entry.report_id, entry])
+  );
+  index.reports[granularity] = [...byId.values()].sort(compareReportEntries);
 }
 
 /**

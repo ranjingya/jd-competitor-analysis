@@ -88,6 +88,10 @@ function contextForEntry(granularity, entry) {
 }
 
 function availableContexts(options, granularity) {
+  const configured = options.periodContexts?.[granularity] || [];
+  if (configured.length) {
+    return [...configured].sort();
+  }
   return [...new Set(reportsFor(options.index, granularity).map((entry) => contextForEntry(granularity, entry)))].filter(Boolean).sort();
 }
 
@@ -131,6 +135,10 @@ function bindContextNavigation(root, options, granularity) {
       options.pickerState.contexts[granularity] = contexts[Number(button.dataset.contextIndex)];
       options.pickerState.animateOpen = false;
       renderPeriodPicker(options);
+      options.onContextChange?.(
+        granularity,
+        options.pickerState.contexts[granularity]
+      );
     });
   });
 }
@@ -140,7 +148,10 @@ function createDayPanel(options) {
   const [year, month] = context.split("-").map(Number);
   const root = document.createElement("div");
   root.className = "period-calendar-panel";
-  const selected = selectedEntry(options, "day");
+  const selectedCandidate = selectedEntry(options, "day");
+  const selected = contextForEntry("day", selectedCandidate) === context
+    ? selectedCandidate
+    : null;
   const available = new Map(reportsFor(options.index, "day").map((entry) => [entry.start_date, entry]));
   root.innerHTML = `
     ${calendarHeader(options, "day", `${year} 年 ${month} 月`, "选择单日报告")}
@@ -165,7 +176,10 @@ function createWeekPanel(options) {
   const [year, month] = context.split("-").map(Number);
   const root = document.createElement("div");
   root.className = "period-calendar-panel period-week-panel";
-  const selected = selectedEntry(options, "week");
+  const selectedCandidate = selectedEntry(options, "week");
+  const selected = contextForEntry("week", selectedCandidate) === context
+    ? selectedCandidate
+    : null;
   const available = new Map(reportsFor(options.index, "week").map((entry) => [entry.start_date, entry]));
   root.innerHTML = `
     ${calendarHeader(options, "week", `${year} 年 ${month} 月`, "选择完整自然周")}
@@ -197,7 +211,10 @@ function createMonthPanel(options) {
   const year = Number(context);
   const root = document.createElement("div");
   root.className = "period-calendar-panel period-month-panel";
-  const selected = selectedEntry(options, "month");
+  const selectedCandidate = selectedEntry(options, "month");
+  const selected = contextForEntry("month", selectedCandidate) === context
+    ? selectedCandidate
+    : null;
   const entries = reportsFor(options.index, "month").filter((entry) => entry.start_date.startsWith(`${context}-`));
   root.innerHTML = `
     ${calendarHeader(options, "month", `${year} 年`, "选择整月报告")}
@@ -298,7 +315,7 @@ export function renderPeriodPicker(options) {
     <div class="period-popover${options.pickerState.open ? " is-open" : ""}${options.pickerState.closing ? " is-closing" : ""}${options.pickerState.animateOpen ? " is-entering" : ""}" id="period-popover">
       <nav class="period-granularity-rail" aria-label="分析粒度">
         ${Object.entries(granularityLabels).map(([key, label]) => {
-          const count = reportsFor(options.index, key).length;
+          const count = Number(options.reportCounts?.[key] || 0);
           return `<button type="button" data-granularity="${key}" class="${key === pickerGranularity ? "is-selected" : ""}" aria-pressed="${key === pickerGranularity}" ${count ? "" : "disabled"}><strong>${label}</strong><span>${count}</span></button>`;
         }).join("")}
       </nav>
@@ -316,6 +333,10 @@ export function renderPeriodPicker(options) {
     options.pickerState.draftGranularity = options.activeGranularity;
     options.pickerState.contexts[options.activeGranularity] = contextForEntry(options.activeGranularity, activeEntry);
     renderPeriodPicker(options);
+    options.onContextChange?.(
+      options.activeGranularity,
+      options.pickerState.contexts[options.activeGranularity]
+    );
   });
   options.container.querySelectorAll("[data-granularity]:not(:disabled)").forEach((button) => {
     button.addEventListener("click", () => {
@@ -327,6 +348,7 @@ export function renderPeriodPicker(options) {
       options.pickerState.closing = false;
       options.pickerState.animateOpen = false;
       renderPeriodPicker(options);
+      options.onContextChange?.(granularity, context);
     });
   });
   const popover = options.container.querySelector("#period-popover");

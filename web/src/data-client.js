@@ -1,5 +1,7 @@
 const reportCache = new Map();
 const reportSkuCache = new Map();
+const reportPeriodCache = new Map();
+const reportTrendCache = new Map();
 
 async function readJson(url) {
   const response = await fetch(url, { cache: "no-store" });
@@ -10,38 +12,11 @@ async function readJson(url) {
 }
 
 /**
- * 功能说明：按周期起止日期和更新时间对报告索引条目升序排列。
- * 参数 left：左侧报告索引条目。
- * 参数 right：右侧报告索引条目。
- * 返回值：供 Array.sort 使用的比较结果。
+ * 功能说明：读取商品对以及每个粒度的最新报告导航信息。
+ * 返回值：商品对列表、最新报告和报告数量。
  */
-function compareReportEntries(left, right) {
-  return String(left.start_date || "").localeCompare(String(right.start_date || ""))
-    || String(left.end_date || "").localeCompare(String(right.end_date || ""))
-    || String(left.updated_at || "").localeCompare(String(right.updated_at || ""))
-    || String(left.report_id || "").localeCompare(String(right.report_id || ""));
-}
-
-/**
- * 功能说明：补齐报告索引的三个粒度，并将每组报告整理为由旧到新的稳定顺序。
- * 参数 index：Backend 返回的报告索引对象。
- * 返回值：字段完整且顺序稳定的报告索引对象。
- */
-export function normalizeReportIndex(index) {
-  index.reports ||= { day: [], week: [], month: [] };
-  for (const granularity of ["day", "week", "month"]) {
-    index.reports[granularity] = [...(index.reports[granularity] || [])]
-      .sort(compareReportEntries);
-  }
-  return index;
-}
-
-/**
- * 功能说明：读取日、周、月报告索引。
- * 返回值：包含三个粒度报告条目的索引对象。
- */
-export async function loadReportIndex() {
-  return normalizeReportIndex(await readJson("/api/reports"));
+export async function loadProductPairs() {
+  return readJson("/api/product-pairs");
 }
 
 /**
@@ -75,4 +50,48 @@ export async function loadReportSkus(entry) {
   const data = await readJson(`/api/reports/${encodeURIComponent(reportId)}/skus`);
   reportSkuCache.set(reportId, data);
   return data;
+}
+
+/**
+ * 功能说明：按商品对、粒度和日历上下文读取可用报告。
+ * 参数 pair：包含 selfSpu 和 competitorSpu 的商品对。
+ * 参数 granularity：day、week 或 month。
+ * 参数 context：日报/周报月份 YYYY-MM，或月报年份 YYYY。
+ * 返回值：当前上下文的轻量报告条目和可导航上下文。
+ */
+export async function loadReportPeriods(pair, granularity, context) {
+  const params = new URLSearchParams({
+    self_spu: pair.selfSpu,
+    competitor_spu: pair.competitorSpu,
+    granularity,
+    context
+  });
+  const url = `/api/reports/periods?${params}`;
+  if (!reportPeriodCache.has(url)) {
+    reportPeriodCache.set(url, readJson(url));
+  }
+  return reportPeriodCache.get(url);
+}
+
+/**
+ * 功能说明：读取指定范围内四项核心指标的轻量趋势数据。
+ * 参数 pair：包含 selfSpu 和 competitorSpu 的商品对。
+ * 参数 granularity：day、week 或 month。
+ * 参数 startDate：趋势开始日期。
+ * 参数 endDate：趋势结束日期。
+ * 返回值：只包含周期元数据和核心指标的报告数组。
+ */
+export async function loadReportTrends(pair, granularity, startDate, endDate) {
+  const params = new URLSearchParams({
+    self_spu: pair.selfSpu,
+    competitor_spu: pair.competitorSpu,
+    granularity,
+    start_date: startDate,
+    end_date: endDate
+  });
+  const url = `/api/reports/trends?${params}`;
+  if (!reportTrendCache.has(url)) {
+    reportTrendCache.set(url, readJson(url));
+  }
+  return reportTrendCache.get(url);
 }

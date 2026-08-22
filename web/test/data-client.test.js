@@ -1,35 +1,30 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { loadReport, loadReportSkus, normalizeReportIndex } from "../src/data-client.js";
+import {
+  loadProductPairs,
+  loadReport,
+  loadReportPeriods,
+  loadReportSkus,
+  loadReportTrends
+} from "../src/data-client.js";
 
 
-test("报告索引按 start_date 和 end_date 由旧到新排列", () => {
-  const index = normalizeReportIndex({
-    reports: {
-      day: [
-        {
-          report_id: "report-new",
-          start_date: "2026-08-18",
-          end_date: "2026-08-18",
-          updated_at: "2026-08-19T01:00:00Z"
-        },
-        {
-          report_id: "report-old",
-          start_date: "2026-08-17",
-          end_date: "2026-08-17",
-          updated_at: "2026-08-18T01:00:00Z"
-        }
-      ]
-    }
-  });
+test("商品对列表使用独立轻量接口", async () => {
+  const originalFetch = globalThis.fetch;
+  const requestedUrls = [];
+  globalThis.fetch = async (url) => {
+    requestedUrls.push(url);
+    return { ok: true, async json() { return { items: [] }; } };
+  };
 
-  assert.deepEqual(index.reports.day.map((entry) => entry.report_id), [
-    "report-old",
-    "report-new"
-  ]);
-  assert.deepEqual(index.reports.week, []);
-  assert.deepEqual(index.reports.month, []);
+  try {
+    const result = await loadProductPairs();
+    assert.deepEqual(result.items, []);
+    assert.deepEqual(requestedUrls, ["/api/product-pairs"]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test("相同周期的不同报告使用 report_id 独立缓存", async () => {
@@ -95,6 +90,35 @@ test("SKU 构成按 report_id 请求并缓存", async () => {
     assert.equal(first.sku_count, 18);
     assert.equal(second, first);
     assert.deepEqual(requestedUrls, ["/api/reports/sku-report/skus"]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("周期和趋势接口只携带当前查询范围", async () => {
+  const originalFetch = globalThis.fetch;
+  const requestedUrls = [];
+  globalThis.fetch = async (url) => {
+    requestedUrls.push(url);
+    return {
+      ok: true,
+      async json() {
+        return { items: [] };
+      }
+    };
+  };
+  const pair = { selfSpu: "10001", competitorSpu: "20001" };
+
+  try {
+    await loadReportPeriods(pair, "day", "2026-08");
+    await loadReportTrends(pair, "day", "2026-08-11", "2026-08-17");
+
+    assert.equal(requestedUrls.length, 2);
+    assert.match(requestedUrls[0], /^\/api\/reports\/periods\?/);
+    assert.match(requestedUrls[0], /context=2026-08/);
+    assert.match(requestedUrls[1], /^\/api\/reports\/trends\?/);
+    assert.match(requestedUrls[1], /start_date=2026-08-11/);
+    assert.match(requestedUrls[1], /end_date=2026-08-17/);
   } finally {
     globalThis.fetch = originalFetch;
   }

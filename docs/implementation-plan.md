@@ -134,12 +134,14 @@ updated_at
 
 ## 第五步：前端只读 API
 
-- [x] `GET /api/reports` 从数据库返回报告列表。
+- [x] `GET /api/product-pairs` 返回商品对、各粒度最新报告和报告数量。
+- [x] `GET /api/reports/periods` 按商品对和日历上下文返回可用周期。
+- [x] `GET /api/reports/trends` 返回指定范围的四项轻量核心指标。
 - [x] `GET /api/reports/{report_id}` 返回完整报告。
 - [x] `GET /api/reports/{granularity}/{start_date}/{end_date}` 按数据库周期字段返回完整报告。
 - [x] `GET /api/reports/{report_id}/skus` 返回生成报告时的本品 SKU 构成快照。
-- [x] Web 从 API 获取列表和报告详情。
-- [x] Web 通过 Backend API 获取报告索引和报告详情。
+- [x] Web 首次加载商品对、当前完整报告和轻量趋势。
+- [x] Web 在日期选择器展开后加载当前上下文，选择周期后加载完整报告。
 
 完成标准：更新数据库报告后无需重新构建 Web 镜像，页面能够直接展示新结果。
 

@@ -171,7 +171,10 @@ class DailyAnalysisJobTest(unittest.TestCase):
             self.reports.get_record(second["report_id"])["dataset_id"],
             second["dataset_id"],
         )
-        self.assertEqual(len(self.reports.read_index()["reports"]["day"]), 1)
+        self.assertEqual(
+            self.reports.list_product_pairs()["items"][0]["report_counts"]["day"],
+            1,
+        )
 
     @patch("app.jobs.daily_analysis.analyze_daily_dataset")
     @patch("app.jobs.daily_analysis.build_daily_dataset")

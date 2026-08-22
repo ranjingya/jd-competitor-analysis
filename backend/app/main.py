@@ -9,7 +9,7 @@ from typing import AsyncIterator
 from fastapi import FastAPI
 
 from .api.dependencies import get_database
-from .api.reports import router as reports_router
+from .api.reports import product_pairs_router, router as reports_router
 from .logging_config import configure_backend_logging
 
 
@@ -33,6 +33,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="京东竞品分析 API", lifespan=lifespan)
+app.include_router(product_pairs_router)
 app.include_router(reports_router)
 
 

@@ -85,7 +85,7 @@ docker compose up -d
 
 ## 已有能力
 
-- Web 已通过 `/api/reports` 读取报告。
+- Web 通过商品对、按需周期、轻量趋势和完整报告 API 展示看板。
 - Backend 已提供报告查询 API 和完整日分析 CLI。
 - 标准化日数据、AI 执行记录和看板报告统一保存在 `data/data.db`。
 - 日数据与报告按业务模块拆分保存，完整报告接口由数据库字段实时组装。
