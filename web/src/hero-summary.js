@@ -17,21 +17,42 @@ export function compactHeroSummary(metrics, kind) {
 }
 
 /**
+ * 功能说明：判断详情值是否包含至少一个可展示的文本要点。
+ * 参数 value：详情数组或详情字符串。
+ * 返回值：存在非空文本时返回 true，否则返回 false。
+ */
+export function hasDetailPoints(value) {
+  if (Array.isArray(value)) {
+    return value.some((item) => typeof item === "string" && item.trim());
+  }
+  return typeof value === "string" && Boolean(value.trim());
+}
+
+/**
+ * 功能说明：把一段详情文本按自然语义边界拆成独立要点。
+ * 参数 value：待拆分的详情文本。
+ * 返回值：过滤空值并清理列表符号后的要点数组。
+ */
+function splitDetailText(value) {
+  const text = String(value || "").trim();
+  if (!text) return [];
+  return (text.match(/[^\n。！？；]+[。！？；]?/gu) || [text])
+    .map((item) => item.replace(/^\s*[-•·]\s*/u, "").trim())
+    .filter(Boolean);
+}
+
+/**
  * 功能说明：把详情统一转换为逐条展示的文本数组。
  * 参数 value：详情数组或详情字符串。
  * 返回值：过滤空值后的详情要点；无内容时返回占位项。
  */
 export function detailPoints(value) {
   if (Array.isArray(value)) {
-    const points = value.map((item) => String(item || "").trim()).filter(Boolean);
+    const points = value.flatMap((item) => splitDetailText(item));
     return points.length ? points : ["-"];
   }
-  const text = String(value || "").trim();
-  if (!text) return ["-"];
-  const lines = text.split(/\n+/u).map((item) => item.replace(/^\s*[-•·]\s*/u, "").trim()).filter(Boolean);
-  if (lines.length > 1) return lines;
-  const sentences = text.match(/[^。！？；]+[。！？；]?/gu)?.map((item) => item.trim()).filter(Boolean) || [];
-  return sentences.length ? sentences : [text];
+  const points = splitDetailText(value);
+  return points.length ? points : ["-"];
 }
 
 /**

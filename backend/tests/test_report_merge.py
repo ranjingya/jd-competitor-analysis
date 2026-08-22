@@ -123,6 +123,24 @@ class ReportMergeTest(unittest.TestCase):
                 }
             )
 
+    def test_summary_brief_must_fit_dashboard(self) -> None:
+        """首屏摘要超过三十个字符时不得进入正式报告。"""
+
+        with self.assertRaisesRegex(ValueError, "brief 不能超过 30 个字符"):
+            validate_ai_result(
+                {
+                    "summary": {
+                        "advantage": {
+                            "brief": "本品成交金额和访客规模均领先竞品但转化效率仍然落后需要持续关注",
+                            "detail": ["本品成交金额和访客规模领先。"],
+                        },
+                        "weakness": {"brief": "转化落后", "detail": ["本品转化落后。"]},
+                    },
+                    "findings": [],
+                    "recommendations": [],
+                }
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

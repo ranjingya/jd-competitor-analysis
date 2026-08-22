@@ -3,7 +3,7 @@ import { LineChart } from "echarts/charts";
 import { GridComponent, LegendComponent, TooltipComponent } from "echarts/components";
 import { SVGRenderer } from "echarts/renderers";
 import { mountAnalysisVxeTable, unmountAnalysisVxeTable } from "./analysis-vxe-table.js";
-import { compactHeroSummary } from "./hero-summary.js";
+import { compactHeroSummary, hasDetailPoints } from "./hero-summary.js";
 
 echarts.use([LineChart, GridComponent, LegendComponent, TooltipComponent, SVGRenderer]);
 
@@ -523,16 +523,17 @@ export function renderDashboard(data, activeMetricId = "") {
   const summary = meta.summary || "-";
   const weakness = meta.weakness_summary || "-";
   const metricItems = data.core_metrics || [];
-  const hasStructuredSummary = Boolean(meta.summary_detail || meta.weakness_summary_detail);
-  document.querySelector("#summary").textContent = hasStructuredSummary
+  const hasAdvantageDetail = hasDetailPoints(meta.summary_detail);
+  const hasWeaknessDetail = hasDetailPoints(meta.weakness_summary_detail);
+  document.querySelector("#summary").textContent = hasAdvantageDetail
     ? summary
     : compactHeroSummary(metricItems, "advantage");
-  document.querySelector("#weakness").textContent = hasStructuredSummary
+  document.querySelector("#weakness").textContent = hasWeaknessDetail
     ? weakness
     : compactHeroSummary(metricItems, "warning");
   const heroTrigger = document.querySelector("#hero-summary-trigger");
-  heroTrigger.dataset.advantageDetail = JSON.stringify(meta.summary_detail || summary);
-  heroTrigger.dataset.weaknessDetail = JSON.stringify(meta.weakness_summary_detail || weakness);
+  heroTrigger.dataset.advantageDetail = JSON.stringify(hasAdvantageDetail ? meta.summary_detail : summary);
+  heroTrigger.dataset.weaknessDetail = JSON.stringify(hasWeaknessDetail ? meta.weakness_summary_detail : weakness);
   const preferredMetricId = activeMetricId || dashboardState.activeMetricId;
   dashboardState.activeMetricId = metricItems.some((item) => item.id === preferredMetricId)
     ? preferredMetricId
