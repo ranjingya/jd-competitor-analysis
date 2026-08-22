@@ -126,7 +126,7 @@ uv run --project backend python backend/cli.py warehouse-daily-check `
 
 该命令只输出商品对解析结果和各来源记录数量，不输出连接密码或完整业务数据。
 
-执行指定日期的正式分析并写入 `backend.db`：
+执行指定日期的正式分析并写入 `data.db`：
 
 ```powershell
 uv run --project backend python backend/cli.py warehouse-daily-run `

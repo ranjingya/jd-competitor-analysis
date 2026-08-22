@@ -14,13 +14,13 @@ from app.repositories.task_repository import TaskRepository
 
 
 class AnalysisJobTest(unittest.TestCase):
-    """验证同一数据集能够串联报告和 AI 执行记录。"""
+    """验证数据集、报告和 AI 执行记录的关联。"""
 
-    def test_dataset_report_and_task_share_dataset_id(self) -> None:
-        """三个写入步骤应通过相同数据集 ID 建立关联。"""
+    def test_dataset_links_report_and_report_links_task(self) -> None:
+        """日报关联数据集，AI 执行记录只关联报告。"""
 
         with tempfile.TemporaryDirectory() as temp_dir:
-            database = Database(Path(temp_dir) / "backend.db")
+            database = Database(Path(temp_dir) / "data.db")
             database.initialize()
             datasets = DatasetRepository(database)
             reports = ReportRepository(database)
@@ -44,16 +44,19 @@ class AnalysisJobTest(unittest.TestCase):
             start_result = start_ai_analysis(
                 tasks,
                 report_id,
-                dataset_id,
                 {"facts": {"dataset_id": dataset_id}},
                 "deepseek-v4-pro",
+                "1.0",
+                "prompt-hash",
             )
             task = tasks.list_recent("processing", 20)[0]
             report_record = reports.get_record(report_id)
 
         self.assertTrue(start_result.should_execute)
         self.assertEqual(task["analysis_id"], start_result.analysis_id)
-        self.assertEqual(task["dataset_id"], dataset_id)
+        self.assertEqual(task["report_id"], report_id)
+        self.assertEqual(task["analysis_version"], "1.0")
+        self.assertEqual(task["prompt_hash"], "prompt-hash")
         self.assertEqual(report_record["dataset_id"], dataset_id)
 
 

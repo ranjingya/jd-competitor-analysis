@@ -17,7 +17,7 @@ class ReportRepositoryTest(unittest.TestCase):
         """创建统一数据库和一份标准化数据集。"""
 
         self.temporary_directory = tempfile.TemporaryDirectory()
-        database_path = Path(self.temporary_directory.name) / "backend.db"
+        database_path = Path(self.temporary_directory.name) / "data.db"
         datasets = DatasetRepository(database_path)
         datasets.initialize()
         self.dataset_id = datasets.store(

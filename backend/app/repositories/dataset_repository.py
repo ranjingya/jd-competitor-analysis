@@ -1,4 +1,4 @@
-"""持久化完整标准化日数据。"""
+"""按业务模块持久化标准化日数据。"""
 
 from __future__ import annotations
 
@@ -15,6 +15,21 @@ from ..database import Database, utc_now_text
 
 LOGGER = logging.getLogger(__name__)
 QUALITY_STATUSES = {"ready", "partial", "invalid"}
+SOURCE_COLUMNS = {
+    "core_metrics": "core_metrics_json",
+    "traffic_sources": "traffic_sources_json",
+    "traffic_keywords": "traffic_keywords_json",
+    "customer_profiles": "customer_profile_json",
+    "promotion": "promotion_json",
+}
+DATASET_TOP_LEVEL_FIELDS = {
+    "schema_version",
+    "report_date",
+    "pair",
+    "self_product",
+    "sources",
+    "quality",
+}
 
 
 def canonical_json(data: dict[str, Any]) -> str:
@@ -68,8 +83,25 @@ class DatasetRepository:
         if quality_status not in QUALITY_STATUSES:
             raise ValueError(f"标准化日数据质量状态无效：{quality_status}")
 
-        payload_json = canonical_json(payload)
-        source_hash = hashlib.sha256(payload_json.encode("utf-8")).hexdigest()
+        source_hash = dataset_source_hash(payload)
+        sources = payload.get("sources") if isinstance(payload.get("sources"), dict) else {}
+        present_sources = [source_id for source_id in SOURCE_COLUMNS if source_id in sources]
+        source_status = {
+            "schema_version": payload.get("schema_version"),
+            "quality": quality,
+            "self_product_present": "self_product" in payload,
+            "sources_present": "sources" in payload,
+            "present_sources": present_sources,
+            "extra": {
+                key: value
+                for key, value in payload.items()
+                if key not in DATASET_TOP_LEVEL_FIELDS
+            },
+        }
+        module_values = {
+            column: canonical_json(sources.get(source_id, {}))
+            for source_id, column in SOURCE_COLUMNS.items()
+        }
         selected_dataset_id = dataset_id or str(uuid.uuid4())
         with self.database.connection() as connection:
             try:
@@ -77,18 +109,25 @@ class DatasetRepository:
                     """
                     INSERT INTO analysis_datasets (
                         dataset_id, report_date, self_spu, competitor_spu,
-                        compare_number, source_hash, payload_json, quality_status, created_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        self_product_json, core_metrics_json, traffic_sources_json,
+                        traffic_keywords_json, customer_profile_json, promotion_json,
+                        source_status_json, quality_status, source_hash, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         selected_dataset_id,
                         report_date,
                         self_spu,
                         competitor_spu,
-                        compare_number,
-                        source_hash,
-                        payload_json,
+                        canonical_json(payload.get("self_product", {})),
+                        module_values["core_metrics_json"],
+                        module_values["traffic_sources_json"],
+                        module_values["traffic_keywords_json"],
+                        module_values["customer_profile_json"],
+                        module_values["promotion_json"],
+                        canonical_json(source_status),
                         quality_status,
+                        source_hash,
                         utc_now_text(),
                     ),
                 )
@@ -107,6 +146,7 @@ class DatasetRepository:
     def get(self, dataset_id: str) -> dict[str, Any]:
         """读取一份标准化日数据。
 
+        功能说明：从独立模块字段恢复下游确定性分析使用的标准化事实对象。
         参数 dataset_id：数据集 ID。
         返回值：包含索引字段和反序列化 payload 的数据集对象。
         """
@@ -118,14 +158,41 @@ class DatasetRepository:
             ).fetchone()
         if row is None:
             raise FileNotFoundError(dataset_id)
+        source_status = json.loads(row["source_status_json"])
+        payload = dict(source_status.get("extra") or {})
+        schema_version = source_status.get("schema_version")
+        if schema_version is not None:
+            payload["schema_version"] = schema_version
+        payload.update(
+            {
+                "report_date": row["report_date"],
+                "pair": {
+                    "compare_number": f"{row['self_spu']}+{row['competitor_spu']}",
+                    "self_spu": row["self_spu"],
+                    "competitor_spu": row["competitor_spu"],
+                },
+            }
+        )
+        if source_status.get("self_product_present"):
+            payload["self_product"] = json.loads(row["self_product_json"])
+        present_sources = set(source_status.get("present_sources") or [])
+        if source_status.get("sources_present"):
+            payload["sources"] = {
+                source_id: json.loads(row[column])
+                for source_id, column in SOURCE_COLUMNS.items()
+                if source_id in present_sources
+            }
+        payload["quality"] = source_status.get("quality") or {
+            "status": row["quality_status"]
+        }
         return {
             "dataset_id": row["dataset_id"],
             "report_date": row["report_date"],
             "self_spu": row["self_spu"],
             "competitor_spu": row["competitor_spu"],
-            "compare_number": row["compare_number"],
+            "compare_number": f"{row['self_spu']}+{row['competitor_spu']}",
             "source_hash": row["source_hash"],
             "quality_status": row["quality_status"],
             "created_at": row["created_at"],
-            "payload": json.loads(row["payload_json"]),
+            "payload": payload,
         }

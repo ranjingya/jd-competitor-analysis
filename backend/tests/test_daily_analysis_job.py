@@ -49,6 +49,8 @@ def ai_analyzer() -> Mock:
 
     analyzer = Mock()
     analyzer.model = "deepseek-v4-pro"
+    analyzer.analysis_version = "1.0"
+    analyzer.prompt_hash = "prompt-hash"
     analyzer.analyze.return_value = {
         "summary": {
             "advantage": {"brief": "流量规模领先", "detail": ["本品流量规模领先。"]},
@@ -67,7 +69,7 @@ class DailyAnalysisJobTest(unittest.TestCase):
         """创建统一测试数据库和仓库。"""
 
         self.temporary_directory = tempfile.TemporaryDirectory()
-        self.database = Database(Path(self.temporary_directory.name) / "backend.db")
+        self.database = Database(Path(self.temporary_directory.name) / "data.db")
         self.database.initialize()
         self.datasets = DatasetRepository(self.database)
         self.reports = ReportRepository(self.database)
@@ -108,7 +110,10 @@ class DailyAnalysisJobTest(unittest.TestCase):
         )
 
         self.assertEqual(result["status"], "ready")
-        self.assertEqual(self.tasks.list_recent("completed", 20)[0]["dataset_id"], result["dataset_id"])
+        self.assertEqual(
+            self.tasks.list_recent("completed", 20)[0]["report_id"],
+            result["report_id"],
+        )
         self.assertEqual(self.reports.get_record(result["report_id"])["dataset_id"], result["dataset_id"])
 
     @patch("app.jobs.daily_analysis.build_ai_task_payload")

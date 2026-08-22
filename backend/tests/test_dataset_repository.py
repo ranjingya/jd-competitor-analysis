@@ -33,7 +33,7 @@ class DatasetRepositoryTest(unittest.TestCase):
         """创建独立 Backend 数据库。"""
 
         self.temporary_directory = tempfile.TemporaryDirectory()
-        self.repository = DatasetRepository(Path(self.temporary_directory.name) / "backend.db")
+        self.repository = DatasetRepository(Path(self.temporary_directory.name) / "data.db")
         self.repository.initialize()
 
     def tearDown(self) -> None:

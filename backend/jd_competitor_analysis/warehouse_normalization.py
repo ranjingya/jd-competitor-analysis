@@ -430,7 +430,7 @@ def normalize_competitor_sources(
     参数 raw_sources：按五个来源 ID 分组的数仓原始记录。
     参数 product_pair：当前本品与竞品 SPU 商品对。
     参数 report_date：业务日期，格式为 `YYYY-MM-DD`。
-    返回值：可写入日数据集 `payload_json` 的竞品事实部分。
+    返回值：可写入日数据集各来源模块字段的竞品事实部分。
     """
 
     started_at = perf_counter()
@@ -690,7 +690,7 @@ def normalize_daily_dataset(
     参数 report_date：业务日期，格式为 `YYYY-MM-DD`。
     参数 mappings：飞书多维表返回的本品 SPU/SKU 五字段映射。
     参数 sku_rows：本品 SKU 日数据行。
-    返回值：可直接持久化到 `analysis_datasets.payload_json` 的完整事实对象。
+    返回值：可按模块持久化到 `analysis_datasets` 的完整事实对象。
     """
 
     started_at = perf_counter()

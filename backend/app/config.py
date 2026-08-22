@@ -50,7 +50,7 @@ def get_settings() -> Settings:
 
     load_dotenv(PROJECT_ROOT / ".env", override=False)
     database_path = Path(
-        os.getenv("BACKEND_DATABASE_PATH", str(PROJECT_ROOT / "data" / "backend.db"))
+        os.getenv("BACKEND_DATABASE_PATH", str(PROJECT_ROOT / "data" / "data.db"))
     ).expanduser().resolve()
     lock_value = os.getenv("ANALYSIS_LOCK_PATH", "").strip()
     lock_path = Path(

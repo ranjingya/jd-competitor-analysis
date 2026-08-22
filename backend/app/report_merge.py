@@ -99,7 +99,7 @@ def merge_ai_result(report: dict[str, Any], result: dict[str, Any]) -> dict[str,
     功能说明：保留固定公式摘要用于审计，用 AI 双摘要更新看板优缺点及详情，并写入 AI 发现和建议后校验最终报告契约。
     参数 report：Backend 固定公式生成的基础看板报告。
     参数 result：DeepSeek 只生成的总结、发现和建议。
-    返回值：可直接保存到 `reports.report_json` 的完整报告。
+    返回值：可由报告仓库拆分保存的完整内存报告。
     """
 
     validated_result = validate_ai_result(result)

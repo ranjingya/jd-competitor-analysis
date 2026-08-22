@@ -38,6 +38,8 @@ class AIAnalyzer(Protocol):
     """约束日分析流程需要的模型能力。"""
 
     model: str
+    analysis_version: str
+    prompt_hash: str
 
     def analyze(self, payload: dict[str, Any]) -> dict[str, Any]:
         """根据确定性事实生成 AI 字段。"""
@@ -127,9 +129,10 @@ def process_daily_pair(
     start_result = start_ai_analysis(
         task_repository,
         report_id,
-        dataset_id,
         task_payload,
         ai_analyzer.model,
+        ai_analyzer.analysis_version,
+        ai_analyzer.prompt_hash,
     )
     analysis_id = start_result.analysis_id
     if not start_result.should_execute:

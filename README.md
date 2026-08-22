@@ -79,7 +79,8 @@ docker compose up -d
 
 - Web 已通过 `/api/reports` 读取报告。
 - Backend 已提供报告查询 API 和完整日分析 CLI。
-- 标准化日数据、AI 执行记录和看板报告统一保存在 `data/backend.db`。
+- 标准化日数据、AI 执行记录和看板报告统一保存在 `data/data.db`。
+- 日数据与报告按业务模块拆分保存，完整报告接口由数据库字段实时组装。
 - 同一日期和商品对只有一份当前报告及一条非过期 AI 执行记录。
 - StarRocks 连接探测和原 Excel 分析逻辑保留在 Backend。
 - `warehouse-daily-run` 按商品对串行完成数仓读取、固定公式、DeepSeek 分析和报告入库。

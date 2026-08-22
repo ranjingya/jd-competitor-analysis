@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from ..database import Database
-from ..report_merge import merge_ai_result
+from ..report_merge import validate_ai_result
 
 
 LOGGER = logging.getLogger(__name__)
@@ -54,20 +54,22 @@ class TaskRepository:
     def start(
         self,
         report_id: str,
-        dataset_id: str | None,
         source_hash: str,
         payload: dict[str, Any],
         model: str,
+        analysis_version: str,
+        prompt_hash: str,
         analysis_id: str | None = None,
     ) -> TaskStartResult:
         """启动一次内部 AI 分析。
 
         功能说明：相同输入已完成时直接复用；失败或中断时复用原记录重试；输入变化时将旧记录标记为 expired 并创建 processing 记录。
         参数 report_id：AI 结果最终写入的唯一报告 ID。
-        参数 dataset_id：日报所属标准化数据集 ID；周报和月报使用空值。
         参数 source_hash：AI 输入的稳定内容哈希。
         参数 payload：只包含模型分析所需事实的结构化输入。
         参数 model：本次调用使用的模型标识。
+        参数 analysis_version：AI 分析规则版本。
+        参数 prompt_hash：提示词内容哈希。
         参数 analysis_id：可选执行记录 ID；为空时自动生成。
         返回值：执行记录 ID 与本次是否需要调用模型。
         """
@@ -78,23 +80,20 @@ class TaskRepository:
         try:
             connection.execute("BEGIN IMMEDIATE")
             report = connection.execute(
-                "SELECT report_id, dataset_id FROM reports WHERE report_id = ?",
+                "SELECT report_id FROM reports WHERE report_id = ?",
                 (report_id,),
             ).fetchone()
-            if report is None or report["dataset_id"] != dataset_id:
-                raise TaskConflictError("AI 执行关联的当前报告或数据版本不存在")
+            if report is None:
+                raise TaskConflictError("AI 执行关联的报告不存在")
             existing = connection.execute(
                 """
-                SELECT analysis_id, dataset_id, source_hash, status
+                SELECT analysis_id, source_hash, status
                 FROM analysis_tasks
                 WHERE report_id = ? AND status <> 'expired'
                 """,
                 (report_id,),
             ).fetchone()
-            if existing is not None and (
-                existing["dataset_id"] == dataset_id
-                and existing["source_hash"] == source_hash
-            ):
+            if existing is not None and existing["source_hash"] == source_hash:
                 existing_id = str(existing["analysis_id"])
                 if existing["status"] == "completed":
                     connection.commit()
@@ -107,12 +106,20 @@ class TaskRepository:
                 connection.execute(
                     """
                     UPDATE analysis_tasks
-                    SET model = ?, payload_json = ?, status = 'processing', result_json = NULL,
+                    SET model = ?, analysis_version = ?, prompt_hash = ?, payload_json = ?,
+                        status = 'processing', result_json = NULL,
                         attempt_count = attempt_count + 1, error_message = NULL,
                         updated_at = ?, completed_at = NULL
                     WHERE analysis_id = ?
                     """,
-                    (model, json.dumps(payload, ensure_ascii=False), now, existing_id),
+                    (
+                        model,
+                        analysis_version,
+                        prompt_hash,
+                        json.dumps(payload, ensure_ascii=False),
+                        now,
+                        existing_id,
+                    ),
                 )
                 connection.commit()
                 LOGGER.info("AI 分析重新执行：analysis_id=%s，model=%s", existing_id, model)
@@ -130,15 +137,16 @@ class TaskRepository:
             connection.execute(
                 """
                 INSERT INTO analysis_tasks (
-                    analysis_id, report_id, dataset_id, model, source_hash,
-                    payload_json, status, attempt_count, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, 'processing', 1, ?, ?)
+                    analysis_id, report_id, model, analysis_version, prompt_hash,
+                    source_hash, payload_json, status, attempt_count, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'processing', 1, ?, ?)
                 """,
                 (
                     task_id,
                     report_id,
-                    dataset_id,
                     model,
+                    analysis_version,
+                    prompt_hash,
                     source_hash,
                     json.dumps(payload, ensure_ascii=False),
                     now,
@@ -168,7 +176,8 @@ class TaskRepository:
         返回值：无。
         """
 
-        result_json = json.dumps(result, ensure_ascii=False, sort_keys=True)
+        validated_result = validate_ai_result(result)
+        result_json = json.dumps(validated_result, ensure_ascii=False, sort_keys=True)
         now = _utc_now_text()
         connection = self._connect()
         try:
@@ -186,7 +195,7 @@ class TaskRepository:
                 raise TaskConflictError("AI 执行已经完成，不能覆盖已有结果")
             if row["status"] != "processing":
                 raise TaskConflictError(f"AI 执行当前状态不能完成：{row['status']}")
-            self._merge_report(connection, row["report_id"], result, now)
+            self._merge_report(connection, row["report_id"], validated_result, now)
             connection.execute(
                 """
                 UPDATE analysis_tasks
@@ -266,12 +275,13 @@ class TaskRepository:
             rows = connection.execute(
                 f"""
                 SELECT
-                    task.analysis_id, task.report_id, task.dataset_id,
+                    task.analysis_id, task.report_id,
                     report.granularity, report.start_date, report.end_date,
                     report.start_date AS report_date,
                     report.self_spu || '+' || report.competitor_spu AS compare_number,
                     report.self_spu, report.competitor_spu,
-                    task.model, task.status, task.attempt_count,
+                    task.model, task.analysis_version, task.prompt_hash,
+                    task.status, task.attempt_count,
                     task.created_at, task.updated_at, task.completed_at,
                     task.error_message
                 FROM analysis_tasks AS task
@@ -291,23 +301,42 @@ class TaskRepository:
         result: dict[str, Any],
         updated_at: str,
     ) -> None:
-        """在当前事务中合并并更新任务所属报告。"""
+        """在当前事务中更新任务所属报告的 AI 字段。
 
-        report_row = connection.execute(
-            "SELECT report_json FROM reports WHERE report_id = ?",
-            (report_id,),
+        功能说明：把已校验的双摘要、详情、发现和建议写入分字段报告并标记为 ready。
+        参数 connection：当前事务使用的数据库连接。
+        参数 report_id：AI 执行关联的报告 ID。
+        参数 result：已校验的 AI 结构化结果。
+        参数 updated_at：报告更新时间。
+        返回值：无。
+        """
+
+        report_exists = connection.execute(
+            "SELECT 1 FROM reports WHERE report_id = ?", (report_id,)
         ).fetchone()
-        if report_row is None:
+        if report_exists is None:
             raise TaskConflictError("AI 执行所属基础报告不存在")
-        report = json.loads(report_row["report_json"])
-        merged = merge_ai_result(report, result)
+        summary = result["summary"]
         connection.execute(
             """
             UPDATE reports
-            SET status = 'ready', report_json = ?, updated_at = ?
+            SET status = 'ready',
+                advantage_summary = ?, advantage_detail_json = ?,
+                weakness_summary = ?, weakness_detail_json = ?,
+                ai_findings_json = ?, ai_recommendations_json = ?,
+                updated_at = ?
             WHERE report_id = ?
             """,
-            (json.dumps(merged, ensure_ascii=False, sort_keys=True), updated_at, report_id),
+            (
+                summary["advantage"]["brief"],
+                json.dumps(summary["advantage"]["detail"], ensure_ascii=False),
+                summary["weakness"]["brief"],
+                json.dumps(summary["weakness"]["detail"], ensure_ascii=False),
+                json.dumps(result["findings"], ensure_ascii=False),
+                json.dumps(result["recommendations"], ensure_ascii=False),
+                updated_at,
+                report_id,
+            ),
         )
 
     def _connect(self) -> sqlite3.Connection:

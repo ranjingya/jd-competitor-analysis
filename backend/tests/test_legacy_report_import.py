@@ -113,7 +113,7 @@ class LegacyReportImportTest(unittest.TestCase):
                 json.dumps(_legacy_report(), ensure_ascii=False),
                 encoding="utf-8",
             )
-            repository = ReportRepository(root / "backend.db")
+            repository = ReportRepository(root / "data.db")
             repository.initialize()
 
             first = import_legacy_reports(root / "source", repository)

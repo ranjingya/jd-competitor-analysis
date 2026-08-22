@@ -20,7 +20,7 @@ class TaskRepositoryTest(unittest.TestCase):
         """创建独立数据库及有效基础报告。"""
 
         self.temporary_directory = tempfile.TemporaryDirectory()
-        self.database = Database(Path(self.temporary_directory.name) / "backend.db")
+        self.database = Database(Path(self.temporary_directory.name) / "data.db")
         datasets = DatasetRepository(self.database)
         datasets.initialize()
         self.dataset_id = datasets.store(
@@ -61,6 +61,25 @@ class TaskRepositoryTest(unittest.TestCase):
             "recommendations": [],
         }
 
+    def _start(
+        self,
+        source_hash: str,
+        payload: dict[str, object],
+        report_id: str | None = None,
+        analysis_id: str | None = None,
+    ):
+        """使用固定测试模型和规则版本启动一次 AI 执行。"""
+
+        return self.repository.start(
+            report_id or self.report_id,
+            source_hash,
+            payload,
+            "deepseek-v4-pro",
+            "1.0",
+            "prompt-hash",
+            analysis_id=analysis_id,
+        )
+
     def tearDown(self) -> None:
         """清理测试数据库。"""
 
@@ -69,14 +88,7 @@ class TaskRepositoryTest(unittest.TestCase):
     def test_start_and_complete_merge_report(self) -> None:
         """新执行应直接进入 processing，完成后合并报告。"""
 
-        started = self.repository.start(
-            self.report_id,
-            self.dataset_id,
-            "hash-1",
-            {"metric": 12},
-            "deepseek-v4-pro",
-            analysis_id="task-1",
-        )
+        started = self._start("hash-1", {"metric": 12}, analysis_id="task-1")
         self.repository.complete(started.analysis_id, self.result)
 
         task = self.repository.list_recent("completed", 20)[0]
@@ -91,13 +103,9 @@ class TaskRepositoryTest(unittest.TestCase):
     def test_completed_same_input_is_reused(self) -> None:
         """相同输入已完成时不应再次调用模型。"""
 
-        first = self.repository.start(
-            self.report_id, self.dataset_id, "same-hash", {"metric": 1}, "deepseek-v4-pro"
-        )
+        first = self._start("same-hash", {"metric": 1})
         self.repository.complete(first.analysis_id, self.result)
-        second = self.repository.start(
-            self.report_id, self.dataset_id, "same-hash", {"metric": 1}, "deepseek-v4-pro"
-        )
+        second = self._start("same-hash", {"metric": 1})
 
         self.assertEqual(second.analysis_id, first.analysis_id)
         self.assertFalse(second.should_execute)
@@ -105,13 +113,9 @@ class TaskRepositoryTest(unittest.TestCase):
     def test_failed_same_input_retries_same_record(self) -> None:
         """相同输入失败后应复用记录并增加尝试次数。"""
 
-        first = self.repository.start(
-            self.report_id, self.dataset_id, "retry-hash", {"metric": 2}, "deepseek-v4-pro"
-        )
+        first = self._start("retry-hash", {"metric": 2})
         self.repository.fail(first.analysis_id, "模型超时")
-        second = self.repository.start(
-            self.report_id, self.dataset_id, "retry-hash", {"metric": 2}, "deepseek-v4-pro"
-        )
+        second = self._start("retry-hash", {"metric": 2})
 
         task = self.repository.list_recent("processing", 20)[0]
         self.assertEqual(second.analysis_id, first.analysis_id)
@@ -122,13 +126,9 @@ class TaskRepositoryTest(unittest.TestCase):
     def test_new_input_expires_completed_record(self) -> None:
         """同一报告的新输入应使旧执行过期。"""
 
-        first = self.repository.start(
-            self.report_id, self.dataset_id, "old-hash", {"version": 1}, "deepseek-v4-pro"
-        )
+        first = self._start("old-hash", {"version": 1})
         self.repository.complete(first.analysis_id, self.result)
-        current = self.repository.start(
-            self.report_id, self.dataset_id, "new-hash", {"version": 2}, "deepseek-v4-pro"
-        )
+        current = self._start("new-hash", {"version": 2})
 
         self.assertNotEqual(current.analysis_id, first.analysis_id)
         self.assertEqual(self.repository.list_recent("expired", 20)[0]["analysis_id"], first.analysis_id)
@@ -136,9 +136,7 @@ class TaskRepositoryTest(unittest.TestCase):
     def test_fail_marks_report_ai_failed(self) -> None:
         """模型失败时报告应同步标记为 ai_failed。"""
 
-        started = self.repository.start(
-            self.report_id, self.dataset_id, "failed-hash", {"metric": 3}, "deepseek-v4-pro"
-        )
+        started = self._start("failed-hash", {"metric": 3})
         self.repository.fail(started.analysis_id, "分析证据不足")
 
         self.assertEqual(self.reports.get_record(self.report_id)["status"], "ai_failed")
@@ -160,18 +158,16 @@ class TaskRepositoryTest(unittest.TestCase):
             report_id="report-week",
         )
 
-        started = self.repository.start(
-            weekly_report_id,
-            None,
+        started = self._start(
             "week-hash",
             {"period": "2026-08-10_2026-08-16"},
-            "deepseek-v4-pro",
+            report_id=weekly_report_id,
             analysis_id="task-week",
         )
         self.repository.complete(started.analysis_id, self.result)
 
         task = self.repository.list_recent("completed", 20)[0]
-        self.assertIsNone(task["dataset_id"])
+        self.assertEqual(task["report_id"], weekly_report_id)
         self.assertEqual(task["granularity"], "week")
         self.assertEqual(self.reports.get_record(weekly_report_id)["status"], "ready")
 

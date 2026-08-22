@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import time
@@ -18,6 +19,7 @@ from .schemas import AIAnalysisResult
 
 LOGGER = logging.getLogger(__name__)
 DEFAULT_PROMPT_PATH = Path(__file__).resolve().parents[1] / "assets" / "ai-analysis-prompt.md"
+ANALYSIS_VERSION = "1.0"
 
 
 class DeepSeekAnalysisError(RuntimeError):
@@ -55,8 +57,16 @@ class DeepSeekAnalyzer:
             raise ValueError("DEEPSEEK_MODEL 不能为空")
         self.config = config
         self.model = config.model
+        self.analysis_version = ANALYSIS_VERSION
         self.system_prompt = config.prompt_path.read_text(encoding="utf-8").strip()
-        LOGGER.info("DeepSeek 分析规则已加载：model=%s，path=%s", self.model, config.prompt_path)
+        self.prompt_hash = hashlib.sha256(self.system_prompt.encode("utf-8")).hexdigest()
+        LOGGER.info(
+            "DeepSeek 分析规则已加载：model=%s，version=%s，prompt_hash=%s，path=%s",
+            self.model,
+            self.analysis_version,
+            self.prompt_hash,
+            config.prompt_path,
+        )
 
     def analyze(self, payload: dict[str, Any]) -> dict[str, Any]:
         """分析后端准备好的确定性事实。

@@ -10,7 +10,7 @@
 | 宿主机 cron | 按固定时间在 Backend 容器中启动一次 CLI 进程。 |
 | Traefik | 为 Web 提供域名、HTTPS 和入口路由。 |
 
-FastAPI 和 CLI 是 Backend 容器中的独立进程，共享 `/app/data/backend.db`。分析任务不通过浏览器或普通 API 请求触发。
+FastAPI 和 CLI 是 Backend 容器中的独立进程，共享 `/app/data/data.db`。分析任务不通过浏览器或普通 API 请求触发。
 
 ## 数据流
 
@@ -18,12 +18,12 @@ FastAPI 和 CLI 是 Backend 容器中的独立进程，共享 `/app/data/backend
 宿主机 cron
   → Backend CLI 获取飞书映射与 StarRocks 日数据
   → SKU→SPU 与日数据标准化
-  → backend.db 保存不可变数据集
+  → data.db 按模块保存不可变日数据集
   → 确定性分析报告
   → AI 执行记录进入 processing
   → DeepSeek V4 Pro 生成优缺点双摘要、发现和建议
   → Backend 校验结构化结果
-  → 原子保存 AI 原始结果并合并基础报告
+  → 原子保存 AI 原始结果并更新报告分析字段
   → 报告状态更新为 ready
   → Web 通过 /api 展示
 ```
@@ -43,7 +43,7 @@ GET  /api/reports/{granularity}/{start_date}/{end_date}
 
 ## 持久化
 
-- `data/backend.db`：标准化数据集、AI 执行状态和最终看板报告。
+- `data/data.db`：按模块保存的标准化日数据、AI 执行状态和最终看板报告。
 - StarRocks：业务事实来源，不保存应用的 AI 执行状态。
 
 服务器通过 Docker volume 持久化 `data/`。Web 容器不直接挂载或读取该目录，只通过 Backend API 获取报告。

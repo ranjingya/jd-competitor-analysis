@@ -7,7 +7,7 @@
 ```text
 StarRocks + 飞书映射
   → Backend 标准化日数据
-  → backend.db
+  → data.db
   → DeepSeek V4 Pro 分析
   → Backend API
   → Web 看板
@@ -38,15 +38,16 @@ dataset_id
 report_date
 self_spu
 competitor_spu
+self_product_json 和五个来源模块 JSON 字段
+source_status_json
 source_hash
-payload_json
 quality_status
 created_at
 ```
 
 ### `analysis_tasks`
 
-保存 DeepSeek 执行状态、模型、输入、原始结果和错误信息。所有任务关联 `report_id`；日报任务同时关联 `dataset_id`，周报和月报任务的 `dataset_id` 为空。
+保存 DeepSeek 执行状态、模型、规则版本、提示词哈希、输入、原始结果和错误信息。所有任务只关联 `report_id`，周期与商品对由报告提供。
 
 ### `reports`
 
@@ -61,7 +62,10 @@ end_date
 self_spu
 competitor_spu
 status
-report_json
+核心指标数值字段
+优缺点与 AI 结果字段
+四个报告明细模块 JSON 字段
+审计与风险字段
 created_at
 updated_at
 ```
@@ -69,7 +73,7 @@ updated_at
 数据库固定保存在：
 
 ```text
-/app/data/backend.db
+/app/data/data.db
 ```
 
 暂不建立商品对配置表、运行记录表、独立 AI 结果表和迁移框架。
@@ -91,12 +95,13 @@ updated_at
 
 ## 第二步：保存到 Backend 数据库
 
-- [x] 将数据库路径统一为 `BACKEND_DATABASE_PATH=/app/data/backend.db`。
+- [x] 将数据库路径统一为 `BACKEND_DATABASE_PATH=/app/data/data.db`。
 - [x] 使用 `CREATE TABLE IF NOT EXISTS` 初始化三张表。
 - [x] 标准化日数据写入 `analysis_datasets`。
 - [x] 使用内容哈希避免相同数据重复写入。
-- [x] AI 执行记录通过 `report_id` 关联报告，日报任务同时关联日数据集。
-- [x] 最终看板数据写入 `reports`。
+- [x] 标准化日数据按本品与五张来源模块写入 `analysis_datasets`。
+- [x] AI 执行记录通过 `report_id` 关联报告。
+- [x] 核心指标、AI 结果和报告模块按字段写入 `reports`。
 
 完成标准：Backend 重启后仍能读取数据集、AI 执行记录和报告，不依赖业务 JSON 文件。
 
@@ -152,7 +157,7 @@ volumes:
 - [ ] 手动执行一次真实日期分析并检查页面。
 - [ ] 宿主机 cron 使用 `--yesterday` 定时启动 Backend CLI。
 
-完成标准：服务器重启或更新镜像后 `backend.db` 不丢失，Web 能通过 API 展示报告。
+完成标准：服务器重启或更新镜像后 `data.db` 不丢失，Web 能通过 API 展示报告。
 
 ## 第七步：周月聚合
 
@@ -179,6 +184,6 @@ volumes:
 
 这些事项在真实日数据、AI 和 Web 链路全部跑通后再评估。
 
-## 下一项工作
+## 当前运行方式
 
-配置 DeepSeek API Key，执行一次真实日期批处理并检查最终 `ready` 报告。
+Backend CLI 从数仓与飞书读取日数据，完成固定公式和 DeepSeek 分析后写入 `data.db`。Web 通过 Backend API 读取报告。

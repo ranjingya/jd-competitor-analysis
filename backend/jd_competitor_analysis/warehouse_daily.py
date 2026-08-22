@@ -34,7 +34,7 @@ def build_daily_dataset(
     参数 report_date：业务日期，格式为 `YYYY-MM-DD`。
     参数 mapping_client：飞书 SPU/SKU 映射只读客户端；提供覆盖映射时允许为空。
     参数 mappings_override：排查或测试时显式提供的 SKU 映射；为空时实时读取飞书。
-    返回值：可持久化到 `analysis_datasets.payload_json` 的完整标准化日数据。
+    返回值：可按来源模块持久化到 `analysis_datasets` 的完整标准化日数据。
     """
 
     started_at = perf_counter()
