@@ -8,7 +8,6 @@ from pathlib import Path
 from time import perf_counter
 
 from app.jobs.daily_analysis import run_warehouse_daily_analysis
-from app.jobs.legacy_report_import import run_legacy_report_import
 from jd_competitor_analysis.lark_mapping import run_lark_mapping_check
 from jd_competitor_analysis.pipeline import run_analysis
 from jd_competitor_analysis.recommendations import apply_recommendations
@@ -36,7 +35,7 @@ def _add_analysis_arguments(parser: argparse.ArgumentParser) -> None:
 def parse_args() -> argparse.Namespace:
     """解析统一入口的子命令和参数。
 
-    功能说明：提供分析、历史报告导入、AI 建议写回、数仓连接探测、飞书映射检查和日数据来源检查，
+    功能说明：提供分析、AI 建议写回、数仓连接探测、飞书映射检查和日数据来源检查，
     并为每个操作注册独立参数。
     返回值：包含子命令、处理函数和业务参数的命名空间。
     """
@@ -98,23 +97,6 @@ def parse_args() -> argparse.Namespace:
     daily_run_parser.add_argument("--log-level", default="INFO", help="日志级别。")
     daily_run_parser.set_defaults(handler=run_warehouse_daily_analysis)
 
-    legacy_import_parser = subparsers.add_parser(
-        "import-legacy-reports",
-        help="适配历史 Excel 分析结果并导入 Backend 数据库。",
-    )
-    legacy_import_parser.add_argument(
-        "--input-root",
-        type=Path,
-        required=True,
-        help="包含 day、week、month 目录的历史报告根目录。",
-    )
-    legacy_import_parser.add_argument(
-        "--database-path",
-        type=Path,
-        help="目标 Backend 数据库路径，默认读取 BACKEND_DATABASE_PATH。",
-    )
-    legacy_import_parser.add_argument("--log-level", default="INFO", help="日志级别。")
-    legacy_import_parser.set_defaults(handler=run_legacy_report_import)
     return parser.parse_args()
 
 
