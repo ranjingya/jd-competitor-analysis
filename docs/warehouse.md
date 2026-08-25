@@ -143,7 +143,7 @@ uv run --project backend python backend/cli.py warehouse-daily-run `
   --competitor-spu 100112260075
 ```
 
-不提供 `--self-spu` 和 `--competitor-spu` 时，程序从 `LARK_PAIR_TABLE_ID` 对应的商品对表读取全部候选，再以当天核心指标表为准跳过无数据组合。两个参数必须同时提供。
+不提供 `--self-spu` 和 `--competitor-spu` 时，程序从 `LARK_PAIR_TABLE_ID` 对应的商品对表读取全部候选。两个参数必须同时提供。
 
 服务器定时任务可使用昨天作为业务日期：
 
@@ -151,6 +151,29 @@ uv run --project backend python backend/cli.py warehouse-daily-run `
 docker compose exec -T jd-competitor-analysis-backend \
   python /app/cli.py warehouse-daily-run --yesterday
 ```
+
+`--yesterday` 模式以昨天为主业务日期，同时由近到远检查此前六天。同一日期和商品对已有 `ready` 报告时直接跳过；没有完整报告时重新查询数据源。显式 `--date` 用于人工重跑指定日期，会重新执行该商品对并更新同一份业务报告。
+
+## 日报生成门槛
+
+每张竞品来源表都必须至少存在一条本品记录和一条目标竞品记录：
+
+```text
+核心指标      self + competitor
+流量来源      self + competitor
+引流关键词    self + competitor
+成交客户画像  self + competitor
+推广数据      self + competitor
+```
+
+任一来源缺少其中一侧时，该日期和商品对保留为报告缺口，不保存报告，也不调用 DeepSeek。字段值为 `null`、`masked` 或 `0`，以及双方维度项不完全一致，都属于已有记录内部的数据状态，不影响表级完整性。
+
+日报批次按以下方式处理运行异常：
+
+- 五张来源表记录不完整：结束当前商品对，当天不立即重试，后续七天缺口检查再次读取。
+- 数仓并发达到上限：继续处理其他商品对，随后只对受影响商品对按 30、60、120 秒加 0–10 秒随机抖动重试。
+- 其他运行异常：宿主机脚本等待 30 秒后整体重试一次；已有完整报告在定时模式中直接跳过。
+- 数仓并发定向重试耗尽或整体重试仍失败：命令返回失败，由 Healthchecks 标记该批次异常。
 
 商品对表和 SPU/SKU 映射表都需要向飞书应用开放只读权限。用户账号能够读取多维表，不代表 Bot 应用身份自动拥有相同权限。
 

@@ -118,6 +118,27 @@ class ReportRepositoryTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "必须相同"):
             self.repository.read_report("day", "2026-08-17", "2026-08-18")
 
+    def test_ready_day_report_lookup_uses_exact_business_key(self) -> None:
+        """补洞查询只应命中日期、商品对和状态均一致的完整日报。"""
+
+        self.repository.upsert(
+            self.dataset_id,
+            {"meta": {"title": "日报"}},
+            status="ready",
+            report_id="report-1",
+        )
+
+        self.assertEqual(
+            self.repository.find_ready_day_report("2026-08-17", "10001", "20001"),
+            {"report_id": "report-1", "dataset_id": self.dataset_id},
+        )
+        self.assertIsNone(
+            self.repository.find_ready_day_report("2026-08-16", "10001", "20001")
+        )
+        self.assertIsNone(
+            self.repository.find_ready_day_report("2026-08-17", "10001", "99999")
+        )
+
     def test_product_pairs_periods_and_trends_are_lightweight(self) -> None:
         """首次导航、周期选择和趋势查询应返回各自需要的轻量数据。"""
 

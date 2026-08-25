@@ -8,6 +8,7 @@
 web/      Vite 看板与内部 Nginx
 backend/  FastAPI、批处理、StarRocks 访问、DeepSeek 调用和数据持久化
 docs/     数据、估算、报告和看板契约
+scripts/  宿主机定时执行脚本
 ```
 
 ## 本地运行
@@ -63,6 +64,8 @@ docker-compose.yaml
 data/
   data.db
   product-images.json
+scripts/
+  run-daily-analysis.sh
 ```
 
 启动服务：
@@ -83,6 +86,20 @@ docker compose up -d
 
 生产环境由宿主机 cron 使用 `docker compose exec` 启动 CLI。FastAPI 持续提供只读报告接口，不通过 Web 请求触发长时间分析。
 
+`.env` 配置 Healthchecks 检查地址：
+
+```dotenv
+HEALTHCHECKS_PING_URL=https://hc-cron.kktree.cn/ping/<检查 UUID>
+```
+
+部署用户执行一次 `crontab -e`，每天 12:00 启动宿主机脚本：
+
+```cron
+0 12 * * * /home/yatui/jd-competitor-analysis/scripts/run-daily-analysis.sh
+```
+
+脚本上报开始、成功和失败状态，运行日志保存在 `data/logs/`。定时任务检查昨天及此前六天：已有完整报告直接跳过，报告缺口重新查询数仓。五张来源表均包含本品和竞品记录时才生成报告；记录内部的空值、脱敏值和零值不影响该门槛。
+
 ## 已有能力
 
 - Web 通过商品对、按需周期、轻量趋势和完整报告 API 展示看板。
@@ -92,5 +109,8 @@ docker compose up -d
 - 同一日期和商品对只有一份当前报告及一条非过期 AI 执行记录。
 - StarRocks 连接探测和确定性分析逻辑统一位于 Backend。
 - `warehouse-daily-run` 按商品对串行完成数仓读取、固定公式、DeepSeek 分析和报告入库。
+- 定时任务自动检查最近七天报告缺口，晚到数据在后续运行中补齐。
+- 数仓并发上限错误按 30、60、120 秒定向重试，普通批次异常整体重试一次。
+- Healthchecks 记录日报批次的开始、成功、失败及末尾错误日志。
 - 商品主图由宿主机 `data/product-images.json` 维护，日任务自动同步到已有报告。
 - 日分析使用进程锁防止同一服务器重复执行，单个商品对失败后继续处理下一组。

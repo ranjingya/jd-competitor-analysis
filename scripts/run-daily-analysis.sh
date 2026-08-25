@@ -8,8 +8,13 @@ PROJECT_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 ENV_FILE="$PROJECT_DIR/.env"
 LOG_DIR="$PROJECT_DIR/data/logs"
 RUN_LOG="$LOG_DIR/daily-analysis-$(date '+%Y-%m-%d').log"
+GENERAL_RETRY_DELAY_SECONDS=30
+CONCURRENCY_EXHAUSTED_EXIT_CODE=11
 
-mkdir -p "$LOG_DIR"
+if ! mkdir -p "$LOG_DIR"; then
+  printf '%s ERROR 无法创建日志目录：%s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$LOG_DIR" >&2
+  exit 1
+fi
 
 log_message() {
   # 为宿主机调度日志补充统一时间和级别。
@@ -81,6 +86,20 @@ ping_failure_with_log() {
   fi
 }
 
+run_daily_analysis() {
+  # 执行一轮完整日报；成功商品会由后端报告唯一键在下一轮中自动跳过或复用。
+  local attempt="$1"
+  local command_status
+
+  log_message INFO "开始执行日报批次：attempt=$attempt"
+  docker compose exec -T jd-competitor-analysis-backend \
+    python /app/cli.py warehouse-daily-run --yesterday \
+    2>&1 | tee -a "$RUN_LOG"
+  command_status="${PIPESTATUS[0]}"
+  log_message INFO "日报批次执行结束：attempt=$attempt，exit_code=$command_status"
+  return "$command_status"
+}
+
 log_message INFO "开始执行京东竞品日报：project_dir=$PROJECT_DIR"
 ping_healthchecks "/start"
 
@@ -90,10 +109,15 @@ cd "$PROJECT_DIR" || {
   exit 1
 }
 
-docker compose exec -T jd-competitor-analysis-backend \
-  python /app/cli.py warehouse-daily-run --yesterday \
-  2>&1 | tee -a "$RUN_LOG"
-status="${PIPESTATUS[0]}"
+run_daily_analysis 1
+status="$?"
+
+if [[ "$status" -ne 0 && "$status" -ne "$CONCURRENCY_EXHAUSTED_EXIT_CODE" ]]; then
+  log_message WARNING "日报批次发生普通异常，${GENERAL_RETRY_DELAY_SECONDS} 秒后整体重试一次"
+  sleep "$GENERAL_RETRY_DELAY_SECONDS"
+  run_daily_analysis 2
+  status="$?"
+fi
 
 if [[ "$status" -eq 0 ]]; then
   log_message INFO "京东竞品日报执行成功"

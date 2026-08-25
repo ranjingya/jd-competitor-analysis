@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import json
 import logging
+import random
 import re
 import sys
+import time
 from datetime import date, timedelta
 from pathlib import Path
 from time import perf_counter
@@ -17,7 +19,10 @@ from jd_competitor_analysis.lark_mapping import LarkBaseMappingClient, load_lark
 from jd_competitor_analysis.product_assets import load_product_images
 from jd_competitor_analysis.warehouse import create_warehouse_engine, load_warehouse_config
 from jd_competitor_analysis.warehouse_analysis import analyze_daily_dataset, build_ai_task_payload
-from jd_competitor_analysis.warehouse_daily import build_daily_dataset
+from jd_competitor_analysis.warehouse_daily import (
+    WarehouseDataIncompleteError,
+    build_daily_dataset,
+)
 from jd_competitor_analysis.warehouse_sources import ProductPair, parse_report_date
 
 from ..config import get_settings
@@ -32,6 +37,10 @@ from .analysis import persist_base_report, persist_daily_dataset, start_ai_analy
 
 LOGGER = logging.getLogger(__name__)
 CONCURRENCY_LIMIT_PATTERN = re.compile(r"Exceed concurrency limit:\s*(\d+)", re.IGNORECASE)
+CONCURRENCY_RETRY_DELAYS = (30, 60, 120)
+CONCURRENCY_RETRY_JITTER_SECONDS = 10
+CONCURRENCY_EXHAUSTED_EXIT_CODE = 11
+DAILY_REPAIR_WINDOW_DAYS = 7
 
 
 class AIAnalyzer(Protocol):
@@ -200,6 +209,104 @@ def process_daily_pair(
     }
 
 
+def _process_daily_pair_safely(
+    engine: Engine,
+    mapping_client: LarkBaseMappingClient,
+    product_pair: ProductPair,
+    report_date: str,
+    dataset_repository: DatasetRepository,
+    report_repository: ReportRepository,
+    task_repository: TaskRepository,
+    ai_analyzer: AIAnalyzer,
+    title: str | None = None,
+    product_images: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """执行一个商品对并转换为批处理可识别的结果。
+
+    功能说明：将来源记录缺失、数仓并发上限和普通异常转换为独立状态，保证单项问题
+    不会中断后续商品对。
+    参数 engine：StarRocks SQLAlchemy 引擎。
+    参数 mapping_client：飞书只读客户端。
+    参数 product_pair：当前处理的本品与竞品 SPU。
+    参数 report_date：业务日期。
+    参数 dataset_repository：标准化日数据集仓库。
+    参数 report_repository：最终报告仓库。
+    参数 task_repository：内部 AI 执行记录仓库。
+    参数 ai_analyzer：DeepSeek 分析器。
+    参数 title：可选看板标题。
+    参数 product_images：可选商品主图索引。
+    返回值：当前商品对的状态、日期和持久化摘要。
+    """
+
+    pair_started_at = perf_counter()
+    try:
+        result = process_daily_pair(
+            engine,
+            mapping_client,
+            product_pair,
+            report_date,
+            dataset_repository,
+            report_repository,
+            task_repository,
+            ai_analyzer,
+            title=title,
+            product_images=product_images,
+        )
+    except WarehouseDataIncompleteError as error:
+        LOGGER.info(
+            "商品对来源记录不完整，保留报告缺口：date=%s，self_spu=%s，"
+            "competitor_spu=%s，missing=%s，耗时=%.3fs",
+            report_date,
+            product_pair.self_spu,
+            product_pair.competitor_spu,
+            error.missing_roles,
+            perf_counter() - pair_started_at,
+        )
+        result = {
+            "self_spu": product_pair.self_spu,
+            "competitor_spu": product_pair.competitor_spu,
+            "status": "data_incomplete",
+            "quality_status": None,
+            "dataset_id": None,
+            "report_id": None,
+            "analysis_id": None,
+            "missing_roles": error.missing_roles,
+            "message": str(error),
+        }
+    except Exception as error:
+        message, retryable = _processing_error_message(error)
+        status = "concurrency" if retryable else "failed"
+        LOGGER.error(
+            "商品对处理失败%s：date=%s，self_spu=%s，competitor_spu=%s，原因=%s，耗时=%.3fs",
+            "（数仓并发）" if retryable else "",
+            report_date,
+            product_pair.self_spu,
+            product_pair.competitor_spu,
+            message,
+            perf_counter() - pair_started_at,
+        )
+        LOGGER.debug(
+            "商品对处理失败堆栈：date=%s，self_spu=%s，competitor_spu=%s",
+            report_date,
+            product_pair.self_spu,
+            product_pair.competitor_spu,
+            exc_info=True,
+        )
+        result = {
+            "self_spu": product_pair.self_spu,
+            "competitor_spu": product_pair.competitor_spu,
+            "status": status,
+            "quality_status": None,
+            "dataset_id": None,
+            "report_id": None,
+            "analysis_id": None,
+            "message": message,
+            "retryable": retryable,
+        }
+    result["date"] = report_date
+    return result
+
+
 def process_daily_pairs(
     engine: Engine,
     mapping_client: LarkBaseMappingClient,
@@ -210,9 +317,10 @@ def process_daily_pairs(
     title: str | None = None,
     product_images: dict[str, dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
-    """顺序处理一天的多组商品对。
+    """顺序处理一天的多组商品对并定向重试数仓并发异常。
 
-    功能说明：复用一个数仓连接池、飞书客户端、模型分析器和统一数据库，逐个串行完成商品对；单项异常不影响后续商品对。
+    功能说明：首轮不中断地处理全部商品对，将遇到数仓并发上限的组合放入队列，
+    再按 30、60、120 秒和随机抖动执行三轮定向重试。
     参数 engine：StarRocks SQLAlchemy 引擎。
     参数 mapping_client：飞书只读客户端。
     参数 product_pairs：需要顺序处理的商品对。
@@ -221,73 +329,79 @@ def process_daily_pairs(
     参数 ai_analyzer：DeepSeek 分析器。
     参数 title：可选看板标题。
     参数 product_images：可选商品主图索引。
-    返回值：每个商品对的处理摘要。
+    返回值：保持输入商品对顺序的处理摘要。
     """
 
+    selected_pairs = list(product_pairs)
     dataset_repository = DatasetRepository(database)
     report_repository = ReportRepository(database)
     task_repository = TaskRepository(database)
-    results = []
-    for product_pair in product_pairs:
-        pair_started_at = perf_counter()
-        try:
-            result = process_daily_pair(
-                engine,
-                mapping_client,
-                product_pair,
-                report_date,
-                dataset_repository,
-                report_repository,
-                task_repository,
-                ai_analyzer,
-                title=title,
-                product_images=product_images,
-            )
-        except LookupError as error:
-            LOGGER.warning(
-                "商品对在核心指标表中不存在，跳过：%s，耗时=%.3fs",
-                error,
-                perf_counter() - pair_started_at,
-            )
-            result = {
-                "self_spu": product_pair.self_spu,
-                "competitor_spu": product_pair.competitor_spu,
-                "status": "skipped",
-                "quality_status": None,
-                "dataset_id": None,
-                "report_id": None,
-                "analysis_id": None,
-                "message": str(error),
-            }
-        except Exception as error:
-            message, retryable = _processing_error_message(error)
-            LOGGER.error(
-                "商品对处理失败%s：self_spu=%s，competitor_spu=%s，原因=%s，耗时=%.3fs",
-                "（可重试）" if retryable else "",
-                product_pair.self_spu,
-                product_pair.competitor_spu,
-                message,
-                perf_counter() - pair_started_at,
-            )
-            LOGGER.debug(
-                "商品对处理失败堆栈：self_spu=%s，competitor_spu=%s",
-                product_pair.self_spu,
-                product_pair.competitor_spu,
-                exc_info=True,
-            )
-            result = {
-                "self_spu": product_pair.self_spu,
-                "competitor_spu": product_pair.competitor_spu,
-                "status": "failed",
-                "quality_status": None,
-                "dataset_id": None,
-                "report_id": None,
-                "analysis_id": None,
-                "message": message,
-                "retryable": retryable,
-            }
-        results.append(result)
-    return results
+    results_by_pair: dict[tuple[str, str], dict[str, Any]] = {}
+    pending_pairs: list[ProductPair] = []
+
+    def execute(product_pair: ProductPair, attempt: int) -> dict[str, Any]:
+        result = _process_daily_pair_safely(
+            engine,
+            mapping_client,
+            product_pair,
+            report_date,
+            dataset_repository,
+            report_repository,
+            task_repository,
+            ai_analyzer,
+            title=title,
+            product_images=product_images,
+        )
+        result["attempt"] = attempt
+        return result
+
+    for product_pair in selected_pairs:
+        result = execute(product_pair, 1)
+        key = (product_pair.self_spu, product_pair.competitor_spu)
+        results_by_pair[key] = result
+        if result["status"] == "concurrency":
+            pending_pairs.append(product_pair)
+
+    for retry_index, delay_seconds in enumerate(CONCURRENCY_RETRY_DELAYS, start=1):
+        if not pending_pairs:
+            break
+        jitter_seconds = random.uniform(0, CONCURRENCY_RETRY_JITTER_SECONDS)
+        wait_seconds = delay_seconds + jitter_seconds
+        LOGGER.warning(
+            "数仓并发商品对准备定向重试：date=%s，retry=%s/%s，pairs=%s，等待=%.1fs",
+            report_date,
+            retry_index,
+            len(CONCURRENCY_RETRY_DELAYS),
+            len(pending_pairs),
+            wait_seconds,
+        )
+        time.sleep(wait_seconds)
+        next_pending = []
+        for product_pair in pending_pairs:
+            result = execute(product_pair, retry_index + 1)
+            key = (product_pair.self_spu, product_pair.competitor_spu)
+            results_by_pair[key] = result
+            if result["status"] == "concurrency":
+                next_pending.append(product_pair)
+        pending_pairs = next_pending
+
+    for product_pair in pending_pairs:
+        key = (product_pair.self_spu, product_pair.competitor_spu)
+        result = results_by_pair[key]
+        result["status"] = "concurrency_exhausted"
+        result["retryable"] = False
+        LOGGER.error(
+            "数仓并发重试已耗尽：date=%s，self_spu=%s，competitor_spu=%s，attempts=%s",
+            report_date,
+            product_pair.self_spu,
+            product_pair.competitor_spu,
+            result["attempt"],
+        )
+
+    return [
+        results_by_pair[(product_pair.self_spu, product_pair.competitor_spu)]
+        for product_pair in selected_pairs
+    ]
 
 
 def _selected_pairs(
@@ -320,16 +434,57 @@ def _selected_report_date(args: Any) -> str:
     return parse_report_date(args.date).isoformat()
 
 
-def run_warehouse_daily_analysis(args: Any) -> None:
-    """执行一天的正式数仓分析入库命令。
+def _selected_report_dates(args: Any, selected_date: str) -> list[str]:
+    """生成当前任务需要检查的日报日期。
 
-    功能说明：持有进程锁后创建只读外部连接、DeepSeek 分析器和统一数据库，顺序处理商品对并输出摘要。
+    功能说明：显式日期只处理当天；服务器 `--yesterday` 任务处理昨天，并按由近到远
+    的顺序检查此前六天报告缺口。
+    参数 args：包含 yesterday 标记的命令行参数。
+    参数 selected_date：当前主业务日期，格式为 YYYY-MM-DD。
+    返回值：主日期在首位、最多七天的业务日期列表。
+    """
+
+    if not getattr(args, "yesterday", False):
+        return [selected_date]
+    primary_date = date.fromisoformat(selected_date)
+    return [
+        (primary_date - timedelta(days=offset)).isoformat()
+        for offset in range(DAILY_REPAIR_WINDOW_DAYS)
+    ]
+
+
+def _existing_report_result(
+    report_date: str,
+    product_pair: ProductPair,
+    report: dict[str, Any],
+) -> dict[str, Any]:
+    """生成已有完整日报的跳过摘要。"""
+
+    return {
+        "date": report_date,
+        "self_spu": product_pair.self_spu,
+        "competitor_spu": product_pair.competitor_spu,
+        "status": "existing",
+        "quality_status": None,
+        "dataset_id": report.get("dataset_id"),
+        "report_id": report.get("report_id"),
+        "analysis_id": None,
+        "attempt": 0,
+    }
+
+
+def run_warehouse_daily_analysis(args: Any) -> None:
+    """执行正式数仓日报分析和最近七天缺口修复。
+
+    功能说明：持有进程锁后处理主业务日期；`--yesterday` 模式同时检查最近七天，
+    跳过已有完整日报，只对报告缺口重新读取数仓并生成报告。
     参数 args：包含 env_file、date 或 yesterday、self_spu、competitor_spu 和 title 的命令行参数。
-    返回值：无；处理摘要写入标准输出，存在失败商品对时抛出异常使命令返回非零状态。
+    返回值：无；普通失败抛出异常，数仓并发重试耗尽时使用专用退出码。
     """
 
     settings = get_settings()
     selected_date = _selected_report_date(args)
+    selected_dates = _selected_report_dates(args, selected_date)
     with acquire_job_lock(settings.analysis_lock_path) as acquired:
         if not acquired:
             summary = {
@@ -357,34 +512,74 @@ def run_warehouse_daily_analysis(args: Any) -> None:
         database = Database(settings.database_path)
         database.initialize()
         product_images = load_product_images(settings.product_images_path)
-        product_images_sync = ReportRepository(database).sync_product_images(product_images)
+        report_repository = ReportRepository(database)
+        product_images_sync = report_repository.sync_product_images(product_images)
         engine = create_warehouse_engine(warehouse_config)
         mapping_client = LarkBaseMappingClient(lark_config)
         try:
             product_pairs = _selected_pairs(mapping_client, args.self_spu, args.competitor_spu)
             if not product_pairs:
                 raise ValueError("没有可处理的飞书商品对")
-            results = process_daily_pairs(
-                engine,
-                mapping_client,
-                product_pairs,
-                selected_date,
-                database,
-                ai_analyzer,
-                title=args.title,
-                product_images=product_images,
-            )
+            results = []
+            skip_ready_reports = bool(getattr(args, "yesterday", False))
+            for report_date in selected_dates:
+                pending_pairs = []
+                for product_pair in product_pairs:
+                    existing = (
+                        report_repository.find_ready_day_report(
+                            report_date,
+                            product_pair.self_spu,
+                            product_pair.competitor_spu,
+                        )
+                        if skip_ready_reports
+                        else None
+                    )
+                    if existing is not None:
+                        results.append(
+                            _existing_report_result(report_date, product_pair, existing)
+                        )
+                        continue
+                    pending_pairs.append(product_pair)
+                LOGGER.info(
+                    "日报日期检查完成：date=%s，pairs=%s，pending=%s，existing=%s",
+                    report_date,
+                    len(product_pairs),
+                    len(pending_pairs),
+                    len(product_pairs) - len(pending_pairs),
+                )
+                if pending_pairs:
+                    results.extend(
+                        process_daily_pairs(
+                            engine,
+                            mapping_client,
+                            pending_pairs,
+                            report_date,
+                            database,
+                            ai_analyzer,
+                            title=getattr(args, "title", None),
+                            product_images=product_images,
+                        )
+                    )
         finally:
             engine.dispose()
 
     summary = {
         "date": selected_date,
+        "dates": selected_dates,
         "database_path": str(Path(settings.database_path)),
         "product_images_path": str(settings.product_images_path),
         "product_images_sync": product_images_sync,
         "counts": {
             status: sum(item["status"] == status for item in results)
-            for status in ("ready", "ai_failed", "invalid", "skipped", "failed")
+            for status in (
+                "ready",
+                "existing",
+                "data_incomplete",
+                "ai_failed",
+                "invalid",
+                "failed",
+                "concurrency_exhausted",
+            )
         },
         "results": results,
     }
@@ -397,3 +592,7 @@ def run_warehouse_daily_analysis(args: Any) -> None:
             if item["status"] in {"failed", "ai_failed"}
         )
         raise RuntimeError(f"有 {failed_count} 个商品对处理失败：{failed_messages}")
+    concurrency_count = summary["counts"]["concurrency_exhausted"]
+    if concurrency_count:
+        LOGGER.error("有 %s 个商品对在数仓并发定向重试后仍然失败", concurrency_count)
+        raise SystemExit(CONCURRENCY_EXHAUSTED_EXIT_CODE)

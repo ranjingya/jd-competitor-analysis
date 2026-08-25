@@ -111,8 +111,8 @@ updated_at
 - [x] 输入需要处理的日期。
 - [ ] 从飞书读取本品 SPU 和竞品 SPU 候选组合；代码已完成，待给 Bot 开通商品对表只读权限。
 - [x] 使用独立的本品 SPU 和竞品 SPU 标识商品对。
-- [x] 当天核心指标表找不到对应本品与竞品 SPU 时直接跳过该组合。
-- [x] 当天核心指标存在时继续处理；其他来源缺失只标记对应模块不可用。
+- [x] 五张来源表均包含本品和竞品记录时生成报告。
+- [x] 任一来源缺少本品或竞品记录时保留报告缺口，不调用 DeepSeek。
 - [x] 从飞书读取本品 SPU 下的 SKU。
 - [x] 从 StarRocks 读取五张竞品表和本品 SKU 日数据。
 - [x] 本品 SKU 数量、金额等可加总指标汇总到 SPU。
@@ -154,12 +154,16 @@ volumes:
   - ~/yatui/jd-competitor-analysis/data:/app/data
 ```
 
-- [ ] `.env` 放在 `~/yatui/jd-competitor-analysis/.env`。
+- [x] `.env` 放在 `/home/yatui/jd-competitor-analysis/.env`。
 - [x] 商品主图配置保存在宿主机 `data/product-images.json`，日任务自动同步已有报告。
-- [ ] Web 和 Backend 保持两个容器。
-- [ ] 删除 reports 业务目录挂载。
+- [x] Web 和 Backend 使用两个独立容器。
+- [x] Backend 只挂载宿主机 `data/` 运行数据目录。
 - [ ] 手动执行一次真实日期分析并检查页面。
-- [ ] 宿主机 cron 使用 `--yesterday` 定时启动 Backend CLI。
+- [x] GitHub Actions 将宿主机日报脚本部署到 `scripts/`。
+- [x] 宿主机 cron 每天 12:00 使用 `--yesterday` 启动 Backend CLI。
+- [x] 定时任务检查最近七天，仅处理没有完整报告的日期和商品对。
+- [x] 数仓并发错误定向重试，普通运行异常整体重试一次。
+- [x] Healthchecks 接收任务开始、成功、失败及末尾错误日志。
 
 完成标准：服务器重启或更新镜像后 `data.db` 不丢失，Web 能通过 API 展示报告。
 
@@ -178,13 +182,12 @@ volumes:
 
 ## MVP 暂不处理
 
-- 晚到数据自动补算。
 - 多后端实例并发。
 - 正式数据库迁移框架。
 - 独立商品对配置管理。
 - 复杂报告版本和历史回滚。
 - 自动备份和恢复演练。
-- 完整监控告警系统。
+- 运行指标、链路追踪和多渠道告警。
 
 这些事项在真实日数据、AI 和 Web 链路全部跑通后再评估。
 

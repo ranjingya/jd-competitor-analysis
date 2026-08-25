@@ -8,6 +8,7 @@
 | Backend API | 持续提供报告查询和健康检查，不执行长时间分析请求。 |
 | Backend CLI | 读取飞书与 StarRocks，执行确定性计算和 DeepSeek 分析，保存最终报告。 |
 | 宿主机 cron | 按固定时间在 Backend 容器中启动一次 CLI 进程。 |
+| Healthchecks | 记录日报批次开始、成功、失败和末尾错误日志。 |
 | Traefik | 为 Web 提供域名、HTTPS 和入口路由。 |
 
 FastAPI 和 CLI 是 Backend 容器中的独立进程，共享 `/app/data/data.db`。分析任务不通过浏览器或普通 API 请求触发。
@@ -16,8 +17,12 @@ FastAPI 和 CLI 是 Backend 容器中的独立进程，共享 `/app/data/data.db
 
 ```text
 宿主机 cron
+  → 上报 Healthchecks 开始状态
   → Backend CLI 读取 product-images.json 并同步已有报告主图
-  → 获取飞书映射与 StarRocks 日数据
+  → 获取飞书商品对
+  → 检查昨天起最近七天的完整报告缺口
+  → 对报告缺口读取飞书映射与 StarRocks 日数据
+  → 校验五张来源表都有本品和竞品记录
   → SKU→SPU 与日数据标准化
   → data.db 按模块保存不可变日数据集
   → 确定性分析报告
@@ -27,9 +32,10 @@ FastAPI 和 CLI 是 Backend 容器中的独立进程，共享 `/app/data/data.db
   → 原子保存 AI 原始结果并更新报告分析字段
   → 报告状态更新为 ready
   → Web 通过 /api 展示
+  → 上报 Healthchecks 成功或失败状态
 ```
 
-不同商品对依次串行执行。调用 DeepSeek 期间不持有 SQLite 事务；单个商品对失败时记录 `failed` 和 `ai_failed`，随后继续下一组。
+不同商品对依次串行执行。调用 DeepSeek 期间不持有 SQLite 事务；单个商品对失败时记录 `failed` 和 `ai_failed`，随后继续下一组。五张来源表缺少本品或竞品记录时保留报告缺口，不调用 DeepSeek。数仓并发错误在其他商品对处理结束后定向重试。
 
 ## API
 
@@ -54,14 +60,15 @@ GET  /api/reports/{granularity}/{start_date}/{end_date}
 
 ## 定时执行
 
-宿主机 cron 执行：
+宿主机 cron 每天 12:00 执行：
 
-```bash
-docker compose exec -T jd-competitor-analysis-backend \
-  python /app/cli.py warehouse-daily-run --yesterday
+```cron
+0 12 * * * /home/yatui/jd-competitor-analysis/scripts/run-daily-analysis.sh
 ```
 
-CLI 使用 `/app/data/warehouse-daily-run.lock` 进程锁。同一任务仍在运行时，后续触发直接退出，避免重复读取数仓和覆盖报告。
+宿主机 `.env` 使用 `HEALTHCHECKS_PING_URL` 保存检查地址。脚本通过 Backend 容器执行 `warehouse-daily-run --yesterday`，日志写入 `data/logs/`。普通运行异常等待 30 秒后整体重试一次；数仓并发上限由 CLI 对受影响商品对按 30、60、120 秒定向重试。
+
+CLI 使用 `/app/data/warehouse-daily-run.lock` 进程锁。同一任务仍在运行时，后续触发直接退出，避免重复读取数仓和覆盖报告。定时模式检查最近七天，已有完整报告直接跳过，仅处理报告缺口。
 
 手动修改宿主机 `data/product-images.json` 后，可以等待下一次日任务，也可以立即执行：
 

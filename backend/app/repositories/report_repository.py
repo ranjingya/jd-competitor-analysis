@@ -536,6 +536,35 @@ class ReportRepository:
             "report": self._row_to_report(row),
         }
 
+    def find_ready_day_report(
+        self,
+        report_date: str,
+        self_spu: str,
+        competitor_spu: str,
+    ) -> dict[str, Any] | None:
+        """查找指定日期和商品对的完整日报。
+
+        功能说明：供日任务跳过已有最终报告并定位最近七天缺口，只把 `ready`
+        状态视为已经完成。
+        参数 report_date：业务日期，格式为 YYYY-MM-DD。
+        参数 self_spu：本品 SPU ID。
+        参数 competitor_spu：竞品 SPU ID。
+        返回值：已有完整日报的 ID 摘要；不存在时返回空值。
+        """
+
+        with self.database.connection() as connection:
+            row = connection.execute(
+                """
+                SELECT report_id, dataset_id
+                FROM reports
+                WHERE granularity = 'day' AND start_date = ? AND end_date = ?
+                  AND self_spu = ? AND competitor_spu = ? AND status = 'ready'
+                LIMIT 1
+                """,
+                (report_date, report_date, self_spu, competitor_spu),
+            ).fetchone()
+        return dict(row) if row is not None else None
+
     @staticmethod
     def _row_to_report(row: sqlite3.Row) -> dict[str, Any]:
         """把分字段数据库记录组装为现有前端报告契约。
