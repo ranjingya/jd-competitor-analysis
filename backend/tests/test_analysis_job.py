@@ -28,7 +28,6 @@ class AnalysisJobTest(unittest.TestCase):
             daily_payload = {
                 "report_date": "2026-08-18",
                 "pair": {
-                    "compare_number": "10001+20001",
                     "self_spu": "10001",
                     "competitor_spu": "20001",
                 },

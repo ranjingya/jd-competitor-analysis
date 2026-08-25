@@ -32,13 +32,9 @@ services:
       - ./data:/app/data
     networks:
       - app-internal
-      - kocotree-skills
 
 networks:
   app-internal:
     driver: bridge
-    internal: true
-  kocotree-skills:
-    external: true
   traefik-network:
     external: true

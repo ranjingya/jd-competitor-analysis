@@ -24,7 +24,6 @@ class ReportRepositoryTest(unittest.TestCase):
             {
                 "report_date": "2026-08-17",
                 "pair": {
-                    "compare_number": "10001+20001",
                     "self_spu": "10001",
                     "competitor_spu": "20001",
                 },
@@ -126,7 +125,6 @@ class ReportRepositoryTest(unittest.TestCase):
             {
                 "report_date": "2026-08-16",
                 "pair": {
-                    "compare_number": "10001+20001",
                     "self_spu": "10001",
                     "competitor_spu": "20001",
                 },
@@ -260,7 +258,6 @@ class ReportRepositoryTest(unittest.TestCase):
             {
                 "report_date": "2026-08-17",
                 "pair": {
-                    "compare_number": "10001+20001",
                     "self_spu": "10001",
                     "competitor_spu": "20001",
                 },

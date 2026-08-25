@@ -16,7 +16,7 @@ class WarehouseDailyDatasetTest(unittest.TestCase):
     def setUp(self) -> None:
         """准备商品对和映射客户端。"""
 
-        self.pair = ProductPair.parse("10001+20001")
+        self.pair = ProductPair("10001", "20001")
         self.mapping = SkuMapping("10001", "30001", "69001", "商品 A", "蓝色 M")
         self.mapping_client = Mock()
         self.mapping_client.list_spu_sku_mappings.return_value = [self.mapping]

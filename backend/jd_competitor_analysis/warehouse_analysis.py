@@ -219,9 +219,10 @@ def adapt_daily_dataset(dataset: dict[str, Any], title: str | None = None) -> di
         ],
     }
     LOGGER.info(
-        "数仓日数据已适配确定性分析：date=%s，compare_number=%s",
+        "数仓日数据已适配确定性分析：date=%s，self_spu=%s，competitor_spu=%s",
         report_date,
-        pair["compare_number"],
+        pair["self_spu"],
+        pair["competitor_spu"],
     )
     return normalized
 

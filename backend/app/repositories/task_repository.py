@@ -278,7 +278,6 @@ class TaskRepository:
                     task.analysis_id, task.report_id,
                     report.granularity, report.start_date, report.end_date,
                     report.start_date AS report_date,
-                    report.self_spu || '+' || report.competitor_spu AS compare_number,
                     report.self_spu, report.competitor_spu,
                     task.model, task.analysis_version, task.prompt_hash,
                     task.status, task.attempt_count,

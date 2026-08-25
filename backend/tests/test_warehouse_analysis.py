@@ -76,7 +76,6 @@ def daily_dataset() -> dict[str, Any]:
         "schema_version": "2.0",
         "report_date": "2026-08-18",
         "pair": {
-            "compare_number": "10001+20001",
             "self_spu": "10001",
             "competitor_spu": "20001",
         },

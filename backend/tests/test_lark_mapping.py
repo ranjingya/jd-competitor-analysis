@@ -170,7 +170,10 @@ class LarkBaseMappingClientTest(unittest.TestCase):
 
         pairs = LarkBaseMappingClient(self.config, requester=requester).list_product_pairs()
 
-        self.assertEqual([pair.compare_number for pair in pairs], ["10001+20001", "10002+20002"])
+        self.assertEqual(
+            [(pair.self_spu, pair.competitor_spu) for pair in pairs],
+            [("10001", "20001"), ("10002", "20002")],
+        )
         request_url = requester.calls[-1][1]
         self.assertIn("/tables/tblPair123/records", request_url)
         self.assertNotIn("filter", parse_qs(urlparse(request_url).query))

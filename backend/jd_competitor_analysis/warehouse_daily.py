@@ -39,14 +39,16 @@ def build_daily_dataset(
 
     started_at = perf_counter()
     LOGGER.info(
-        "开始构建完整日数据：date=%s，compare_number=%s",
+        "开始构建完整日数据：date=%s，self_spu=%s，competitor_spu=%s",
         report_date,
-        product_pair.compare_number,
+        product_pair.self_spu,
+        product_pair.competitor_spu,
     )
     raw_sources = read_competitor_sources(engine, product_pair, report_date)
     if not raw_sources["core_metrics"]:
         raise LookupError(
-            f"核心指标表没有商品对日数据：date={report_date}，compare_number={product_pair.compare_number}"
+            f"核心指标表没有商品对日数据：date={report_date}，"
+            f"self_spu={product_pair.self_spu}，competitor_spu={product_pair.competitor_spu}"
         )
     if mappings_override is not None:
         mappings = list(mappings_override)
@@ -62,9 +64,10 @@ def build_daily_dataset(
     )
     result = normalize_daily_dataset(raw_sources, product_pair, report_date, mappings, sku_rows)
     LOGGER.info(
-        "完整日数据构建完成：date=%s，compare_number=%s，status=%s，耗时=%.3fs",
+        "完整日数据构建完成：date=%s，self_spu=%s，competitor_spu=%s，status=%s，耗时=%.3fs",
         report_date,
-        product_pair.compare_number,
+        product_pair.self_spu,
+        product_pair.competitor_spu,
         result["quality"]["status"],
         perf_counter() - started_at,
     )
@@ -75,13 +78,13 @@ def run_warehouse_daily_check(args: Any) -> None:
     """执行完整日数据只读检查。
 
     功能说明：加载数仓和飞书配置，构建指定商品对的标准化日数据，并输出来源、SKU 汇总和质量摘要。
-    参数 args：命令行参数，包含 env_file、date、compare_number 和可选 sku_id。
+    参数 args：命令行参数，包含 env_file、date、self_spu、competitor_spu 和可选 sku_id。
     返回值：无；标准化日数据摘要写入标准输出。
     """
 
     config = load_warehouse_config(args.env_file)
     engine = create_warehouse_engine(config)
-    product_pair = ProductPair.parse(args.compare_number)
+    product_pair = ProductPair(args.self_spu, args.competitor_spu)
     try:
         if args.sku_id:
             mappings_override = [
@@ -108,7 +111,8 @@ def run_warehouse_daily_check(args: Any) -> None:
         self_product = dataset["self_product"]
         summary = {
             "date": dataset["report_date"],
-            "compare_number": product_pair.compare_number,
+            "self_spu": product_pair.self_spu,
+            "competitor_spu": product_pair.competitor_spu,
             "quality": dataset["quality"]["status"],
             "competitor_sources": {
                 source_id: {

@@ -71,12 +71,6 @@ class ProductPairMapping:
     self_spu: str
     competitor_spu: str
 
-    @property
-    def compare_number(self) -> str:
-        """返回数仓使用的标准商品对编号。"""
-
-        return f"{self.self_spu}+{self.competitor_spu}"
-
 
 def _required_text(name: str) -> str:
     """读取必填文本环境变量。"""

@@ -21,22 +21,21 @@ from jd_competitor_analysis.warehouse_sources import (
 class ProductPairTest(unittest.TestCase):
     """验证商品对和 SKU 标识规则。"""
 
-    def test_compare_number_maps_self_and_competitor_spu(self) -> None:
-        """加号前后应分别映射为本品 SPU 和竞品 SPU。"""
+    def test_product_pair_keeps_independent_spu_fields(self) -> None:
+        """本品和竞品 SPU 应作为两个独立字段保存。"""
 
-        pair = ProductPair.parse("100174558585+100112260075")
+        pair = ProductPair("100174558585", "100112260075")
 
         self.assertEqual(pair.self_spu, "100174558585")
         self.assertEqual(pair.competitor_spu, "100112260075")
-        self.assertEqual(pair.compare_number, "100174558585+100112260075")
 
-    def test_compare_number_rejects_ambiguous_values(self) -> None:
-        """缺少一侧或包含多个竞品的编号应被拒绝。"""
+    def test_product_pair_rejects_invalid_values(self) -> None:
+        """空值、非数字和相同商品应被拒绝。"""
 
-        for invalid_value in ("10001", "10001+", "10001+10002+10003", "self+10002", "10001+10001"):
-            with self.subTest(invalid_value=invalid_value):
+        for self_spu, competitor_spu in (("", "20001"), ("self", "20001"), ("10001", "10001")):
+            with self.subTest(self_spu=self_spu, competitor_spu=competitor_spu):
                 with self.assertRaises(ValueError):
-                    ProductPair.parse(invalid_value)
+                    ProductPair(self_spu, competitor_spu)
 
     def test_sku_ids_accept_float_display_and_remove_duplicates(self) -> None:
         """数仓浮点展示的 SKU 应转换为唯一整数参数。"""
@@ -58,17 +57,25 @@ class WarehouseSourcesTest(unittest.TestCase):
                 connection.execute(
                     text(
                         f"CREATE TABLE {table.table_name} ("
-                        "id INTEGER, dt TEXT, compare_number TEXT, json_data TEXT, updated_at TEXT)"
+                        "id INTEGER, dt TEXT, start_dt TEXT, spu_id TEXT, competitor_spu_id TEXT, "
+                        "is_competitor TEXT, time_granularity TEXT, json_data TEXT, updated_at TEXT)"
                     )
                 )
                 connection.execute(
                     text(
                         f"INSERT INTO {table.table_name} "
-                        "(id, dt, compare_number, json_data, updated_at) VALUES "
-                        "(1, '2026-08-11', '10001+20001', '{\"批次\": \"旧\"}', '2026-08-12 01:00:00'), "
-                        "(2, '2026-08-11', '10001+20001', '{\"批次\": \"新\"}', '2026-08-12 02:00:00'), "
-                        "(4, '2026-08-11', '10001+20001', '{\"批次\": \"新2\"}', '2026-08-12 02:00:00'), "
-                        "(3, '2026-08-11', '99999+20001', '{\"批次\": \"其他商品\"}', '2026-08-12 03:00:00')"
+                        "(id, dt, start_dt, spu_id, competitor_spu_id, is_competitor, "
+                        "time_granularity, json_data, updated_at) VALUES "
+                        "(1, '2026-08-11', '2026-08-11', '10001', NULL, '本品', "
+                        "'day', '{\"批次\": \"旧本品\"}', '2026-08-12 01:00:00'), "
+                        "(2, '2026-08-11', '2026-08-11', '10001', '20001', '竞品', "
+                        "'day', '{\"批次\": \"旧竞品\"}', '2026-08-12 01:00:00'), "
+                        "(3, '2026-08-11', '2026-08-11', '10001', NULL, '本品', "
+                        "'day', '{\"批次\": \"新本品\"}', '2026-08-12 02:00:00'), "
+                        "(4, '2026-08-11', '2026-08-11', '10001', '20001', '竞品', "
+                        "'day', '{\"批次\": \"新竞品\"}', '2026-08-12 02:00:00'), "
+                        "(5, '2026-08-11', '2026-08-11', '99999', '20001', '竞品', "
+                        "'day', '{\"批次\": \"其他商品\"}', '2026-08-12 03:00:00')"
                     )
                 )
             connection.execute(
@@ -103,18 +110,19 @@ class WarehouseSourcesTest(unittest.TestCase):
     def test_competitor_sources_keep_latest_load_for_requested_pair(self) -> None:
         """每张竞品表只应返回请求商品对的最新同步批次。"""
 
-        pair = ProductPair.parse("10001+20001")
+        pair = ProductPair("10001", "20001")
         result = read_competitor_sources(self.engine, pair, "2026-08-11")
 
         self.assertEqual(set(result), {table.source_id for table in COMPETITOR_TABLES})
         for rows in result.values():
             self.assertEqual(len(rows), 2)
-            self.assertEqual([row["id"] for row in rows], [2, 4])
+            self.assertEqual([row["id"] for row in rows], [3, 4])
             self.assertEqual(rows[0]["self_spu"], "10001")
             self.assertEqual(rows[0]["competitor_spu"], "20001")
-            self.assertEqual([row["data"] for row in rows], [{"批次": "新"}, {"批次": "新2"}])
+            self.assertEqual([row["product_role"] for row in rows], ["self", "competitor"])
+            self.assertEqual([row["data"] for row in rows], [{"批次": "新本品"}, {"批次": "新竞品"}])
 
-    def test_self_sku_daily_keeps_latest_natural_day_row(self) -> None:
+    def test_self_sku_daily_maps_day_and_keeps_latest_row(self) -> None:
         """本品查询应过滤粒度，并为每个 SKU 选择最新记录。"""
 
         rows = read_self_sku_daily(self.engine, "2026-08-11", [10001, 10002])

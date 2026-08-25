@@ -27,27 +27,14 @@ class ProductPair:
     self_spu: str
     competitor_spu: str
 
-    @classmethod
-    def parse(cls, compare_number: str) -> ProductPair:
-        """解析数仓商品对编号。
+    def __post_init__(self) -> None:
+        """校验本品和竞品 SPU。"""
 
-        功能说明：把 `<本品SPU>+<竞品SPU>` 转换为具名商品对，并阻止模糊或非法编号进入查询。
-        参数 compare_number：数仓 `compare_number` 字段或外部查询参数。
-        返回值：包含本品 SPU 和竞品 SPU 的不可变对象。
-        """
-
-        parts = [part.strip() for part in str(compare_number).split("+")]
-        if len(parts) != 2 or any(not PRODUCT_ID_PATTERN.fullmatch(part) for part in parts):
-            raise ValueError(f"compare_number 必须是 <本品SPU>+<竞品SPU>：{compare_number}")
-        if parts[0] == parts[1]:
-            raise ValueError("compare_number 中的本品 SPU 和竞品 SPU 不能相同")
-        return cls(self_spu=parts[0], competitor_spu=parts[1])
-
-    @property
-    def compare_number(self) -> str:
-        """返回数仓使用的标准商品对编号。"""
-
-        return f"{self.self_spu}+{self.competitor_spu}"
+        for field_name, value in (("self_spu", self.self_spu), ("competitor_spu", self.competitor_spu)):
+            if not PRODUCT_ID_PATTERN.fullmatch(str(value).strip()):
+                raise ValueError(f"{field_name} 必须是正整数商品 ID：{value}")
+        if self.self_spu == self.competitor_spu:
+            raise ValueError("本品 SPU 和竞品 SPU 不能相同")
 
 
 @dataclass(frozen=True)
@@ -66,6 +53,48 @@ COMPETITOR_TABLES = (
     CompetitorTableSpec("promotion", "ods_rpa_jdzy_promotion_data_compare_f"),
 )
 SELF_SKU_TABLE = "ods_rpa_jd_jd_business_product_detail_f"
+DAY_GRANULARITY = "day"
+SELF_SKU_DAY_GRANULARITY = "natural_day"
+PRODUCT_ROLES = {"本品": "self", "竞品": "competitor"}
+EXPECTED_JSON_FIELDS = {
+    "core_metrics": frozenset(
+        {
+            "时间",
+            "浏览量",
+            "访客数",
+            "加购人数",
+            "成交单量",
+            "成交金额",
+            "成交客单价",
+            "成交转化率",
+            "成交商品件数",
+            "搜索点击次数",
+        }
+    ),
+    "traffic_sources": frozenset(
+        {
+            "时间",
+            "访客数",
+            "一级渠道",
+            "二级渠道",
+            "三级渠道",
+            "成交金额",
+            "成交客户数",
+            "成交转化率",
+            "访客数占比",
+        }
+    ),
+    "traffic_keywords": frozenset({"日期", "关键词", "访客数", "商品名称", "成交金额"}),
+    "customer_profiles": frozenset({"时间", "画像类型", "成交客户数占比"}),
+    "promotion": frozenset(
+        {
+            "全站-全站交易额",
+            "非全站-广告点击数",
+            "全站-核心位置点击数",
+            "非全站-广告总订单金额",
+        }
+    ),
+}
 SELF_SKU_COLUMNS = (
     "dt",
     "sku_name",
@@ -150,6 +179,34 @@ def _decode_json_data(table_name: str, row: dict[str, Any]) -> dict[str, Any]:
     return parsed
 
 
+def _compare_json_fields(source_id: str, data: dict[str, Any]) -> dict[str, list[str]]:
+    """比较数仓 JSON 字段与当前适配字段。
+
+    功能说明：记录字段新增、缺失或改名，不因字段变化中断整批读取。
+    参数 source_id：五张来源表对应的内部来源 ID。
+    参数 data：已经解析为对象的 `json_data`。
+    返回值：按稳定顺序排列的缺失字段和新增字段。
+    """
+
+    expected = EXPECTED_JSON_FIELDS[source_id]
+    actual = set(data)
+    difference = {
+        "missing": sorted(expected - actual),
+        "extra": sorted(actual - expected),
+    }
+    return difference
+
+
+def _row_id_sort_key(row: dict[str, Any]) -> tuple[int, int | str]:
+    """生成兼容数值文本和普通文本的原始行 ID 排序键。"""
+
+    value = row.get("id")
+    try:
+        return 0, int(str(value))
+    except (TypeError, ValueError):
+        return 1, str(value or "")
+
+
 def _latest_load_rows(rows: list[dict[str, Any]], timestamp_field: str) -> list[dict[str, Any]]:
     """仅保留最新一次同步批次的记录，并按原始行 ID 升序排列。"""
 
@@ -157,7 +214,7 @@ def _latest_load_rows(rows: list[dict[str, Any]], timestamp_field: str) -> list[
         return []
     latest_timestamp = max(str(row.get(timestamp_field) or "") for row in rows)
     latest_rows = [row for row in rows if str(row.get(timestamp_field) or "") == latest_timestamp]
-    return sorted(latest_rows, key=lambda row: (row.get("id") is None, row.get("id")))
+    return sorted(latest_rows, key=_row_id_sort_key)
 
 
 def read_competitor_sources(
@@ -178,18 +235,24 @@ def read_competitor_sources(
     selected_date = parse_report_date(report_date)
     datasets: dict[str, list[dict[str, Any]]] = {}
     LOGGER.info(
-        "开始顺序读取竞品日数据：date=%s，compare_number=%s",
+        "开始顺序读取竞品日数据：date=%s，self_spu=%s，competitor_spu=%s，granularity=%s",
         selected_date,
-        product_pair.compare_number,
+        product_pair.self_spu,
+        product_pair.competitor_spu,
+        DAY_GRANULARITY,
     )
     with engine.connect() as connection:
         for table in COMPETITOR_TABLES:
             source_started_at = perf_counter()
             quoted_table = _quote_table_name(engine, table.table_name)
             query = text(
-                f"SELECT id, dt, compare_number, json_data, updated_at "
+                f"SELECT id, dt, start_dt, spu_id, competitor_spu_id, is_competitor, "
+                f"time_granularity, json_data, updated_at "
                 f"FROM {quoted_table} "
-                "WHERE dt = :report_date AND compare_number = :compare_number "
+                "WHERE dt = :report_date AND start_dt = :report_date "
+                "AND time_granularity = :time_granularity AND spu_id = :self_spu "
+                "AND ((is_competitor = :self_role AND competitor_spu_id IS NULL) "
+                "OR (is_competitor = :competitor_role AND competitor_spu_id = :competitor_spu)) "
                 "ORDER BY updated_at DESC, id DESC"
             )
             rows = [
@@ -198,23 +261,71 @@ def read_competitor_sources(
                     query,
                     {
                         "report_date": selected_date.isoformat(),
-                        "compare_number": product_pair.compare_number,
+                        "time_granularity": DAY_GRANULARITY,
+                        "self_spu": product_pair.self_spu,
+                        "competitor_spu": product_pair.competitor_spu,
+                        "self_role": "本品",
+                        "competitor_role": "竞品",
                     },
                 ).mappings()
             ]
             latest_rows = _latest_load_rows(rows, "updated_at")
-            datasets[table.source_id] = [
-                {
-                    "id": row.get("id"),
-                    "dt": row.get("dt"),
-                    "compare_number": row.get("compare_number"),
-                    "self_spu": product_pair.self_spu,
-                    "competitor_spu": product_pair.competitor_spu,
-                    "updated_at": row.get("updated_at"),
-                    "data": _decode_json_data(table.table_name, row),
-                }
-                for row in latest_rows
+            normalized_rows = []
+            for row in latest_rows:
+                role = PRODUCT_ROLES.get(str(row.get("is_competitor") or "").strip())
+                if role is None:
+                    LOGGER.warning(
+                        "跳过无法识别商品角色的数仓记录：table=%s，id=%s，is_competitor=%s",
+                        table.table_name,
+                        row.get("id"),
+                        row.get("is_competitor"),
+                    )
+                    continue
+                data = _decode_json_data(table.table_name, row)
+                normalized_rows.append(
+                    {
+                        "id": row.get("id"),
+                        "dt": row.get("dt"),
+                        "start_dt": row.get("start_dt"),
+                        "self_spu": product_pair.self_spu,
+                        "competitor_spu": product_pair.competitor_spu,
+                        "product_role": role,
+                        "time_granularity": DAY_GRANULARITY,
+                        "updated_at": row.get("updated_at"),
+                        "json_fields": _compare_json_fields(table.source_id, data),
+                        "data": data,
+                    }
+                )
+            changed_rows = [
+                row
+                for row in normalized_rows
+                if row["json_fields"]["missing"] or row["json_fields"]["extra"]
             ]
+            if changed_rows:
+                missing_fields = sorted(
+                    {
+                        field
+                        for row in changed_rows
+                        for field in row["json_fields"]["missing"]
+                    }
+                )
+                extra_fields = sorted(
+                    {
+                        field
+                        for row in changed_rows
+                        for field in row["json_fields"]["extra"]
+                    }
+                )
+                LOGGER.warning(
+                    "数仓 JSON 字段发生变化：source=%s，table=%s，rows=%s，sample_ids=%s，missing=%s，extra=%s",
+                    table.source_id,
+                    table.table_name,
+                    len(changed_rows),
+                    [row["id"] for row in changed_rows[:10]],
+                    missing_fields,
+                    extra_fields,
+                )
+            datasets[table.source_id] = normalized_rows
             LOGGER.info(
                 "竞品来源读取完成：source=%s，table=%s，rows=%s，耗时=%.3fs",
                 table.source_id,
@@ -264,7 +375,7 @@ def read_self_sku_daily(
                 {
                     "report_date": selected_date.isoformat(),
                     "sku_ids": selected_sku_ids,
-                    "time_granularity": "natural_day",
+                    "time_granularity": SELF_SKU_DAY_GRANULARITY,
                 },
             ).mappings()
         ]

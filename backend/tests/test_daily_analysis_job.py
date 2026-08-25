@@ -22,7 +22,6 @@ def dataset_payload(status: str = "partial") -> dict[str, object]:
     return {
         "report_date": "2026-08-18",
         "pair": {
-            "compare_number": "10001+20001",
             "self_spu": "10001",
             "competitor_spu": "20001",
         },
@@ -71,7 +70,7 @@ class DailyAnalysisJobTest(unittest.TestCase):
         self.datasets = DatasetRepository(self.database)
         self.reports = ReportRepository(self.database)
         self.tasks = TaskRepository(self.database)
-        self.pair = ProductPair.parse("10001+20001")
+        self.pair = ProductPair("10001", "20001")
 
     def tearDown(self) -> None:
         """清理测试数据库。"""
@@ -210,7 +209,8 @@ class DailyAnalysisJobTest(unittest.TestCase):
         process_pair.side_effect = [
             LookupError("核心指标表没有商品对日数据"),
             {
-                "compare_number": "10002+20002",
+                "self_spu": "10002",
+                "competitor_spu": "20002",
                 "status": "ready",
                 "quality_status": "ready",
                 "dataset_id": "dataset-2",
@@ -221,7 +221,7 @@ class DailyAnalysisJobTest(unittest.TestCase):
         results = process_daily_pairs(
             Mock(),
             Mock(),
-            [self.pair, ProductPair.parse("10002+20002")],
+            [self.pair, ProductPair("10002", "20002")],
             "2026-08-18",
             self.database,
             ai_analyzer(),

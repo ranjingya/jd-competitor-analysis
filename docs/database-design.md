@@ -40,7 +40,7 @@ reports（日/周/月） 1 ─── N  analysis_tasks
 | `source_hash` | TEXT NOT NULL | 完整标准化事实的 SHA-256。 |
 | `created_at` | TEXT NOT NULL | 数据集创建时间。 |
 
-数据集按内容版本保存。相同 `source_hash` 复用已有 `dataset_id`；同一日期和商品对的内容发生变化时创建新版本。`compare_number` 由 `self_spu + '+' + competitor_spu` 在代码中生成。
+数据集按内容版本保存。相同 `source_hash` 复用已有 `dataset_id`；同一日期和商品对的内容发生变化时创建新版本。商品对始终使用独立的 `self_spu` 和 `competitor_spu` 字段。
 
 ## `reports`
 

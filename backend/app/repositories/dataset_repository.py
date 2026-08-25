@@ -76,9 +76,8 @@ class DatasetRepository:
             raise ValueError("标准化日数据缺少 report_date、pair 或 quality")
         self_spu = str(pair.get("self_spu") or "")
         competitor_spu = str(pair.get("competitor_spu") or "")
-        compare_number = str(pair.get("compare_number") or "")
-        if compare_number != f"{self_spu}+{competitor_spu}" or not self_spu or not competitor_spu:
-            raise ValueError("标准化日数据商品对字段不一致")
+        if not self_spu or not competitor_spu or self_spu == competitor_spu:
+            raise ValueError("标准化日数据商品对字段无效")
         quality_status = str(quality.get("status") or "")
         if quality_status not in QUALITY_STATUSES:
             raise ValueError(f"标准化日数据质量状态无效：{quality_status}")
@@ -167,7 +166,6 @@ class DatasetRepository:
             {
                 "report_date": row["report_date"],
                 "pair": {
-                    "compare_number": f"{row['self_spu']}+{row['competitor_spu']}",
                     "self_spu": row["self_spu"],
                     "competitor_spu": row["competitor_spu"],
                 },
@@ -190,7 +188,6 @@ class DatasetRepository:
             "report_date": row["report_date"],
             "self_spu": row["self_spu"],
             "competitor_spu": row["competitor_spu"],
-            "compare_number": f"{row['self_spu']}+{row['competitor_spu']}",
             "source_hash": row["source_hash"],
             "quality_status": row["quality_status"],
             "created_at": row["created_at"],

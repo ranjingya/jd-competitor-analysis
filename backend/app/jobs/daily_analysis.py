@@ -95,9 +95,10 @@ def process_daily_pair(
     started_at = perf_counter()
     selected_date = parse_report_date(report_date).isoformat()
     LOGGER.info(
-        "开始处理商品对：date=%s，compare_number=%s",
+        "开始处理商品对：date=%s，self_spu=%s，competitor_spu=%s",
         selected_date,
-        product_pair.compare_number,
+        product_pair.self_spu,
+        product_pair.competitor_spu,
     )
     dataset = build_daily_dataset(
         engine,
@@ -109,13 +110,15 @@ def process_daily_pair(
     quality_status = str(dataset["quality"]["status"])
     if quality_status == "invalid":
         LOGGER.warning(
-            "数据集质量无效，仅保留数据集：dataset_id=%s，compare_number=%s，耗时=%.3fs",
+            "数据集质量无效，仅保留数据集：dataset_id=%s，self_spu=%s，competitor_spu=%s，耗时=%.3fs",
             dataset_id,
-            product_pair.compare_number,
+            product_pair.self_spu,
+            product_pair.competitor_spu,
             perf_counter() - started_at,
         )
         return {
-            "compare_number": product_pair.compare_number,
+            "self_spu": product_pair.self_spu,
+            "competitor_spu": product_pair.competitor_spu,
             "status": "invalid",
             "quality_status": quality_status,
             "dataset_id": dataset_id,
@@ -143,7 +146,8 @@ def process_daily_pair(
             perf_counter() - started_at,
         )
         return {
-            "compare_number": product_pair.compare_number,
+            "self_spu": product_pair.self_spu,
+            "competitor_spu": product_pair.competitor_spu,
             "status": "ready",
             "quality_status": quality_status,
             "dataset_id": dataset_id,
@@ -160,15 +164,17 @@ def process_daily_pair(
         message, _ = _processing_error_message(error)
         task_repository.fail(analysis_id, message)
         LOGGER.error(
-            "商品对 AI 分析失败：compare_number=%s，analysis_id=%s，原因=%s，耗时=%.3fs",
-            product_pair.compare_number,
+            "商品对 AI 分析失败：self_spu=%s，competitor_spu=%s，analysis_id=%s，原因=%s，耗时=%.3fs",
+            product_pair.self_spu,
+            product_pair.competitor_spu,
             analysis_id,
             message,
             perf_counter() - started_at,
         )
         LOGGER.debug("商品对 AI 分析失败堆栈：analysis_id=%s", analysis_id, exc_info=True)
         return {
-            "compare_number": product_pair.compare_number,
+            "self_spu": product_pair.self_spu,
+            "competitor_spu": product_pair.competitor_spu,
             "status": "ai_failed",
             "quality_status": quality_status,
             "dataset_id": dataset_id,
@@ -184,7 +190,8 @@ def process_daily_pair(
         perf_counter() - started_at,
     )
     return {
-        "compare_number": product_pair.compare_number,
+        "self_spu": product_pair.self_spu,
+        "competitor_spu": product_pair.competitor_spu,
         "status": "ready",
         "quality_status": quality_status,
         "dataset_id": dataset_id,
@@ -243,7 +250,8 @@ def process_daily_pairs(
                 perf_counter() - pair_started_at,
             )
             result = {
-                "compare_number": product_pair.compare_number,
+                "self_spu": product_pair.self_spu,
+                "competitor_spu": product_pair.competitor_spu,
                 "status": "skipped",
                 "quality_status": None,
                 "dataset_id": None,
@@ -254,19 +262,22 @@ def process_daily_pairs(
         except Exception as error:
             message, retryable = _processing_error_message(error)
             LOGGER.error(
-                "商品对处理失败%s：compare_number=%s，原因=%s，耗时=%.3fs",
+                "商品对处理失败%s：self_spu=%s，competitor_spu=%s，原因=%s，耗时=%.3fs",
                 "（可重试）" if retryable else "",
-                product_pair.compare_number,
+                product_pair.self_spu,
+                product_pair.competitor_spu,
                 message,
                 perf_counter() - pair_started_at,
             )
             LOGGER.debug(
-                "商品对处理失败堆栈：compare_number=%s",
-                product_pair.compare_number,
+                "商品对处理失败堆栈：self_spu=%s，competitor_spu=%s",
+                product_pair.self_spu,
+                product_pair.competitor_spu,
                 exc_info=True,
             )
             result = {
-                "compare_number": product_pair.compare_number,
+                "self_spu": product_pair.self_spu,
+                "competitor_spu": product_pair.competitor_spu,
                 "status": "failed",
                 "quality_status": None,
                 "dataset_id": None,
@@ -281,15 +292,18 @@ def process_daily_pairs(
 
 def _selected_pairs(
     mapping_client: LarkBaseMappingClient,
-    compare_numbers: list[str],
+    self_spu: str | None,
+    competitor_spu: str | None,
 ) -> list[ProductPair]:
-    """解析命令行商品对或从飞书读取候选。"""
+    """解析命令行 SPU 或从飞书读取候选商品对。"""
 
-    if compare_numbers:
-        pairs = [ProductPair.parse(value) for value in compare_numbers]
+    if bool(self_spu) != bool(competitor_spu):
+        raise ValueError("--self-spu 和 --competitor-spu 必须同时提供")
+    if self_spu and competitor_spu:
+        pairs = [ProductPair(self_spu, competitor_spu)]
     else:
         pairs = [ProductPair(item.self_spu, item.competitor_spu) for item in mapping_client.list_product_pairs()]
-    unique_pairs = {pair.compare_number: pair for pair in pairs}
+    unique_pairs = {(pair.self_spu, pair.competitor_spu): pair for pair in pairs}
     return list(unique_pairs.values())
 
 
@@ -310,7 +324,7 @@ def run_warehouse_daily_analysis(args: Any) -> None:
     """执行一天的正式数仓分析入库命令。
 
     功能说明：持有进程锁后创建只读外部连接、DeepSeek 分析器和统一数据库，顺序处理商品对并输出摘要。
-    参数 args：包含 env_file、date 或 yesterday、compare_number 和 title 的命令行参数。
+    参数 args：包含 env_file、date 或 yesterday、self_spu、competitor_spu 和 title 的命令行参数。
     返回值：无；处理摘要写入标准输出，存在失败商品对时抛出异常使命令返回非零状态。
     """
 
@@ -347,7 +361,7 @@ def run_warehouse_daily_analysis(args: Any) -> None:
         engine = create_warehouse_engine(warehouse_config)
         mapping_client = LarkBaseMappingClient(lark_config)
         try:
-            product_pairs = _selected_pairs(mapping_client, list(args.compare_number or []))
+            product_pairs = _selected_pairs(mapping_client, args.self_spu, args.competitor_spu)
             if not product_pairs:
                 raise ValueError("没有可处理的飞书商品对")
             results = process_daily_pairs(
@@ -378,7 +392,7 @@ def run_warehouse_daily_analysis(args: Any) -> None:
     failed_count = summary["counts"]["failed"] + summary["counts"]["ai_failed"]
     if failed_count:
         failed_messages = "；".join(
-            f"{item['compare_number']}：{item.get('message') or '未知错误'}"
+            f"本品 {item['self_spu']} / 竞品 {item['competitor_spu']}：{item.get('message') or '未知错误'}"
             for item in results
             if item["status"] in {"failed", "ai_failed"}
         )

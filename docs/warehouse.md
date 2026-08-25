@@ -58,11 +58,17 @@ uv run --project backend python backend/cli.py warehouse-probe `
 
 ## 正式日数据来源
 
-竞品侧按 `dt + compare_number` 查询。`compare_number` 的固定格式为：
+竞品侧使用独立的本品 SPU、竞品 SPU、周期起止日期和粒度查询。日任务统一使用 `day`：
 
 ```text
-<本品 SPU>+<竞品 SPU>
+spu_id              = 本品 SPU
+competitor_spu_id   = 竞品 SPU
+start_dt            = 业务日期
+dt                  = 业务日期
+time_granularity    = day
 ```
+
+数仓以 `is_competitor=本品/竞品` 将双方拆成独立记录。本品记录的 `competitor_spu_id` 为空，竞品记录包含目标竞品 SPU。
 
 系统使用一个连接顺序读取以下五张表，避免超过数仓并发限制：
 
@@ -74,7 +80,7 @@ ods_rpa_jdzy_deal_customer_compare_f
 ods_rpa_jdzy_promotion_data_compare_f
 ```
 
-本品侧先以飞书应用身份只读查询 SPU/SKU 映射，再从 `ods_rpa_jd_jd_business_product_detail_f` 按 `dt + SKU ID` 读取 `natural_day` 数据。同一 SKU 存在多条同步记录时保留 `create_time` 最新的一条，查询层不会把 SPU 当成 SKU。
+本品侧先以飞书应用身份只读查询 SPU/SKU 映射，再从 `ods_rpa_jd_jd_business_product_detail_f` 按 `dt + SKU ID` 读取日数据。项目内部粒度统一为 `day`，数仓适配器在查询本品 SKU 表时映射为该表实际使用的 `natural_day`。同一 SKU 存在多条同步记录时保留 `create_time` 最新的一条。
 
 飞书映射配置：
 
@@ -112,7 +118,8 @@ uv run --project backend python backend/cli.py lark-mapping-check `
 ```powershell
 uv run --project backend python backend/cli.py warehouse-daily-check `
   --date 2026-08-11 `
-  --compare-number 100174558585+100112260075
+  --self-spu 100174558585 `
+  --competitor-spu 100112260075
 ```
 
 独立排查飞书映射问题时，可以重复传入 `--sku-id` 临时覆盖映射：
@@ -120,7 +127,8 @@ uv run --project backend python backend/cli.py warehouse-daily-check `
 ```powershell
 uv run --project backend python backend/cli.py warehouse-daily-check `
   --date 2026-08-11 `
-  --compare-number 100174558585+100112260075 `
+  --self-spu 100174558585 `
+  --competitor-spu 100112260075 `
   --sku-id 10001 --sku-id 10002
 ```
 
@@ -131,10 +139,11 @@ uv run --project backend python backend/cli.py warehouse-daily-check `
 ```powershell
 uv run --project backend python backend/cli.py warehouse-daily-run `
   --date 2026-08-17 `
-  --compare-number 100174558585+100112260075
+  --self-spu 100174558585 `
+  --competitor-spu 100112260075
 ```
 
-可重复提供 `--compare-number`。不提供时，程序从 `LARK_PAIR_TABLE_ID` 对应的商品对表读取全部候选，再以当天核心指标表为准跳过无数据组合。
+不提供 `--self-spu` 和 `--competitor-spu` 时，程序从 `LARK_PAIR_TABLE_ID` 对应的商品对表读取全部候选，再以当天核心指标表为准跳过无数据组合。两个参数必须同时提供。
 
 服务器定时任务可使用昨天作为业务日期：
 
@@ -150,6 +159,7 @@ docker compose exec -T jd-competitor-analysis-backend \
 - StarRocks 和飞书多维表操作均只读，按日期和商品标识过滤。
 - 五张竞品表顺序读取，不并发占用数仓连接。
 - 竞品 `json_data` 必须是 JSON 对象，格式错误时停止当前批次。
+- 每张表的 `json_data` 字段名会与当前适配字段集合比较；字段新增、缺失或改名时记录 WARNING 和数据质量问题。
 - 测试表名只接受数据库标识符及 `数据库.表`、`schema.表` 形式，不接受任意 SQL。
 - 样例最多读取 100 行。
 - 生产账号应只授予分析所需表的读取权限。
