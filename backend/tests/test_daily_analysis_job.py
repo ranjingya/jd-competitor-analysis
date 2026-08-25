@@ -11,10 +11,13 @@ from unittest.mock import Mock, patch
 
 from app.database import Database
 from app.jobs.daily_analysis import (
+    ALREADY_RUNNING_EXIT_CODE,
     _selected_report_dates,
     process_daily_pair,
     process_daily_pairs,
+    run_warehouse_daily_analysis,
 )
+from app.job_lock import acquire_job_lock
 from app.repositories.dataset_repository import DatasetRepository
 from app.repositories.report_repository import ReportRepository
 from app.repositories.task_repository import TaskRepository
@@ -318,6 +321,58 @@ class DailyAnalysisJobTest(unittest.TestCase):
         self.assertEqual([item["attempt"] for item in results], [2, 1])
         sleep.assert_called_once_with(30)
         self.assertEqual(process_pair.call_count, 3)
+
+    @patch("app.jobs.daily_analysis.process_daily_pair")
+    def test_pair_progress_callback_marks_start_and_completion(
+        self,
+        process_pair: Mock,
+    ) -> None:
+        """批处理应在商品对开始和最终结束时更新运行进度。"""
+
+        process_pair.return_value = {
+            "self_spu": self.pair.self_spu,
+            "competitor_spu": self.pair.competitor_spu,
+            "status": "ready",
+        }
+        events: list[tuple[str, ProductPair]] = []
+
+        process_daily_pairs(
+            Mock(),
+            Mock(),
+            [self.pair],
+            "2026-08-18",
+            self.database,
+            ai_analyzer(),
+            progress_callback=lambda stage, pair: events.append((stage, pair)),
+        )
+
+        self.assertEqual([stage for stage, _ in events], ["pair_started", "pair_completed"])
+
+    @patch("app.jobs.daily_analysis.get_settings")
+    def test_existing_process_lock_returns_dedicated_exit_code(
+        self,
+        get_settings: Mock,
+    ) -> None:
+        """已有任务持锁时应返回专用失败码而不是误报成功。"""
+
+        lock_path = Path(self.temporary_directory.name) / "daily.lock"
+        status_path = Path(self.temporary_directory.name) / "status.json"
+        get_settings.return_value = SimpleNamespace(
+            analysis_lock_path=lock_path,
+            analysis_status_path=status_path,
+            database_path=self.database.path,
+        )
+        args = SimpleNamespace(
+            date="2026-08-18",
+            yesterday=False,
+        )
+
+        with acquire_job_lock(lock_path):
+            with self.assertRaises(SystemExit) as captured:
+                run_warehouse_daily_analysis(args)
+
+        self.assertEqual(captured.exception.code, ALREADY_RUNNING_EXIT_CODE)
+        self.assertFalse(status_path.exists())
 
     def test_yesterday_mode_selects_recent_seven_days(self) -> None:
         """定时模式应由近到远检查昨天起最近七天。"""

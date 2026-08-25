@@ -21,6 +21,7 @@ FastAPI 和 CLI 是 Backend 容器中的独立进程，共享 `/app/data/data.db
   → Backend CLI 读取 product-images.json 并同步已有报告主图
   → 获取飞书商品对
   → 检查昨天起最近七天的完整报告缺口
+  → 持续更新 daily-analysis-status.json 的阶段和商品对进度
   → 对报告缺口读取飞书映射与 StarRocks 日数据
   → 校验五张来源表都有本品和竞品记录
   → SKU→SPU 与日数据标准化
@@ -41,6 +42,7 @@ FastAPI 和 CLI 是 Backend 容器中的独立进程，共享 `/app/data/data.db
 
 ```text
 GET  /api/product-pairs
+GET  /api/analysis-status
 GET  /api/reports/periods
 GET  /api/reports/trends
 GET  /api/reports/{report_id}
@@ -53,6 +55,7 @@ GET  /api/reports/{granularity}/{start_date}/{end_date}
 ## 持久化
 
 - `data/data.db`：按模块保存的标准化日数据、AI 执行状态和最终看板报告。
+- `data/daily-analysis-status.json`：当前或最近一次日报批次的原子状态快照。
 - `data/product-images.json`：按商品 SPU 维护的 HTTPS 主图地址，由 Backend CLI 同步到报告主图字段。
 - StarRocks：业务事实来源，不保存应用的 AI 执行状态。
 
@@ -69,6 +72,8 @@ GET  /api/reports/{granularity}/{start_date}/{end_date}
 宿主机 `.env` 使用 `HEALTHCHECKS_PING_URL` 保存检查地址。脚本通过 Backend 容器执行 `warehouse-daily-run --yesterday`，日志写入 `data/logs/`。普通运行异常等待 30 秒后整体重试一次；数仓并发上限由 CLI 对受影响商品对按 30、60、120 秒定向重试。
 
 CLI 使用 `/app/data/warehouse-daily-run.lock` 进程锁。同一任务仍在运行时，后续触发直接退出，避免重复读取数仓和覆盖报告。定时模式检查最近七天，已有完整报告直接跳过，仅处理报告缺口。
+
+Backend API 通过 `GET /api/analysis-status` 读取状态快照。任务在配置加载、飞书商品对读取、报告缺口检查、数仓读取、数据集持久化、确定性分析、DeepSeek 分析和报告完成时更新 `progress_at`。进程锁冲突使用专用非零退出码，宿主机脚本向 Healthchecks 上报失败，不将未执行的批次标记为成功。
 
 手动修改宿主机 `data/product-images.json` 后，可以等待下一次日任务，也可以立即执行：
 

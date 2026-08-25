@@ -174,6 +174,39 @@ docker compose exec -T jd-competitor-analysis-backend \
 - 数仓并发达到上限：继续处理其他商品对，随后只对受影响商品对按 30、60、120 秒加 0–10 秒随机抖动重试。
 - 其他运行异常：宿主机脚本等待 30 秒后整体重试一次；已有完整报告在定时模式中直接跳过。
 - 数仓并发定向重试耗尽或整体重试仍失败：命令返回失败，由 Healthchecks 标记该批次异常。
+- 已有日报进程持有任务锁：命令使用专用非零退出码结束，不触发整体重试，并由 Healthchecks 标记异常。
+
+## 运行状态
+
+日报 CLI 在共享数据目录维护 `daily-analysis-status.json`，并由 Backend API 提供同一份只读状态：
+
+```bash
+curl -fsS https://jd-comp.skills.kktree.cn/api/analysis-status
+```
+
+主要字段：
+
+```text
+status           idle、running、completed 或 failed
+stage            当前处理阶段
+run_id           本次运行唯一 ID
+pid              容器内 CLI 进程 PID
+primary_date     主业务日期
+dates            本次检查的业务日期
+current_date     当前业务日期
+self_spu         当前本品 SPU
+competitor_spu   当前竞品 SPU
+completed_items  已结束的日期商品对数量
+total_items      日期商品对总数
+progress_at      最近业务进度时间
+completed_at     成功或失败结束时间
+error            失败类型和摘要
+process_alive    容器内任务进程是否仍存在
+progress_age_seconds 最近业务进度距当前的秒数
+stale            进程不存在或超过 15 分钟没有业务进度
+```
+
+`progress_at` 只在业务阶段推进时更新。DeepSeek 最长允许两次 300 秒请求；超过 15 分钟没有新进度时，应结合 `stage`、运行日志和容器进程检查外部请求是否卡住。
 
 商品对表和 SPU/SKU 映射表都需要向飞书应用开放只读权限。用户账号能够读取多维表，不代表 Bot 应用身份自动拥有相同权限。
 

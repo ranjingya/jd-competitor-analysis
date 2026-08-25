@@ -10,6 +10,8 @@ from fastapi import FastAPI
 
 from .api.dependencies import get_database
 from .api.reports import product_pairs_router, router as reports_router
+from .config import get_settings
+from .job_status import read_daily_analysis_status
 from .logging_config import configure_backend_logging
 
 
@@ -42,3 +44,14 @@ def healthz() -> dict[str, str]:
     """返回容器健康状态。"""
 
     return {"status": "ok"}
+
+
+@app.get("/api/analysis-status", tags=["system"])
+def analysis_status() -> dict[str, object]:
+    """返回日报批处理的最近运行状态。
+
+    功能说明：读取共享数据目录中的原子状态快照，供部署人员判断任务阶段和最近进度。
+    返回值：包含运行状态、阶段、商品对、进度时间和计数的对象。
+    """
+
+    return read_daily_analysis_status(get_settings().analysis_status_path)

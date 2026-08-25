@@ -10,6 +10,7 @@ LOG_DIR="$PROJECT_DIR/data/logs"
 RUN_LOG="$LOG_DIR/daily-analysis-$(date '+%Y-%m-%d').log"
 GENERAL_RETRY_DELAY_SECONDS=30
 CONCURRENCY_EXHAUSTED_EXIT_CODE=11
+ALREADY_RUNNING_EXIT_CODE=12
 
 if ! mkdir -p "$LOG_DIR"; then
   printf '%s ERROR 无法创建日志目录：%s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$LOG_DIR" >&2
@@ -112,7 +113,8 @@ cd "$PROJECT_DIR" || {
 run_daily_analysis 1
 status="$?"
 
-if [[ "$status" -ne 0 && "$status" -ne "$CONCURRENCY_EXHAUSTED_EXIT_CODE" ]]; then
+if [[ "$status" -ne 0 && "$status" -ne "$CONCURRENCY_EXHAUSTED_EXIT_CODE" && \
+  "$status" -ne "$ALREADY_RUNNING_EXIT_CODE" ]]; then
   log_message WARNING "日报批次发生普通异常，${GENERAL_RETRY_DELAY_SECONDS} 秒后整体重试一次"
   sleep "$GENERAL_RETRY_DELAY_SECONDS"
   run_daily_analysis 2

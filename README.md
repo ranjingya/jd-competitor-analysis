@@ -63,6 +63,7 @@ backend/.venv/bin/python backend/cli.py sync-product-images
 docker-compose.yaml
 data/
   data.db
+  daily-analysis-status.json
   product-images.json
 scripts/
   run-daily-analysis.sh
@@ -102,6 +103,20 @@ HEALTHCHECKS_PING_URL=https://hc-cron.kktree.cn/ping/<检查 UUID>
 
 脚本上报开始、成功和失败状态，运行日志保存在 `data/logs/`。定时任务检查昨天及此前六天：已有完整报告直接跳过，报告缺口重新查询数仓。五张来源表均包含本品和竞品记录时才生成报告；记录内部的空值、脱敏值和零值不影响该门槛。
 
+查看当前运行阶段和最近进度：
+
+```bash
+curl -fsS https://jd-comp.skills.kktree.cn/api/analysis-status
+```
+
+也可以在服务器直接读取：
+
+```bash
+python3 -m json.tool data/daily-analysis-status.json
+```
+
+状态包含 `run_id`、容器 PID、当前日期、当前商品对、处理阶段、完成数量、总数量和 `progress_at`。API 同时计算 `process_alive`、`progress_age_seconds` 和 `stale`；进程不存在或业务进度超过 15 分钟没有变化时，`stale` 为 `true`。DeepSeek 阶段允许覆盖两次 300 秒请求超时。任务成功或失败后状态固定为 `completed` 或 `failed`。
+
 ## 已有能力
 
 - Web 通过商品对、按需周期、轻量趋势和完整报告 API 展示看板。
@@ -114,5 +129,6 @@ HEALTHCHECKS_PING_URL=https://hc-cron.kktree.cn/ping/<检查 UUID>
 - 定时任务自动检查最近七天报告缺口，晚到数据在后续运行中补齐。
 - 数仓并发上限错误按 30、60、120 秒定向重试，普通批次异常整体重试一次。
 - Healthchecks 记录日报批次的开始、成功、失败及末尾错误日志。
+- `/api/analysis-status` 和 `data/daily-analysis-status.json` 提供日报实时阶段与进度快照。
 - 商品主图由宿主机 `data/product-images.json` 维护，日任务自动同步到已有报告。
 - 日分析使用进程锁防止同一服务器重复执行，单个商品对失败后继续处理下一组。

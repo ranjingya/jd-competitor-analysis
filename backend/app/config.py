@@ -34,6 +34,7 @@ class Settings:
     database_path: Path
     product_images_path: Path
     analysis_lock_path: Path
+    analysis_status_path: Path
     deepseek_api_key: str | None
     deepseek_base_url: str
     deepseek_model: str
@@ -61,6 +62,7 @@ def get_settings() -> Settings:
         database_path=database_path,
         product_images_path=database_path.parent / "product-images.json",
         analysis_lock_path=lock_path,
+        analysis_status_path=database_path.parent / "daily-analysis-status.json",
         deepseek_api_key=os.getenv("DEEPSEEK_API_KEY", "").strip() or None,
         deepseek_base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com").strip().rstrip("/"),
         deepseek_model=os.getenv("DEEPSEEK_MODEL", "deepseek-v4-pro").strip(),
