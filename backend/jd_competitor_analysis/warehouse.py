@@ -73,7 +73,7 @@ def load_warehouse_config(env_file: Path | None = None) -> WarehouseConfig:
     if resolved_env_file.exists():
         LOGGER.info("加载数仓环境变量：%s", resolved_env_file)
         load_dotenv(resolved_env_file, override=False)
-    else:
+    elif env_file is not None:
         LOGGER.warning("环境变量文件不存在，将仅使用进程环境变量：%s", resolved_env_file)
 
     url = _optional_text("DB_URL")

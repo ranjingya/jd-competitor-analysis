@@ -6,7 +6,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from sqlalchemy import create_engine, text
 
@@ -64,6 +64,26 @@ class WarehouseTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir, patch.dict(os.environ, environment, clear=False):
             with self.assertRaisesRegex(ValueError, "数仓连接配置不完整"):
                 load_warehouse_config(Path(temp_dir) / "missing.env")
+
+    def test_default_missing_env_file_uses_process_environment_silently(self) -> None:
+        """容器未挂载默认环境文件时应直接使用进程环境且不记录警告。"""
+
+        logger = Mock()
+        with tempfile.TemporaryDirectory() as temp_dir, patch.dict(
+            os.environ,
+            {"DB_URL": "sqlite+pysqlite:///:memory:"},
+            clear=False,
+        ), patch(
+            "jd_competitor_analysis.warehouse.PROJECT_ROOT",
+            Path(temp_dir),
+        ), patch(
+            "jd_competitor_analysis.warehouse.LOGGER",
+            logger,
+        ):
+            config = load_warehouse_config()
+
+        self.assertEqual(config.url, "sqlite+pysqlite:///:memory:")
+        logger.warning.assert_not_called()
 
     def test_probe_rejects_unsafe_table_name(self) -> None:
         """测试表名不得携带额外 SQL。"""

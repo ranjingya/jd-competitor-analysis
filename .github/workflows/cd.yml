@@ -101,7 +101,7 @@ jobs:
             echo "$GHCR_TOKEN" | docker login ghcr.io --username "$GHCR_USERNAME" --password-stdin
             trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
             cd "${{ vars.DEPLOY_DIR }}"
-            mkdir -p data reports scripts
+            mkdir -p data scripts
             chmod +x scripts/run-daily-analysis.sh
             docker compose pull jd-competitor-analysis-web jd-competitor-analysis-backend
             docker compose up -d --remove-orphans jd-competitor-analysis-web jd-competitor-analysis-backend

@@ -76,6 +76,8 @@ docker compose up -d
 
 两个服务都只使用 Docker 网络中的 `expose`，不直接向宿主机发布端口。Traefik 只连接 Web 容器，Backend 通过内部网络接受 `/api` 转发。
 
+服务器 `.env` 由 Docker Compose 读取并注入 Backend 进程，同时供宿主机日报脚本读取 Healthchecks 地址。Backend 容器不挂载 `.env` 文件，运行时直接读取进程环境变量。
+
 ## 日分析任务
 
 完整日分析由 Backend CLI 在独立进程中执行：

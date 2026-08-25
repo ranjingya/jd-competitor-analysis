@@ -2,11 +2,19 @@
 
 from __future__ import annotations
 
+import os
+import tempfile
 import unittest
+from pathlib import Path
 from typing import Any
+from unittest.mock import Mock, patch
 from urllib.parse import parse_qs, urlparse
 
-from jd_competitor_analysis.lark_mapping import LarkBaseConfig, LarkBaseMappingClient
+from jd_competitor_analysis.lark_mapping import (
+    LarkBaseConfig,
+    LarkBaseMappingClient,
+    load_lark_base_config,
+)
 
 
 class FakeRequester:
@@ -177,6 +185,38 @@ class LarkBaseMappingClientTest(unittest.TestCase):
         request_url = requester.calls[-1][1]
         self.assertIn("/tables/tblPair123/records", request_url)
         self.assertNotIn("filter", parse_qs(urlparse(request_url).query))
+
+
+class LarkBaseConfigLoadingTest(unittest.TestCase):
+    """验证容器进程环境可以直接提供飞书配置。"""
+
+    def test_default_missing_env_file_uses_process_environment_silently(self) -> None:
+        """默认环境文件不存在时不应产生无意义的容器警告。"""
+
+        logger = Mock()
+        environment = {
+            "LARK_APP_ID": "test-app",
+            "LARK_APP_SECRET": "test-secret",
+            "LARK_BASE_TOKEN": "baseToken123",
+            "LARK_TABLE_ID": "tblMapping123",
+            "LARK_PAIR_TABLE_ID": "tblPair123",
+        }
+        with tempfile.TemporaryDirectory() as temp_dir, patch.dict(
+            os.environ,
+            environment,
+            clear=False,
+        ), patch(
+            "jd_competitor_analysis.lark_mapping.PROJECT_ROOT",
+            Path(temp_dir),
+        ), patch(
+            "jd_competitor_analysis.lark_mapping.LOGGER",
+            logger,
+        ):
+            config = load_lark_base_config()
+
+        self.assertEqual(config.app_id, "test-app")
+        self.assertEqual(config.pair_table_id, "tblPair123")
+        logger.warning.assert_not_called()
 
 
 if __name__ == "__main__":

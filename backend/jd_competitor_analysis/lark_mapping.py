@@ -106,7 +106,7 @@ def load_lark_base_config(env_file: Path | None = None) -> LarkBaseConfig:
     if resolved_env_file.exists():
         LOGGER.info("加载飞书环境变量：%s", resolved_env_file)
         load_dotenv(resolved_env_file, override=False)
-    else:
+    elif env_file is not None:
         LOGGER.warning("环境变量文件不存在，将仅使用进程环境变量：%s", resolved_env_file)
 
     base_token = _required_text("LARK_BASE_TOKEN")
