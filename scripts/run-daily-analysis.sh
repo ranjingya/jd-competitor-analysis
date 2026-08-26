@@ -14,6 +14,7 @@ GENERAL_RETRY_DELAY_SECONDS=30
 CONCURRENCY_EXHAUSTED_EXIT_CODE=11
 ALREADY_RUNNING_EXIT_CODE=12
 DAILY_DATA_MISSING_EXIT_CODE=13
+AI_PARTIAL_FAILURE_EXIT_CODE=14
 
 if ! mkdir -p "$LOG_DIR"; then
   printf '%s ERROR 无法创建日志目录：%s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$LOG_DIR" >&2
@@ -121,14 +122,15 @@ run_period_analysis() {
 }
 
 run_period_with_retry() {
-  # 周期报告发生普通异常时整体重试一次，报告业务键与 AI 输入哈希保证幂等。
+  # 周期报告普通异常整体重试一次，AI 部分失败和进程锁冲突直接上报告警。
   local label="$1"
   shift
   local period_status
 
   run_period_analysis "$label" 1 "$@"
   period_status="$?"
-  if [[ "$period_status" -ne 0 && "$period_status" -ne "$ALREADY_RUNNING_EXIT_CODE" ]]; then
+  if [[ "$period_status" -ne 0 && "$period_status" -ne "$ALREADY_RUNNING_EXIT_CODE" && \
+    "$period_status" -ne "$AI_PARTIAL_FAILURE_EXIT_CODE" ]]; then
     log_message WARNING "${label}批次发生异常，${GENERAL_RETRY_DELAY_SECONDS} 秒后整体重试一次"
     sleep "$GENERAL_RETRY_DELAY_SECONDS"
     run_period_analysis "$label" 2 "$@"
@@ -151,11 +153,16 @@ status="$?"
 
 if [[ "$status" -ne 0 && "$status" -ne "$CONCURRENCY_EXHAUSTED_EXIT_CODE" && \
   "$status" -ne "$ALREADY_RUNNING_EXIT_CODE" && \
-  "$status" -ne "$DAILY_DATA_MISSING_EXIT_CODE" ]]; then
+  "$status" -ne "$DAILY_DATA_MISSING_EXIT_CODE" && \
+  "$status" -ne "$AI_PARTIAL_FAILURE_EXIT_CODE" ]]; then
   log_message WARNING "日报批次发生普通异常，${GENERAL_RETRY_DELAY_SECONDS} 秒后整体重试一次"
   sleep "$GENERAL_RETRY_DELAY_SECONDS"
   run_daily_analysis 2
   status="$?"
+fi
+
+if [[ "$status" -eq "$AI_PARTIAL_FAILURE_EXIT_CODE" ]]; then
+  log_message ERROR "部分报告 AI 分析失败，已保留基础报告且不执行整体重试"
 fi
 
 if [[ "$status" -eq 0 ]]; then

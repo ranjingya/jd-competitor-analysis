@@ -43,8 +43,9 @@ class DeepSeekAnalyzerTest(unittest.TestCase):
         self,
         prompt_path: Path,
         usage_log_dir: Path | None = None,
+        max_attempts: int = 1,
     ) -> DeepSeekAnalyzer:
-        """创建使用临时提示词的分析器。"""
+        """创建使用临时提示词和指定总尝试次数的分析器。"""
 
         return DeepSeekAnalyzer(
             DeepSeekAnalysisConfig(
@@ -52,7 +53,7 @@ class DeepSeekAnalyzerTest(unittest.TestCase):
                 base_url="https://api.deepseek.com",
                 model="deepseek-v4-pro",
                 timeout_seconds=30,
-                max_attempts=1,
+                max_attempts=max_attempts,
                 pricing_path=PRICING_PATH,
                 usage_log_dir=usage_log_dir,
                 prompt_path=prompt_path,
@@ -89,7 +90,7 @@ class DeepSeekAnalyzerTest(unittest.TestCase):
         self.assertNotIn("test-key", request_body["messages"][1]["content"])
 
     def test_invalid_content_is_rejected(self) -> None:
-        """缺少输出字段的模型响应不得进入报告。"""
+        """尝试次数耗尽后缺少输出字段的模型响应不得进入报告。"""
 
         with tempfile.TemporaryDirectory() as temp_dir:
             prompt_path = Path(temp_dir) / "prompt.md"
@@ -99,9 +100,40 @@ class DeepSeekAnalyzerTest(unittest.TestCase):
             with patch(
                 "app.deepseek_analysis.urllib.request.urlopen",
                 return_value=FakeResponse(response),
-            ):
+            ) as urlopen:
                 with self.assertRaisesRegex(DeepSeekAnalysisError, "JSON 契约"):
                     analyzer.analyze({"facts": {}})
+            self.assertEqual(urlopen.call_count, 1)
+
+    def test_invalid_content_retries_only_current_analysis(self) -> None:
+        """第一次结果不符合契约时应只重新生成当前 AI 分析。"""
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            prompt_path = Path(temp_dir) / "prompt.md"
+            prompt_path.write_text("请只返回 JSON。", encoding="utf-8")
+            analyzer = self._analyzer(prompt_path, max_attempts=2)
+            model_result = {
+                "summary": {
+                    "advantage": {"brief": "流量领先", "detail": ["本品流量规模领先。"]},
+                    "weakness": {"brief": "转化落后", "detail": ["本品转化效率落后。"]},
+                },
+                "findings": [],
+                "recommendations": [],
+            }
+            responses = [
+                FakeResponse({"choices": [{"message": {"content": "{}"}}]}),
+                FakeResponse(
+                    {"choices": [{"message": {"content": json.dumps(model_result)}}]}
+                ),
+            ]
+            with patch(
+                "app.deepseek_analysis.urllib.request.urlopen",
+                side_effect=responses,
+            ) as urlopen:
+                result = analyzer.analyze({"facts": {"visitors": 10}})
+
+        self.assertEqual(result, model_result)
+        self.assertEqual(urlopen.call_count, 2)
 
     def test_usage_and_estimated_cost_are_written_to_monthly_jsonl(self) -> None:
         """成功响应应记录 Token、基础价格快照和估算费用。"""
@@ -151,6 +183,8 @@ class DeepSeekAnalyzerTest(unittest.TestCase):
         self.assertEqual(record["usage"]["reasoning_tokens"], 124)
         self.assertEqual(record["pricing"]["multiplier"], 1.0)
         self.assertEqual(record["estimated_cost"], 0.000852)
+        self.assertEqual(record["generation_attempt"], 1)
+        self.assertEqual(record["validation_status"], "valid")
 
 
 if __name__ == "__main__":

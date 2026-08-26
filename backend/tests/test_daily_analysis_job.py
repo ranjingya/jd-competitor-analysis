@@ -11,6 +11,7 @@ from unittest.mock import Mock, patch
 
 from app.database import Database
 from app.jobs.daily_analysis import (
+    AI_PARTIAL_FAILURE_EXIT_CODE,
     ALREADY_RUNNING_EXIT_CODE,
     DAILY_DATA_MISSING_EXIT_CODE,
     DailyWarehouseDataMissingError,
@@ -278,6 +279,7 @@ class DailyAnalysisJobTest(unittest.TestCase):
             DailyWarehouseDataMissingError("2026-08-18").code,
             DAILY_DATA_MISSING_EXIT_CODE,
         )
+        self.assertEqual(AI_PARTIAL_FAILURE_EXIT_CODE, 14)
 
     @patch("app.jobs.daily_analysis.random.uniform", return_value=0)
     @patch("app.jobs.daily_analysis.time.sleep")

@@ -24,7 +24,12 @@ from ..logging_config import BEIJING_TIMEZONE
 from ..repositories.report_repository import ReportRepository
 from ..repositories.task_repository import TaskRepository
 from .analysis import start_ai_analysis
-from .daily_analysis import ALREADY_RUNNING_EXIT_CODE, AIAnalyzer, _processing_error_message
+from .daily_analysis import (
+    AI_PARTIAL_FAILURE_EXIT_CODE,
+    ALREADY_RUNNING_EXIT_CODE,
+    AIAnalyzer,
+    _processing_error_message,
+)
 
 
 LOGGER = logging.getLogger(__name__)
@@ -188,7 +193,7 @@ def run_period_analysis(args: Any) -> None:
     功能说明：从统一数据库读取周期内已完成日报，按商品对顺序聚合并生成一份周期报告；
     缺失日报会记录到周期元数据，但不会阻止其他可用日报生成报告。
     参数 args：包含粒度、周期选择、可选商品对过滤和日志参数的命令行参数。
-    返回值：无；摘要写入标准输出，任一商品对失败时以异常结束。
+    返回值：无；摘要写入标准输出，普通失败抛出异常，AI 部分失败使用专用退出码。
     """
 
     started_at = perf_counter()
@@ -291,14 +296,20 @@ def run_period_analysis(args: Any) -> None:
             "counts": counts,
         }
         sys.stdout.write(json.dumps(summary, ensure_ascii=False, indent=2) + "\n")
-        failed_count = counts["ai_failed"] + counts["failed"]
+        failed_count = counts["failed"]
         if failed_count:
             messages = "；".join(
                 f"本品 {item['self_spu']} / 竞品 {item['competitor_spu']}：{item.get('message')}"
                 for item in results
-                if item["status"] in {"ai_failed", "failed"}
+                if item["status"] == "failed"
             )
             raise RuntimeError(f"有 {failed_count} 个周期报告生成失败：{messages}")
+        if counts["ai_failed"]:
+            LOGGER.error(
+                "有 %s 个周期报告 AI 分析失败，本批次不执行整体重试",
+                counts["ai_failed"],
+            )
+            raise SystemExit(AI_PARTIAL_FAILURE_EXIT_CODE)
         LOGGER.info(
             "%s任务完成：generated=%s，existing=%s，耗时=%.1fs",
             "周报" if granularity == "week" else "月报",

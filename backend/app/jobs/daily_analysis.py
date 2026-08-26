@@ -44,6 +44,7 @@ CONCURRENCY_RETRY_JITTER_SECONDS = 10
 CONCURRENCY_EXHAUSTED_EXIT_CODE = 11
 ALREADY_RUNNING_EXIT_CODE = 12
 DAILY_DATA_MISSING_EXIT_CODE = 13
+AI_PARTIAL_FAILURE_EXIT_CODE = 14
 DAILY_REPAIR_WINDOW_DAYS = 7
 PairProgressCallback = Callable[[str, ProductPair], None]
 
@@ -574,7 +575,7 @@ def run_warehouse_daily_analysis(args: Any) -> None:
     功能说明：持有进程锁后处理主业务日期；`--yesterday` 模式同时检查最近七天，
     跳过已有完整日报，只对报告缺口重新读取数仓并生成报告。
     参数 args：包含 env_file、date 或 yesterday、self_spu、competitor_spu 和 title 的命令行参数。
-    返回值：无；普通失败抛出异常，数仓并发或进程锁冲突使用专用退出码。
+    返回值：无；普通失败抛出异常，数仓并发、整日无数据、AI 部分失败和进程锁冲突使用专用退出码。
     """
 
     settings = get_settings()
@@ -813,13 +814,13 @@ def run_warehouse_daily_analysis(args: Any) -> None:
                 key: value for key, value in summary.items() if key != "results"
             }
             sys.stdout.write(json.dumps(output_summary, ensure_ascii=False, indent=2) + "\n")
-            failed_count = summary["counts"]["failed"] + summary["counts"]["ai_failed"]
+            failed_count = summary["counts"]["failed"]
             if failed_count:
                 failed_messages = "；".join(
                     f"本品 {item['self_spu']} / 竞品 {item['competitor_spu']}："
                     f"{item.get('message') or '未知错误'}"
                     for item in results
-                    if item["status"] in {"failed", "ai_failed"}
+                    if item["status"] == "failed"
                 )
                 raise RuntimeError(f"有 {failed_count} 个商品对处理失败：{failed_messages}")
             concurrency_count = summary["counts"]["concurrency_exhausted"]
@@ -831,6 +832,13 @@ def run_warehouse_daily_analysis(args: Any) -> None:
                 raise SystemExit(CONCURRENCY_EXHAUSTED_EXIT_CODE)
             if selected_date in data_missing_dates:
                 raise DailyWarehouseDataMissingError(selected_date)
+            ai_failed_count = summary["counts"]["ai_failed"]
+            if ai_failed_count:
+                LOGGER.error(
+                    "有 %s 个商品对 AI 分析失败，本批次不执行整体重试",
+                    ai_failed_count,
+                )
+                raise SystemExit(AI_PARTIAL_FAILURE_EXIT_CODE)
             LOGGER.info(
                 "日报任务完成：generated=%s，existing=%s，no_data=%s，failed=%s，耗时=%.1fs",
                 summary["counts"]["ready"],
