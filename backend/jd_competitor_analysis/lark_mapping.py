@@ -104,7 +104,7 @@ def load_lark_base_config(env_file: Path | None = None) -> LarkBaseConfig:
 
     resolved_env_file = (env_file or PROJECT_ROOT / ".env").expanduser().resolve()
     if resolved_env_file.exists():
-        LOGGER.info("加载飞书环境变量：%s", resolved_env_file)
+        LOGGER.debug("加载飞书环境变量：%s", resolved_env_file)
         load_dotenv(resolved_env_file, override=False)
     elif env_file is not None:
         LOGGER.warning("环境变量文件不存在，将仅使用进程环境变量：%s", resolved_env_file)
@@ -210,6 +210,7 @@ class LarkBaseMappingClient:
         self._requester = requester
         self._tenant_access_token: str | None = None
         self._token_expires_at = 0.0
+        self._sku_mapping_cache: dict[str, list[SkuMapping]] = {}
 
     def _get_tenant_access_token(self) -> str:
         """获取并缓存飞书应用身份凭证。"""
@@ -219,7 +220,7 @@ class LarkBaseMappingClient:
             return self._tenant_access_token
 
         started_at = time.perf_counter()
-        LOGGER.info("开始获取飞书 tenant_access_token")
+        LOGGER.debug("开始获取飞书 tenant_access_token")
         result = self._requester(
             "POST",
             f"{self._config.api_base_url}/auth/v3/tenant_access_token/internal",
@@ -242,7 +243,7 @@ class LarkBaseMappingClient:
             expire_seconds = 7200
         self._tenant_access_token = token
         self._token_expires_at = now + max(expire_seconds - 60, 30)
-        LOGGER.info("飞书 tenant_access_token 获取成功：耗时=%.3fs", time.perf_counter() - started_at)
+        LOGGER.debug("飞书 tenant_access_token 获取成功：耗时=%.3fs", time.perf_counter() - started_at)
         return token
 
     def _list_records(
@@ -314,10 +315,18 @@ class LarkBaseMappingClient:
         selected_spu_id = str(spu_id).strip()
         if not PRODUCT_ID_PATTERN.fullmatch(selected_spu_id):
             raise ValueError(f"SPU ID 必须是正整数：{spu_id}")
+        cached = self._sku_mapping_cache.get(selected_spu_id)
+        if cached is not None:
+            LOGGER.debug(
+                "复用飞书 SPU/SKU 映射：spu_id=%s，sku_count=%s",
+                selected_spu_id,
+                len(cached),
+            )
+            return list(cached)
 
         started_at = time.perf_counter()
         field_names = list(MAPPING_FIELDS.values())
-        LOGGER.info("开始只读查询飞书 SPU/SKU 映射：spu_id=%s", selected_spu_id)
+        LOGGER.debug("开始只读查询飞书 SPU/SKU 映射：spu_id=%s", selected_spu_id)
         records = self._list_records(
             self._config.table_id,
             field_names,
@@ -348,7 +357,8 @@ class LarkBaseMappingClient:
             mappings_by_key[key] = mapping
 
         mappings = sorted(mappings_by_key.values(), key=lambda item: int(item.sku_id))
-        LOGGER.info(
+        self._sku_mapping_cache[selected_spu_id] = list(mappings)
+        LOGGER.debug(
             "飞书 SPU/SKU 映射读取完成：spu_id=%s，sku_count=%s，耗时=%.3fs",
             selected_spu_id,
             len(mappings),
@@ -364,7 +374,7 @@ class LarkBaseMappingClient:
         """
 
         started_at = time.perf_counter()
-        LOGGER.info("开始只读查询飞书商品对")
+        LOGGER.debug("开始只读查询飞书商品对")
         records = self._list_records(
             self._config.pair_table_id,
             list(PAIR_FIELDS.values()),
@@ -390,7 +400,7 @@ class LarkBaseMappingClient:
                 continue
             pairs[(self_spu, competitor_spu)] = ProductPairMapping(self_spu, competitor_spu)
         result = sorted(pairs.values(), key=lambda item: (int(item.self_spu), int(item.competitor_spu)))
-        LOGGER.info(
+        LOGGER.debug(
             "飞书商品对读取完成：pair_count=%s，耗时=%.3fs",
             len(result),
             time.perf_counter() - started_at,

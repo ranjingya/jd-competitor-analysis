@@ -2,6 +2,8 @@
 
 set -uo pipefail
 
+export TZ=Asia/Shanghai
+
 # 根据脚本位置确定部署目录，保证手动执行和 Cron 执行使用同一套路径。
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
@@ -102,6 +104,39 @@ run_daily_analysis() {
   return "$command_status"
 }
 
+run_period_analysis() {
+  # 执行周期报告命令；周期报告只聚合 data.db 中已完成的日报。
+  local label="$1"
+  local attempt="$2"
+  shift 2
+  local command_status
+
+  log_message INFO "开始执行${label}批次：attempt=$attempt"
+  docker compose exec -T jd-competitor-analysis-backend \
+    python /app/cli.py "$@" \
+    2>&1 | tee -a "$RUN_LOG"
+  command_status="${PIPESTATUS[0]}"
+  log_message INFO "${label}批次执行结束：attempt=$attempt，exit_code=$command_status"
+  return "$command_status"
+}
+
+run_period_with_retry() {
+  # 周期报告发生普通异常时整体重试一次，报告业务键与 AI 输入哈希保证幂等。
+  local label="$1"
+  shift
+  local period_status
+
+  run_period_analysis "$label" 1 "$@"
+  period_status="$?"
+  if [[ "$period_status" -ne 0 && "$period_status" -ne "$ALREADY_RUNNING_EXIT_CODE" ]]; then
+    log_message WARNING "${label}批次发生异常，${GENERAL_RETRY_DELAY_SECONDS} 秒后整体重试一次"
+    sleep "$GENERAL_RETRY_DELAY_SECONDS"
+    run_period_analysis "$label" 2 "$@"
+    period_status="$?"
+  fi
+  return "$period_status"
+}
+
 log_message INFO "开始执行京东竞品日报：project_dir=$PROJECT_DIR"
 ping_healthchecks "/start"
 
@@ -124,10 +159,22 @@ if [[ "$status" -ne 0 && "$status" -ne "$CONCURRENCY_EXHAUSTED_EXIT_CODE" && \
 fi
 
 if [[ "$status" -eq 0 ]]; then
-  log_message INFO "京东竞品日报执行成功"
+  if [[ "$(date '+%u')" == "1" ]]; then
+    run_period_with_retry "周报" weekly-report-run --previous-week
+    status="$?"
+  fi
+fi
+
+if [[ "$status" -eq 0 && "$(date '+%d')" == "01" ]]; then
+  run_period_with_retry "月报" monthly-report-run --previous-month
+  status="$?"
+fi
+
+if [[ "$status" -eq 0 ]]; then
+  log_message INFO "京东竞品日周月报告任务执行成功"
   ping_healthchecks ""
 else
-  log_message ERROR "京东竞品日报执行失败：exit_code=$status"
+  log_message ERROR "京东竞品日周月报告任务执行失败：exit_code=$status"
   ping_failure_with_log
 fi
 

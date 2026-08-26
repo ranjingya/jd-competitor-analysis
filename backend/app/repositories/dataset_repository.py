@@ -137,9 +137,9 @@ class DatasetRepository:
                 ).fetchone()
                 if existing is None:
                     raise error
-                LOGGER.info("相同内容的数据集已存在：dataset_id=%s", existing["dataset_id"])
+                LOGGER.debug("相同内容的数据集已存在：dataset_id=%s", existing["dataset_id"])
                 return str(existing["dataset_id"])
-        LOGGER.info("标准化数据集已写入：dataset_id=%s，date=%s", selected_dataset_id, report_date)
+        LOGGER.debug("标准化数据集已写入：dataset_id=%s，date=%s", selected_dataset_id, report_date)
         return selected_dataset_id
 
     def get(self, dataset_id: str) -> dict[str, Any]:

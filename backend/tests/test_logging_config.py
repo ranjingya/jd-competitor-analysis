@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import logging
 import unittest
+from datetime import datetime, timezone
 
-from app.logging_config import HealthCheckAccessFilter
+from app.logging_config import BeijingFormatter, HealthCheckAccessFilter
 
 
 def _access_record(path: str) -> logging.LogRecord:
@@ -40,6 +41,15 @@ class HealthCheckAccessFilterTest(unittest.TestCase):
 
         self.assertTrue(selected_filter.filter(_access_record("/api/reports")))
         self.assertTrue(selected_filter.filter(_access_record("/healthz/detail")))
+
+    def test_formatter_uses_beijing_time(self) -> None:
+        """容器系统时区不应影响业务日志中的北京时间。"""
+
+        record = _access_record("/api/reports")
+        record.created = datetime(2026, 8, 26, 2, 30, tzinfo=timezone.utc).timestamp()
+        formatter = BeijingFormatter("%(asctime)s", datefmt="%Y-%m-%d %H:%M:%S")
+
+        self.assertEqual(formatter.format(record), "2026-08-26 10:30:00")
 
 
 if __name__ == "__main__":

@@ -60,7 +60,7 @@ class DeepSeekAnalyzer:
         self.analysis_version = ANALYSIS_VERSION
         self.system_prompt = config.prompt_path.read_text(encoding="utf-8").strip()
         self.prompt_hash = hashlib.sha256(self.system_prompt.encode("utf-8")).hexdigest()
-        LOGGER.info(
+        LOGGER.debug(
             "DeepSeek 分析规则已加载：model=%s，version=%s，prompt_hash=%s，path=%s",
             self.model,
             self.analysis_version,

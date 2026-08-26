@@ -75,7 +75,7 @@ def build_daily_dataset(
     """
 
     started_at = perf_counter()
-    LOGGER.info(
+    LOGGER.debug(
         "开始构建完整日数据：date=%s，self_spu=%s，competitor_spu=%s",
         report_date,
         product_pair.self_spu,
@@ -85,7 +85,7 @@ def build_daily_dataset(
     source_row_count = count_competitor_source_rows(raw_sources)
     if source_row_count == 0:
         raise WarehousePairNoDataError(report_date, product_pair)
-    LOGGER.info(
+    LOGGER.debug(
         "商品对数仓来源可用：date=%s，self_spu=%s，competitor_spu=%s，rows=%s",
         report_date,
         product_pair.self_spu,
@@ -106,10 +106,18 @@ def build_daily_dataset(
     )
     result = normalize_daily_dataset(raw_sources, product_pair, report_date, mappings, sku_rows)
     LOGGER.info(
-        "完整日数据构建完成：date=%s，self_spu=%s，competitor_spu=%s，status=%s，耗时=%.3fs",
+        "数仓日数据读取完成：date=%s，self=%s，competitor=%s，"
+        "core=%s，traffic=%s，keywords=%s，profiles=%s，promotion=%s，sku=%s，"
+        "quality=%s，耗时=%.1fs",
         report_date,
         product_pair.self_spu,
         product_pair.competitor_spu,
+        len(raw_sources.get("core_metrics", [])),
+        len(raw_sources.get("traffic_sources", [])),
+        len(raw_sources.get("traffic_keywords", [])),
+        len(raw_sources.get("customer_profiles", [])),
+        len(raw_sources.get("promotion", [])),
+        len(sku_rows),
         result["quality"]["status"],
         perf_counter() - started_at,
     )

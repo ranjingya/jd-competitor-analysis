@@ -154,6 +154,28 @@ docker compose exec -T jd-competitor-analysis-backend \
 
 `--yesterday` 模式以昨天为主业务日期，同时由近到远检查此前六天。同一日期和商品对已有 `ready` 报告时直接跳过；没有完整报告时重新查询数据源。显式 `--date` 用于人工重跑指定日期，会重新执行该商品对并更新同一份业务报告。
 
+手动生成指定自然周或上一个自然周：
+
+```bash
+docker compose exec -T jd-competitor-analysis-backend \
+  python /app/cli.py weekly-report-run --start-date 2026-08-17
+
+docker compose exec -T jd-competitor-analysis-backend \
+  python /app/cli.py weekly-report-run --previous-week
+```
+
+手动生成指定自然月或上一个自然月：
+
+```bash
+docker compose exec -T jd-competitor-analysis-backend \
+  python /app/cli.py monthly-report-run --month 2026-08
+
+docker compose exec -T jd-competitor-analysis-backend \
+  python /app/cli.py monthly-report-run --previous-month
+```
+
+周报和月报只聚合 `data.db` 中状态为 `ready` 的日报。周期报告保存来源日报 ID、自然周期天数、可用日报天数和缺失日期。数量、金额和次数累加；转化率、客单价、渠道占比、关键词占比和画像占比使用周期累计值重新计算。周期日均值使用自然周 7 天或自然月实际天数作为分母。
+
 ## 日报生成门槛
 
 数仓记录是日报的业务事实来源。一个商品对在以下五张来源表中存在任意记录时，后端按实际内容继续生成报告：

@@ -2,7 +2,7 @@
 
 你只负责根据后端提供的结构化业务数据生成 AI 内容，不重新计算业务指标，也不修改输入数据。
 
-输入包含日期、商品对、本品 SPU 真实汇总值，以及核心指标、流量来源、引流关键词、客户画像和推广五张表的处理结果。本品字段是真实值，竞品字段是后端按固定公式生成的准真实估算值；`null` 表示未披露或不可用，不等于 `0`。
+输入包含分析周期、商品对、本品 SPU 真实汇总值，以及核心指标、流量来源、引流关键词、客户画像和推广五张表的处理结果。本品字段是真实值，竞品字段是后端按固定公式生成的准真实估算值；`null` 表示未披露或不可用，不等于 `0`。周期为周或月时，输入已经由后端按日报累计值聚合，缺失日期和自然周期天数由 `period` 提供。
 
 ## 输出契约
 
@@ -12,7 +12,7 @@
   - `advantage`：包含 `brief` 和 `detail`。`brief` 用不超过 30 个字符概括本品最主要的优势，适合看板首屏直接展示；`detail` 是包含 1 至 6 个非空字符串的数组，每项独立说明一个优势、成因、证据或必要的数据限制。
   - `weakness`：包含 `brief` 和 `detail`。`brief` 用不超过 30 个字符概括本品最主要的弱点，适合看板首屏直接展示；`detail` 是包含 1 至 6 个非空字符串的数组，每项独立说明一个弱点、成因、证据或必要的数据限制。
 - `findings`：数组。每项包含非空字符串 `source_id`、`target`、`judgement`、`evidence`。
-- `recommendations`：数组。每项包含 `source_id`、`source_label`、`target`、`status`、`evidence`、`actions`、`validation`；证据不足时返回空数组。
+- `recommendations`：数组。每项包含 `source_id`、`source_label`、`target`、`evidence`、`actions`、`validation`；证据不足时返回空数组。建议状态由后端统一生成，不要输出 `status`。
 
 ## 分析原则
 
@@ -32,7 +32,6 @@
 - `source_id` 使用 `traffic`、`keywords`、`customer_profile` 或 `promotion`。
 - `source_label` 使用对应模块的中文名称。
 - `target` 指向具体渠道、关键词、人群或推广环节。
-- 劣势项的 `status` 使用 `warning`。
 - `evidence` 只写当前周期可核验的数据证据，不包含行动指令。
 - `actions` 提供一至三条直接对应证据的动作。
 - `validation` 使用当前基线和后续日数据定义复核条件。

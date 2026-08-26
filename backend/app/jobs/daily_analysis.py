@@ -8,7 +8,7 @@ import random
 import re
 import sys
 import time
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from time import perf_counter
 from typing import Any, Callable, Iterable, Protocol
@@ -30,6 +30,7 @@ from ..database import Database
 from ..job_status import DailyAnalysisStatusWriter
 from ..deepseek_analysis import DeepSeekAnalysisConfig, DeepSeekAnalyzer
 from ..job_lock import acquire_job_lock
+from ..logging_config import BEIJING_TIMEZONE
 from ..repositories.dataset_repository import DatasetRepository
 from ..repositories.report_repository import ReportRepository
 from ..repositories.task_repository import TaskRepository
@@ -129,7 +130,7 @@ def process_daily_pair(
 
     started_at = perf_counter()
     selected_date = parse_report_date(report_date).isoformat()
-    LOGGER.info(
+    LOGGER.debug(
         "开始处理商品对：date=%s，self_spu=%s，competitor_spu=%s",
         selected_date,
         product_pair.self_spu,
@@ -182,7 +183,7 @@ def process_daily_pair(
     )
     analysis_id = start_result.analysis_id
     if not start_result.should_execute:
-        LOGGER.info(
+        LOGGER.debug(
             "商品对日分析复用已完成 AI 结果：report_id=%s，analysis_id=%s，耗时=%.3fs",
             report_id,
             analysis_id,
@@ -229,7 +230,7 @@ def process_daily_pair(
             "analysis_id": analysis_id,
             "message": message,
         }
-    LOGGER.info(
+    LOGGER.debug(
         "商品对日分析完成：dataset_id=%s，report_id=%s，analysis_id=%s，耗时=%.3fs",
         dataset_id,
         report_id,
@@ -294,7 +295,7 @@ def _process_daily_pair_safely(
             progress_callback=progress_callback,
         )
     except WarehousePairNoDataError as error:
-        LOGGER.info(
+        LOGGER.debug(
             "商品对当天没有数仓记录，跳过报告：date=%s，self_spu=%s，"
             "competitor_spu=%s，耗时=%.3fs",
             report_date,
@@ -478,7 +479,7 @@ def _selected_report_date(args: Any) -> str:
     """
 
     if getattr(args, "yesterday", False):
-        return (date.today() - timedelta(days=1)).isoformat()
+        return (datetime.now(BEIJING_TIMEZONE).date() - timedelta(days=1)).isoformat()
     return parse_report_date(args.date).isoformat()
 
 
@@ -562,6 +563,7 @@ def run_warehouse_daily_analysis(args: Any) -> None:
     """
 
     settings = get_settings()
+    run_started_at = perf_counter()
     selected_date = _selected_report_date(args)
     selected_dates = _selected_report_dates(args, selected_date)
     status_writer = DailyAnalysisStatusWriter(settings.analysis_status_path)
@@ -574,7 +576,11 @@ def run_warehouse_daily_analysis(args: Any) -> None:
                 "counts": {},
                 "results": [],
             }
-            sys.stdout.write(json.dumps(summary, ensure_ascii=False, indent=2) + "\n")
+            output_summary = {
+                key: value for key, value in summary.items() if key != "results"
+            }
+            sys.stdout.write(json.dumps(output_summary, ensure_ascii=False, indent=2) + "\n")
+            LOGGER.warning("日报任务未启动：已有任务正在运行")
             raise SystemExit(ALREADY_RUNNING_EXIT_CODE)
 
         status_writer.start(selected_date, selected_dates)
@@ -612,7 +618,6 @@ def run_warehouse_daily_analysis(args: Any) -> None:
                 total_items = len(selected_dates) * len(product_pairs)
                 completed_items = 0
                 results = []
-                date_data_statuses = []
                 status_writer.progress(
                     "checking_reports",
                     completed_items=completed_items,
@@ -624,16 +629,31 @@ def run_warehouse_daily_analysis(args: Any) -> None:
                     "competitor_spu",
                     None,
                 )
-                for report_date in selected_dates:
-                    date_result_start = len(results)
-                    pending_pairs = []
-                    status_writer.progress(
-                        "checking_reports",
-                        current_date=report_date,
-                        completed_items=completed_items,
-                        total_items=total_items,
+                LOGGER.info(
+                    "日报任务开始：dates=%s..%s，pairs=%s",
+                    selected_dates[0],
+                    selected_dates[-1],
+                    len(product_pairs),
+                )
+                for pair_index, product_pair in enumerate(product_pairs, start=1):
+                    pair_started_at = perf_counter()
+                    pair_results = []
+                    LOGGER.info(
+                        "[%s/%s] 商品对开始：self=%s，competitor=%s",
+                        pair_index,
+                        len(product_pairs),
+                        product_pair.self_spu,
+                        product_pair.competitor_spu,
                     )
-                    for product_pair in product_pairs:
+                    for report_date in selected_dates:
+                        status_writer.progress(
+                            "checking_reports",
+                            current_date=report_date,
+                            self_spu=product_pair.self_spu,
+                            competitor_spu=product_pair.competitor_spu,
+                            completed_items=completed_items,
+                            total_items=total_items,
+                        )
                         existing = (
                             report_repository.find_ready_day_report(
                                 report_date,
@@ -644,12 +664,10 @@ def run_warehouse_daily_analysis(args: Any) -> None:
                             else None
                         )
                         if existing is not None:
-                            results.append(
-                                _existing_report_result(
-                                    report_date,
-                                    product_pair,
-                                    existing,
-                                )
+                            item_result = _existing_report_result(
+                                report_date,
+                                product_pair,
+                                existing,
                             )
                             completed_items += 1
                             status_writer.progress(
@@ -660,49 +678,77 @@ def run_warehouse_daily_analysis(args: Any) -> None:
                                 completed_items=completed_items,
                                 total_items=total_items,
                             )
-                            continue
-                        pending_pairs.append(product_pair)
-                    LOGGER.info(
-                        "日报日期检查完成：date=%s，pairs=%s，pending=%s，existing=%s",
-                        report_date,
-                        len(product_pairs),
-                        len(pending_pairs),
-                        len(product_pairs) - len(pending_pairs),
-                    )
-                    if pending_pairs:
+                        else:
+                            date_started_at = perf_counter()
 
-                        def record_pair_progress(
-                            stage: str,
-                            product_pair: ProductPair,
-                        ) -> None:
-                            """把商品对阶段转换为当前批次的持久化进度。"""
+                            def record_pair_progress(
+                                stage: str,
+                                current_pair: ProductPair,
+                            ) -> None:
+                                """把商品对阶段转换为当前批次的持久化进度。"""
 
-                            nonlocal completed_items
-                            if stage == "pair_completed":
-                                completed_items += 1
-                            status_writer.progress(
-                                stage,
-                                current_date=report_date,
-                                self_spu=product_pair.self_spu,
-                                competitor_spu=product_pair.competitor_spu,
-                                completed_items=completed_items,
-                                total_items=total_items,
-                            )
+                                nonlocal completed_items
+                                if stage == "pair_completed":
+                                    completed_items += 1
+                                status_writer.progress(
+                                    stage,
+                                    current_date=report_date,
+                                    self_spu=current_pair.self_spu,
+                                    competitor_spu=current_pair.competitor_spu,
+                                    completed_items=completed_items,
+                                    total_items=total_items,
+                                )
 
-                        results.extend(
-                            process_daily_pairs(
+                            item_result = process_daily_pairs(
                                 engine,
                                 mapping_client,
-                                pending_pairs,
+                                [product_pair],
                                 report_date,
                                 database,
                                 ai_analyzer,
                                 title=getattr(args, "title", None),
                                 product_images=product_images,
                                 progress_callback=record_pair_progress,
-                            )
-                        )
-                    current_date_results = results[date_result_start:]
+                            )[0]
+                            if item_result["status"] == "ready":
+                                LOGGER.info(
+                                    "[%s/%s][%s] 报告生成完成：quality=%s，report_id=%s，耗时=%.1fs",
+                                    pair_index,
+                                    len(product_pairs),
+                                    report_date,
+                                    item_result.get("quality_status"),
+                                    item_result.get("report_id"),
+                                    perf_counter() - date_started_at,
+                                )
+                            elif item_result["status"] == "no_data":
+                                LOGGER.info(
+                                    "[%s/%s][%s] 商品对无数据，跳过报告",
+                                    pair_index,
+                                    len(product_pairs),
+                                    report_date,
+                                )
+                        results.append(item_result)
+                        pair_results.append(item_result)
+                    pair_counts = {
+                        status: sum(item["status"] == status for item in pair_results)
+                        for status in ("ready", "existing", "no_data", "ai_failed", "failed")
+                    }
+                    LOGGER.info(
+                        "[%s/%s] 商品对完成：generated=%s，existing=%s，no_data=%s，failed=%s，耗时=%.1fs",
+                        pair_index,
+                        len(product_pairs),
+                        pair_counts["ready"],
+                        pair_counts["existing"],
+                        pair_counts["no_data"],
+                        pair_counts["ai_failed"] + pair_counts["failed"],
+                        perf_counter() - pair_started_at,
+                    )
+
+                date_data_statuses = []
+                for report_date in selected_dates:
+                    current_date_results = [
+                        item for item in results if item["date"] == report_date
+                    ]
                     date_data_status = _date_data_status(
                         report_date,
                         current_date_results,
@@ -746,7 +792,10 @@ def run_warehouse_daily_analysis(args: Any) -> None:
                 },
                 "results": results,
             }
-            sys.stdout.write(json.dumps(summary, ensure_ascii=False, indent=2) + "\n")
+            output_summary = {
+                key: value for key, value in summary.items() if key != "results"
+            }
+            sys.stdout.write(json.dumps(output_summary, ensure_ascii=False, indent=2) + "\n")
             failed_count = summary["counts"]["failed"] + summary["counts"]["ai_failed"]
             if failed_count:
                 failed_messages = "；".join(
@@ -765,6 +814,14 @@ def run_warehouse_daily_analysis(args: Any) -> None:
                 raise SystemExit(CONCURRENCY_EXHAUSTED_EXIT_CODE)
             if selected_date in data_missing_dates:
                 raise DailyWarehouseDataMissingError(selected_date)
+            LOGGER.info(
+                "日报任务完成：generated=%s，existing=%s，no_data=%s，failed=%s，耗时=%.1fs",
+                summary["counts"]["ready"],
+                summary["counts"]["existing"],
+                summary["counts"]["no_data"],
+                summary["counts"]["failed"] + summary["counts"]["ai_failed"],
+                perf_counter() - run_started_at,
+            )
         except BaseException as error:
             status_writer.fail(error)
             raise

@@ -14,6 +14,7 @@ COPY cli.py ./cli.py
 
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
+    TZ=Asia/Shanghai \
     BACKEND_DATABASE_PATH=/app/data/data.db
 
 EXPOSE 8000

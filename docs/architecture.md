@@ -8,7 +8,7 @@
 | Backend API | 持续提供报告查询和健康检查，不执行长时间分析请求。 |
 | Backend CLI | 读取飞书与 StarRocks，执行确定性计算和 DeepSeek 分析，保存最终报告。 |
 | 宿主机 cron | 按固定时间在 Backend 容器中启动一次 CLI 进程。 |
-| Healthchecks | 记录日报批次开始、成功、失败和末尾错误日志。 |
+| Healthchecks | 记录日周月报告批次开始、成功、失败和末尾错误日志。 |
 | Traefik | 为 Web 提供域名、HTTPS 和入口路由。 |
 
 FastAPI 和 CLI 是 Backend 容器中的独立进程，共享 `/app/data/data.db`。分析任务不通过浏览器或普通 API 请求触发。
@@ -20,7 +20,7 @@ FastAPI 和 CLI 是 Backend 容器中的独立进程，共享 `/app/data/data.db
   → 上报 Healthchecks 开始状态
   → Backend CLI 读取 product-images.json 并同步已有报告主图
   → 获取飞书商品对
-  → 检查昨天起最近七天的完整报告缺口
+  → 固定一个商品对检查昨天起最近七天的完整报告缺口
   → 持续更新 daily-analysis-status.json 的阶段和商品对进度
   → 对报告缺口读取飞书映射与 StarRocks 日数据
   → 识别商品对是否存在任意来源记录
@@ -32,11 +32,15 @@ FastAPI 和 CLI 是 Backend 容器中的独立进程，共享 `/app/data/data.db
   → Backend 校验结构化结果
   → 原子保存 AI 原始结果并更新报告分析字段
   → 报告状态更新为 ready
+  → 周一聚合上一个自然周，月初聚合上一个自然月
+  → 周月聚合结果各执行一次 DeepSeek 分析并保存
   → Web 通过 /api 展示
   → 上报 Healthchecks 成功或失败状态
 ```
 
-不同商品对依次串行执行。调用 DeepSeek 期间不持有 SQLite 事务；单个商品对失败时记录 `failed` 和 `ai_failed`，随后继续下一组。来源表、商品角色和指标缺失时按现有事实生成部分报告；商品对五张来源表全部为空时跳过。主业务日期的全部商品对均为空时上报整日数据异常。数仓并发错误在其他商品对处理结束后定向重试。
+不同商品对依次串行执行，同一本品在最近七天内复用一次飞书 SKU 映射。调用 DeepSeek 期间不持有 SQLite 事务；单个商品对失败时记录 `failed` 和 `ai_failed`，随后继续下一组。来源表、商品角色和指标缺失时按现有事实生成部分报告；商品对五张来源表全部为空时跳过。主业务日期的全部商品对均为空时上报整日数据异常。数仓并发错误按 30、60、120 秒定向重试。
+
+周报和月报只读取 `reports` 中已完成日报，不查询数仓。周期报告保存自然周期天数、可用日报天数、缺失日期和来源日报 ID；累计指标按日报累加，转化率、客单价和占比使用周期累计值重新计算。周期内存在可用日报即可生成报告，日均值的分母为自然周期天数。
 
 ## API
 
@@ -69,9 +73,9 @@ GET  /api/reports/{granularity}/{start_date}/{end_date}
 0 12 * * * /home/yatui/jd-competitor-analysis/scripts/run-daily-analysis.sh
 ```
 
-宿主机 `.env` 使用 `HEALTHCHECKS_PING_URL` 保存检查地址。脚本通过 Backend 容器执行 `warehouse-daily-run --yesterday`，日志写入 `data/logs/`。普通运行异常等待 30 秒后整体重试一次；数仓并发上限由 CLI 对受影响商品对按 30、60、120 秒定向重试。
+宿主机 `.env` 使用 `HEALTHCHECKS_PING_URL` 保存检查地址。脚本通过 Backend 容器执行 `warehouse-daily-run --yesterday`；每周一继续执行 `weekly-report-run --previous-week`，每月 1 日继续执行 `monthly-report-run --previous-month`。日志写入 `data/logs/`，宿主机脚本、CLI 和 Uvicorn 均使用 `Asia/Shanghai` 时间。普通运行异常等待 30 秒后整体重试一次；数仓并发上限由 CLI 按 30、60、120 秒定向重试。
 
-CLI 使用 `/app/data/warehouse-daily-run.lock` 进程锁。同一任务仍在运行时，后续触发直接退出，避免重复读取数仓和覆盖报告。定时模式检查最近七天，已有完整报告直接跳过，仅处理报告缺口。
+日报、周报和月报 CLI 共用 `/app/data/warehouse-daily-run.lock` 进程锁。同一分析任务仍在运行时，后续触发直接退出，避免重复读取数仓和覆盖报告。日报定时模式检查最近七天，已有完整报告直接跳过，仅处理报告缺口。
 
 Backend API 通过 `GET /api/analysis-status` 读取状态快照。任务在配置加载、飞书商品对读取、报告缺口检查、数仓读取、数据集持久化、确定性分析、DeepSeek 分析和报告完成时更新 `progress_at`。进程锁冲突使用专用非零退出码，宿主机脚本向 Healthchecks 上报失败，不将未执行的批次标记为成功。
 

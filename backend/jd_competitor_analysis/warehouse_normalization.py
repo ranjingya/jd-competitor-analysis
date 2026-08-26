@@ -255,7 +255,7 @@ def normalize_core_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
     """
 
     started_at = perf_counter()
-    LOGGER.info("开始标准化核心指标：rows=%s", len(rows))
+    LOGGER.debug("开始标准化核心指标：rows=%s", len(rows))
     grouped = _rows_by_role(rows)
     records = [
         {
@@ -283,7 +283,7 @@ def normalize_core_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
         if rows and not role_rows:
             issues.append({"code": "missing_core_side", "message": f"核心指标缺少 {role} 侧记录"})
     result = _wrap_source("core_metrics", rows, records, issues)
-    LOGGER.info(
+    LOGGER.debug(
         "核心指标标准化完成：records=%s，status=%s，耗时=%.3fs",
         len(records),
         result["quality"]["status"],
@@ -308,7 +308,7 @@ def normalize_traffic_sources(rows: list[dict[str, Any]]) -> dict[str, Any]:
     """
 
     started_at = perf_counter()
-    LOGGER.info("开始标准化流量来源：rows=%s", len(rows))
+    LOGGER.debug("开始标准化流量来源：rows=%s", len(rows))
     records_by_channel: dict[tuple[str | None, str | None, str | None], dict[str, Any]] = {}
     issues = _json_field_issues(rows)
     for row in rows:
@@ -340,7 +340,7 @@ def normalize_traffic_sources(rows: list[dict[str, Any]]) -> dict[str, Any]:
         record[role] = _normalize_metrics(data, TRAFFIC_METRICS)
     records = list(records_by_channel.values())
     result = _wrap_source("traffic_sources", rows, records, issues)
-    LOGGER.info(
+    LOGGER.debug(
         "流量来源标准化完成：records=%s，status=%s，耗时=%.3fs",
         len(records),
         result["quality"]["status"],
@@ -359,7 +359,7 @@ def normalize_traffic_keywords(rows: list[dict[str, Any]], product_pair: Product
     """
 
     started_at = perf_counter()
-    LOGGER.info("开始标准化引流关键词：rows=%s", len(rows))
+    LOGGER.debug("开始标准化引流关键词：rows=%s", len(rows))
     records = []
     issues: list[dict[str, str]] = []
     for row in rows:
@@ -381,7 +381,7 @@ def normalize_traffic_keywords(rows: list[dict[str, Any]], product_pair: Product
         )
     issues.extend(_json_field_issues(rows))
     result = _wrap_source("traffic_keywords", rows, records, issues)
-    LOGGER.info(
+    LOGGER.debug(
         "引流关键词标准化完成：records=%s，status=%s，耗时=%.3fs",
         len(records),
         result["quality"]["status"],
@@ -413,7 +413,7 @@ def normalize_customer_profiles(rows: list[dict[str, Any]]) -> dict[str, Any]:
     """
 
     started_at = perf_counter()
-    LOGGER.info("开始标准化客户画像：rows=%s", len(rows))
+    LOGGER.debug("开始标准化客户画像：rows=%s", len(rows))
     records_by_segment: dict[tuple[str, str], dict[str, Any]] = {}
     issues: list[dict[str, str]] = _json_field_issues(rows)
     current_dimension: str | None = None
@@ -455,7 +455,7 @@ def normalize_customer_profiles(rows: list[dict[str, Any]]) -> dict[str, Any]:
         record[target_field] = normalize_metric(data.get("成交客户数占比"), "ratio")
     records = list(records_by_segment.values())
     result = _wrap_source("customer_profiles", rows, records, issues)
-    LOGGER.info(
+    LOGGER.debug(
         "客户画像标准化完成：records=%s，status=%s，耗时=%.3fs",
         len(records),
         result["quality"]["status"],
@@ -488,7 +488,7 @@ def normalize_promotion(rows: list[dict[str, Any]]) -> dict[str, Any]:
     """
 
     started_at = perf_counter()
-    LOGGER.info("开始标准化推广数据：rows=%s", len(rows))
+    LOGGER.debug("开始标准化推广数据：rows=%s", len(rows))
     grouped = _rows_by_role(rows)
     records = [
         {
@@ -510,7 +510,7 @@ def normalize_promotion(rows: list[dict[str, Any]]) -> dict[str, Any]:
         if rows and not role_rows:
             issues.append({"code": "missing_promotion_side", "message": f"推广数据缺少 {role} 侧记录"})
     result = _wrap_source("promotion", rows, records, issues)
-    LOGGER.info(
+    LOGGER.debug(
         "推广数据标准化完成：records=%s，status=%s，耗时=%.3fs",
         len(records),
         result["quality"]["status"],
@@ -535,7 +535,7 @@ def normalize_competitor_sources(
 
     started_at = perf_counter()
     selected_date = parse_report_date(report_date).isoformat()
-    LOGGER.info(
+    LOGGER.debug(
         "开始标准化五张竞品表：date=%s，self_spu=%s，competitor_spu=%s",
         selected_date,
         product_pair.self_spu,
@@ -575,7 +575,7 @@ def normalize_competitor_sources(
         "sources": sources,
         "quality": {"status": overall_status, "issues": issues},
     }
-    LOGGER.info(
+    LOGGER.debug(
         "五张竞品表标准化完成：date=%s，status=%s，耗时=%.3fs",
         selected_date,
         overall_status,
@@ -666,7 +666,7 @@ def normalize_self_product(
 
     started_at = perf_counter()
     selected_date = parse_report_date(report_date).isoformat()
-    LOGGER.info(
+    LOGGER.debug(
         "开始标准化本品 SKU：date=%s，spu=%s，mapped=%s，rows=%s",
         selected_date,
         product_pair.self_spu,
@@ -767,7 +767,7 @@ def normalize_self_product(
             "issues": issues,
         },
     }
-    LOGGER.info(
+    LOGGER.debug(
         "本品 SKU 标准化完成：spu=%s，status=%s，耗时=%.3fs",
         product_pair.self_spu,
         status,
@@ -814,7 +814,7 @@ def normalize_daily_dataset(
         "sources": competitor_data["sources"],
         "quality": {"status": overall_status, "issues": issues},
     }
-    LOGGER.info(
+    LOGGER.debug(
         "完整日数据组装完成：date=%s，self_spu=%s，competitor_spu=%s，status=%s，耗时=%.3fs",
         result["report_date"],
         product_pair.self_spu,

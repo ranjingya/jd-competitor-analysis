@@ -216,7 +216,7 @@ def adapt_daily_dataset(dataset: dict[str, Any], title: str | None = None) -> di
             for source_id, role in source_roles.items()
         ],
     }
-    LOGGER.info(
+    LOGGER.debug(
         "数仓日数据已适配确定性分析：date=%s，self_spu=%s，competitor_spu=%s",
         report_date,
         pair["self_spu"],

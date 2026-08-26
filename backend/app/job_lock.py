@@ -28,12 +28,12 @@ def acquire_job_lock(path: Path) -> Iterator[bool]:
         try:
             fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
             acquired = True
-            LOGGER.info("日分析进程锁已获取：%s", path)
+            LOGGER.debug("日分析进程锁已获取：%s", path)
         except BlockingIOError:
             LOGGER.warning("已有日分析任务正在运行：%s", path)
         yield acquired
     finally:
         if acquired:
             fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
-            LOGGER.info("日分析进程锁已释放：%s", path)
+            LOGGER.debug("日分析进程锁已释放：%s", path)
         lock_file.close()

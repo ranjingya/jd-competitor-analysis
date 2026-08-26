@@ -163,7 +163,7 @@ class Database:
                 PRAGMA user_version = 2;
                 """
             )
-        LOGGER.info(
+        LOGGER.debug(
             "Backend 数据库初始化完成：%s，schema_version=%s，耗时=%.3fs",
             self.path,
             DATABASE_SCHEMA_VERSION,

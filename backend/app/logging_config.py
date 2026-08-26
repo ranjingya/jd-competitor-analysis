@@ -3,11 +3,33 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 
 LOG_FORMAT = "%(asctime)s.%(msecs)03d %(levelname)s %(name)s - %(message)s"
 LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+BEIJING_TIMEZONE = timezone(timedelta(hours=8), "Asia/Shanghai")
+
+
+class BeijingFormatter(logging.Formatter):
+    """使用 Asia/Shanghai 时区格式化日志时间。"""
+
+    def formatTime(
+        self,
+        record: logging.LogRecord,
+        datefmt: str | None = None,
+    ) -> str:
+        """将日志时间转换为北京时间。
+
+        功能说明：忽略容器系统时区，直接以 Asia/Shanghai 输出日志时间。
+        参数 record：包含 Unix 时间戳的日志记录。
+        参数 datefmt：可选时间格式字符串。
+        返回值：格式化后的北京时间文本。
+        """
+
+        selected_time = datetime.fromtimestamp(record.created, BEIJING_TIMEZONE)
+        return selected_time.strftime(datefmt) if datefmt else selected_time.isoformat()
 
 
 class HealthCheckAccessFilter(logging.Filter):
@@ -28,15 +50,20 @@ class HealthCheckAccessFilter(logging.Filter):
         return True
 
 
-def configure_backend_logging() -> None:
+def configure_backend_logging(level: int = logging.INFO) -> None:
     """配置 Backend 与 Uvicorn 日志。
 
     功能说明：为业务、Uvicorn 错误和访问日志统一添加日期与毫秒时间，并过滤健康检查访问记录。
+    参数 level：根日志级别，默认 INFO。
     返回值：无；直接更新当前进程中的标准日志处理器。
     """
 
-    formatter = logging.Formatter(LOG_FORMAT, datefmt=LOG_DATE_FORMAT)
-    logging.basicConfig(level=logging.INFO, format=LOG_FORMAT, datefmt=LOG_DATE_FORMAT)
+    formatter = BeijingFormatter(LOG_FORMAT, datefmt=LOG_DATE_FORMAT)
+    logging.basicConfig(level=level)
+    root_logger = logging.getLogger()
+    root_logger.setLevel(level)
+    for handler in root_logger.handlers:
+        handler.setFormatter(formatter)
 
     for logger_name in ("uvicorn", "uvicorn.error", "uvicorn.access"):
         logger = logging.getLogger(logger_name)

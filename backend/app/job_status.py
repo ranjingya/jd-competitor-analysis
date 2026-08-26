@@ -146,7 +146,7 @@ class DailyAnalysisStatusWriter:
             "error": None,
         }
         self._write()
-        LOGGER.info("日报运行状态已创建：run_id=%s，path=%s", self.run_id, self.path)
+        LOGGER.debug("日报运行状态已创建：run_id=%s，path=%s", self.run_id, self.path)
 
     def progress(
         self,
@@ -218,7 +218,7 @@ class DailyAnalysisStatusWriter:
             }
         )
         self._write()
-        LOGGER.info("日报运行状态已完成：run_id=%s", self.run_id)
+        LOGGER.debug("日报运行状态已完成：run_id=%s", self.run_id)
 
     def fail(self, error: BaseException) -> None:
         """记录日报批次失败或中断。

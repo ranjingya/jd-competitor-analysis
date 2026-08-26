@@ -79,9 +79,9 @@ docker compose up -d
 
 服务器 `.env` 由 Docker Compose 读取并注入 Backend 进程，同时供宿主机日报脚本读取 Healthchecks 地址。Backend 容器不挂载 `.env` 文件，运行时直接读取进程环境变量。
 
-## 日分析任务
+## 定时分析任务
 
-完整日分析由 Backend CLI 在独立进程中执行：
+日报由 Backend CLI 在独立进程中执行：
 
 ```text
 飞书与 StarRocks → 标准化 → 固定公式 → DeepSeek → 最终报告
@@ -101,7 +101,9 @@ HEALTHCHECKS_PING_URL=https://hc-cron.kktree.cn/ping/<检查 UUID>
 0 12 * * * /home/yatui/jd-competitor-analysis/scripts/run-daily-analysis.sh
 ```
 
-脚本上报开始、成功和失败状态，运行日志保存在 `data/logs/`。定时任务检查昨天及此前六天：已有完整报告直接跳过，报告缺口重新查询数仓。商品对在五张来源表中存在任意记录时生成报告，缺失模块和指标按数仓事实保留为空；商品对五张表全部为空时跳过。主业务日期的全部商品对均为空时上报数据异常。
+脚本上报开始、成功和失败状态，运行日志保存在 `data/logs/`。所有日志时间统一使用 `Asia/Shanghai`。定时任务按商品对依次检查昨天及此前六天：已有完整报告直接跳过，报告缺口重新查询数仓，同一本品的 SKU 映射在本次进程内复用。商品对在五张来源表中存在任意记录时生成报告，缺失模块和指标按数仓事实保留为空；商品对五张表全部为空时跳过。主业务日期的全部商品对均为空时上报数据异常。
+
+每周一在日报完成后聚合上一个自然周，每月 1 日在日报和周报完成后聚合上一个自然月。周报和月报只读取 `data.db` 中状态为 `ready` 的日报，不再读取数仓。金额、人数和次数累加；转化率按累计成交人数除以累计访客数重算；客单价按累计成交金额除以累计成交人数重算；占比按周期累计分子和分母重算。缺失日报记录在报告元数据中，日均值始终除以自然周期天数。
 
 查看当前运行阶段和最近进度：
 
@@ -125,10 +127,11 @@ python3 -m json.tool data/daily-analysis-status.json
 - 日数据与报告按业务模块拆分保存，完整报告接口由数据库字段实时组装。
 - 同一日期和商品对只有一份当前报告及一条非过期 AI 执行记录。
 - StarRocks 连接探测和确定性分析逻辑统一位于 Backend。
-- `warehouse-daily-run` 按商品对串行完成数仓读取、固定公式、DeepSeek 分析和报告入库。
+- `warehouse-daily-run` 固定一个商品对检查最近七天，再处理下一个商品对。
+- `weekly-report-run` 和 `monthly-report-run` 聚合已完成日报并各调用一次 DeepSeek。
 - 定时任务自动检查最近七天报告缺口，晚到数据在后续运行中补齐。
 - 数仓并发上限错误按 30、60、120 秒定向重试，普通批次异常整体重试一次。
-- Healthchecks 记录日报批次的开始、成功、失败及末尾错误日志。
+- Healthchecks 记录日周月报告批次的开始、成功、失败及末尾错误日志。
 - `/api/analysis-status` 和 `data/daily-analysis-status.json` 提供日报实时阶段与进度快照。
 - 商品主图由宿主机 `data/product-images.json` 维护，日任务自动同步到已有报告。
 - 日分析使用进程锁防止同一服务器重复执行，单个商品对失败后继续处理下一组。

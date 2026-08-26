@@ -32,11 +32,11 @@ def analyze_normalized(
 
     started_at = perf_counter()
     period_key = normalized.get("meta", {}).get("period_key")
-    LOGGER.info("开始分析标准化事实：%s", period_key)
+    LOGGER.debug("开始分析标准化事实：%s", period_key)
     core = analyze_core(normalized, history)
     resolved_product_images = product_images if product_images is not None else load_product_images()
     result = build_analysis_result(normalized, core, resolved_product_images)
     result["meta"]["generated_at"] = datetime.now().isoformat(timespec="seconds")
     validate_contract(result)
-    LOGGER.info("标准化事实分析完成：%s，耗时=%.3fs", period_key, perf_counter() - started_at)
+    LOGGER.debug("标准化事实分析完成：%s，耗时=%.3fs", period_key, perf_counter() - started_at)
     return result, core["p_samples"]

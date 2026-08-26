@@ -28,7 +28,7 @@ def persist_daily_dataset(repository: DatasetRepository, payload: dict[str, Any]
 
     started_at = perf_counter()
     dataset_id = repository.store(payload)
-    LOGGER.info(
+    LOGGER.debug(
         "标准化日数据已持久化：dataset_id=%s，耗时=%.3fs",
         dataset_id,
         perf_counter() - started_at,
@@ -52,7 +52,7 @@ def persist_base_report(
 
     started_at = perf_counter()
     report_id = repository.upsert(dataset_id, report, status="pending_ai")
-    LOGGER.info(
+    LOGGER.debug(
         "基础报告已持久化：report_id=%s，dataset_id=%s，耗时=%.3fs",
         report_id,
         dataset_id,
@@ -98,7 +98,7 @@ def start_ai_analysis(
         analysis_version=analysis_version,
         prompt_hash=prompt_hash,
     )
-    LOGGER.info(
+    LOGGER.debug(
         "内部 AI 执行已准备：analysis_id=%s，model=%s，execute=%s，source_hash=%s，耗时=%.3fs",
         result.analysis_id,
         model,

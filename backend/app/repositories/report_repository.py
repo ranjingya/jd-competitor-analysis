@@ -262,7 +262,7 @@ class ReportRepository:
             "competitor_reports": competitor_updated,
             "updated_fields": self_updated + competitor_updated,
         }
-        LOGGER.info(
+        LOGGER.debug(
             "商品主图同步完成：products=%s，self_reports=%s，competitor_reports=%s，耗时=%.3fs",
             summary["products"],
             summary["self_reports"],
@@ -306,11 +306,12 @@ class ReportRepository:
             ).fetchone()
             if existing is not None:
                 if (
-                    existing["dataset_id"] == dataset_id
+                    dataset_id is not None
+                    and existing["dataset_id"] == dataset_id
                     and status == "pending_ai"
                     and existing["status"] in {"ready", "ai_failed"}
                 ):
-                    LOGGER.info(
+                    LOGGER.debug(
                         "相同数据集报告已处于 AI 终态，保留现有内容：report_id=%s，status=%s",
                         existing["report_id"], existing["status"],
                     )
@@ -318,7 +319,7 @@ class ReportRepository:
                 self._update_report(
                     connection, str(existing["report_id"]), dataset_id, status, content, now
                 )
-                LOGGER.info("报告已更新：report_id=%s，status=%s", existing["report_id"], status)
+                LOGGER.debug("报告已更新：report_id=%s，status=%s", existing["report_id"], status)
                 return str(existing["report_id"])
             columns = (
                 "report_id", "dataset_id", "granularity", "start_date", "end_date",
@@ -337,7 +338,7 @@ class ReportRepository:
             except sqlite3.IntegrityError:
                 LOGGER.exception("报告写入失败：dataset_id=%s", dataset_id)
                 raise
-        LOGGER.info("报告已创建：report_id=%s，status=%s", selected_report_id, status)
+        LOGGER.debug("报告已创建：report_id=%s，status=%s", selected_report_id, status)
         return selected_report_id
 
     @staticmethod
@@ -498,7 +499,7 @@ class ReportRepository:
             if exists is None:
                 raise FileNotFoundError(report_id)
             self._update_report(connection, report_id, dataset_id, "pending_ai", content, now)
-        LOGGER.info("报告已进入 AI 待处理状态：report_id=%s，dataset_id=%s", report_id, dataset_id)
+        LOGGER.debug("报告已进入 AI 待处理状态：report_id=%s，dataset_id=%s", report_id, dataset_id)
 
     def get(self, report_id: str) -> dict[str, Any]:
         """按报告 ID 读取兼容前端的完整报告。
@@ -564,6 +565,102 @@ class ReportRepository:
                 (report_date, report_date, self_spu, competitor_spu),
             ).fetchone()
         return dict(row) if row is not None else None
+
+    def find_ready_period_report(
+        self,
+        granularity: str,
+        start_date: str,
+        end_date: str,
+        self_spu: str,
+        competitor_spu: str,
+    ) -> dict[str, Any] | None:
+        """查找来源日报未变化的周期报告候选。
+
+        功能说明：按周期业务键读取已完成报告及来源日报 ID，供周期任务判断是否可跳过。
+        参数 granularity：周期粒度，只允许 week 或 month。
+        参数 start_date：周期开始日期。
+        参数 end_date：周期结束日期。
+        参数 self_spu：本品 SPU ID。
+        参数 competitor_spu：竞品 SPU ID。
+        返回值：报告 ID 与来源日报 ID；不存在时返回空值。
+        """
+
+        if granularity not in {"week", "month"}:
+            raise ValueError("周期报告粒度必须为 week 或 month")
+        with self.database.connection() as connection:
+            row = connection.execute(
+                """
+                SELECT report_id, source_report_ids_json
+                FROM reports
+                WHERE granularity = ? AND start_date = ? AND end_date = ?
+                  AND self_spu = ? AND competitor_spu = ? AND status = 'ready'
+                LIMIT 1
+                """,
+                (granularity, start_date, end_date, self_spu, competitor_spu),
+            ).fetchone()
+        if row is None:
+            return None
+        return {
+            "report_id": str(row["report_id"]),
+            "source_report_ids": json.loads(row["source_report_ids_json"] or "[]"),
+        }
+
+    def list_ready_day_reports(
+        self,
+        start_date: str,
+        end_date: str,
+        self_spu: str | None = None,
+        competitor_spu: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """读取日期范围内已完成的日报。
+
+        功能说明：按商品对和日期顺序返回周期聚合需要的日报固定指标与完整模块，
+        只读取 `ready` 状态，不访问数仓。
+        参数 start_date：周期开始日期，格式为 YYYY-MM-DD。
+        参数 end_date：周期结束日期，格式为 YYYY-MM-DD。
+        参数 self_spu：可选本品 SPU 过滤条件。
+        参数 competitor_spu：可选竞品 SPU 过滤条件。
+        返回值：包含数据库数值字段和完整报告对象的日报列表。
+        """
+
+        if bool(self_spu) != bool(competitor_spu):
+            raise ValueError("self_spu 和 competitor_spu 必须同时提供")
+        filters = [
+            "granularity = 'day'",
+            "start_date >= ?",
+            "end_date <= ?",
+            "status = 'ready'",
+        ]
+        parameters: list[Any] = [start_date, end_date]
+        if self_spu and competitor_spu:
+            filters.extend(["self_spu = ?", "competitor_spu = ?"])
+            parameters.extend([self_spu, competitor_spu])
+        with self.database.connection() as connection:
+            rows = connection.execute(
+                f"""
+                SELECT * FROM reports
+                WHERE {' AND '.join(filters)}
+                ORDER BY self_spu, competitor_spu, start_date, report_id
+                """,
+                parameters,
+            ).fetchall()
+        numeric_columns = (
+            "self_gmv", "competitor_gmv", "self_visitors", "competitor_visitors",
+            "self_buyers", "competitor_buyers", "self_conversion_rate",
+            "competitor_conversion_rate", "self_aov", "competitor_aov",
+        )
+        return [
+            {
+                "report_id": str(row["report_id"]),
+                "report_date": str(row["start_date"]),
+                "self_spu": str(row["self_spu"]),
+                "competitor_spu": str(row["competitor_spu"]),
+                "quality_status": str(row["quality_status"]),
+                **{column: _number(row[column]) for column in numeric_columns},
+                "report": self._row_to_report(row),
+            }
+            for row in rows
+        ]
 
     @staticmethod
     def _row_to_report(row: sqlite3.Row) -> dict[str, Any]:

@@ -234,7 +234,7 @@ def read_competitor_sources(
     started_at = perf_counter()
     selected_date = parse_report_date(report_date)
     datasets: dict[str, list[dict[str, Any]]] = {}
-    LOGGER.info(
+    LOGGER.debug(
         "开始顺序读取竞品日数据：date=%s，self_spu=%s，competitor_spu=%s，granularity=%s",
         selected_date,
         product_pair.self_spu,
@@ -326,14 +326,14 @@ def read_competitor_sources(
                     extra_fields,
                 )
             datasets[table.source_id] = normalized_rows
-            LOGGER.info(
+            LOGGER.debug(
                 "竞品来源读取完成：source=%s，table=%s，rows=%s，耗时=%.3fs",
                 table.source_id,
                 table.table_name,
                 len(latest_rows),
                 perf_counter() - source_started_at,
             )
-    LOGGER.info(
+    LOGGER.debug(
         "五张竞品日数据读取完成：date=%s，耗时=%.3fs",
         selected_date,
         perf_counter() - started_at,
@@ -366,7 +366,7 @@ def read_self_sku_daily(
         "AND time_granularity = :time_granularity "
         "ORDER BY create_time DESC"
     ).bindparams(bindparam("sku_ids", expanding=True))
-    LOGGER.info("开始读取本品 SKU 日数据：date=%s，sku_count=%s", selected_date, len(selected_sku_ids))
+    LOGGER.debug("开始读取本品 SKU 日数据：date=%s，sku_count=%s", selected_date, len(selected_sku_ids))
     with engine.connect() as connection:
         rows = [
             dict(row)
@@ -388,7 +388,7 @@ def read_self_sku_daily(
         if current is None or str(row.get("create_time") or "") > str(current.get("create_time") or ""):
             latest_by_sku[normalized_sku_id] = row
     result = [latest_by_sku[sku_id] for sku_id in map(str, selected_sku_ids) if sku_id in latest_by_sku]
-    LOGGER.info(
+    LOGGER.debug(
         "本品 SKU 日数据读取完成：date=%s，rows=%s，耗时=%.3fs",
         selected_date,
         len(result),

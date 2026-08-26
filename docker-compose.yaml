@@ -26,6 +26,8 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    environment:
+      TZ: Asia/Shanghai
     expose:
       - "8000"
     volumes:

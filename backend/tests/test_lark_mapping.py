@@ -125,6 +125,30 @@ class LarkBaseMappingClientTest(unittest.TestCase):
         token_calls = [call for call in requester.calls if call[0] == "POST"]
         self.assertEqual(len(token_calls), 1)
 
+    def test_same_spu_mapping_is_reused_without_second_request(self) -> None:
+        """同一本品跨多个日期处理时应直接复用 SKU 映射。"""
+
+        requester = FakeRequester(
+            [
+                {
+                    "code": 0,
+                    "data": {
+                        "items": [_record("10001", "10002", "69002", "商品 A", "蓝色 M")],
+                        "has_more": False,
+                    },
+                }
+            ]
+        )
+        client = LarkBaseMappingClient(self.config, requester=requester)
+
+        first = client.list_spu_sku_mappings("10001")
+        second = client.list_spu_sku_mappings("10001")
+
+        self.assertEqual(first, second)
+        self.assertIsNot(first, second)
+        get_calls = [call for call in requester.calls if call[0] == "GET"]
+        self.assertEqual(len(get_calls), 1)
+
     def test_conflicting_duplicate_mapping_is_rejected(self) -> None:
         """相同 SPU/SKU 对出现不同展示数据时应停止读取。"""
 

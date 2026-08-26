@@ -97,7 +97,7 @@ class TaskRepository:
                 existing_id = str(existing["analysis_id"])
                 if existing["status"] == "completed":
                     connection.commit()
-                    LOGGER.info(
+                    LOGGER.debug(
                         "相同 AI 输入已完成，复用结果：analysis_id=%s，report_id=%s",
                         existing_id,
                         report_id,
@@ -122,14 +122,14 @@ class TaskRepository:
                     ),
                 )
                 connection.commit()
-                LOGGER.info("AI 分析重新执行：analysis_id=%s，model=%s", existing_id, model)
+                LOGGER.debug("AI 分析重新执行：analysis_id=%s，model=%s", existing_id, model)
                 return TaskStartResult(existing_id, True)
             if existing is not None:
                 connection.execute(
                     "UPDATE analysis_tasks SET status = 'expired', updated_at = ? WHERE analysis_id = ?",
                     (now, existing["analysis_id"]),
                 )
-                LOGGER.info(
+                LOGGER.debug(
                     "旧 AI 执行记录已标记过期：analysis_id=%s，report_id=%s",
                     existing["analysis_id"],
                     report_id,
@@ -159,7 +159,7 @@ class TaskRepository:
             raise
         finally:
             connection.close()
-        LOGGER.info(
+        LOGGER.debug(
             "AI 分析执行已创建：analysis_id=%s，report_id=%s，model=%s",
             task_id,
             report_id,
@@ -206,7 +206,7 @@ class TaskRepository:
                 (result_json, now, now, analysis_id),
             )
             connection.commit()
-            LOGGER.info("AI 分析执行已完成：analysis_id=%s", analysis_id)
+            LOGGER.debug("AI 分析执行已完成：analysis_id=%s", analysis_id)
         except Exception:
             connection.rollback()
             raise
