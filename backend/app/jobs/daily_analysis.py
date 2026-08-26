@@ -20,7 +20,7 @@ from jd_competitor_analysis.product_assets import load_product_images
 from jd_competitor_analysis.warehouse import create_warehouse_engine, load_warehouse_config
 from jd_competitor_analysis.warehouse_analysis import analyze_daily_dataset, build_ai_task_payload
 from jd_competitor_analysis.warehouse_daily import (
-    WarehouseDataIncompleteError,
+    WarehousePairNoDataError,
     build_daily_dataset,
 )
 from jd_competitor_analysis.warehouse_sources import ProductPair, parse_report_date
@@ -42,8 +42,29 @@ CONCURRENCY_RETRY_DELAYS = (30, 60, 120)
 CONCURRENCY_RETRY_JITTER_SECONDS = 10
 CONCURRENCY_EXHAUSTED_EXIT_CODE = 11
 ALREADY_RUNNING_EXIT_CODE = 12
+DAILY_DATA_MISSING_EXIT_CODE = 13
 DAILY_REPAIR_WINDOW_DAYS = 7
 PairProgressCallback = Callable[[str, ProductPair], None]
+
+
+class DailyWarehouseDataMissingError(SystemExit):
+    """表示主业务日期的所有商品对均没有数仓记录。"""
+
+    def __init__(self, report_date: str) -> None:
+        """初始化整日数据异常。
+
+        功能说明：保存业务日期并使用专用退出码结束命令，供宿主机上报告警且避免普通重试。
+        参数 report_date：完全没有商品对记录的主业务日期。
+        返回值：无。
+        """
+
+        self.report_date = report_date
+        super().__init__(DAILY_DATA_MISSING_EXIT_CODE)
+
+    def __str__(self) -> str:
+        """生成整日无数据的可读错误信息。"""
+
+        return f"主业务日期所有商品对均没有数仓记录：date={self.report_date}"
 
 
 class AIAnalyzer(Protocol):
@@ -241,7 +262,7 @@ def _process_daily_pair_safely(
 ) -> dict[str, Any]:
     """执行一个商品对并转换为批处理可识别的结果。
 
-    功能说明：将来源记录缺失、数仓并发上限和普通异常转换为独立状态，保证单项问题
+    功能说明：将商品对无数据、数仓并发上限和普通异常转换为独立状态，保证单项问题
     不会中断后续商品对。
     参数 engine：StarRocks SQLAlchemy 引擎。
     参数 mapping_client：飞书只读客户端。
@@ -272,25 +293,23 @@ def _process_daily_pair_safely(
             product_images=product_images,
             progress_callback=progress_callback,
         )
-    except WarehouseDataIncompleteError as error:
+    except WarehousePairNoDataError as error:
         LOGGER.info(
-            "商品对来源记录不完整，保留报告缺口：date=%s，self_spu=%s，"
-            "competitor_spu=%s，missing=%s，耗时=%.3fs",
+            "商品对当天没有数仓记录，跳过报告：date=%s，self_spu=%s，"
+            "competitor_spu=%s，耗时=%.3fs",
             report_date,
             product_pair.self_spu,
             product_pair.competitor_spu,
-            error.missing_roles,
             perf_counter() - pair_started_at,
         )
         result = {
             "self_spu": product_pair.self_spu,
             "competitor_spu": product_pair.competitor_spu,
-            "status": "data_incomplete",
+            "status": "no_data",
             "quality_status": None,
             "dataset_id": None,
             "report_id": None,
             "analysis_id": None,
-            "missing_roles": error.missing_roles,
             "message": str(error),
         }
     except Exception as error:
@@ -502,6 +521,37 @@ def _existing_report_result(
     }
 
 
+def _date_data_status(
+    report_date: str,
+    results: list[dict[str, Any]],
+    total_pairs: int,
+    covers_all_pairs: bool = True,
+) -> dict[str, Any]:
+    """汇总一个业务日期的商品对数据状态。
+
+    功能说明：只有覆盖全部配置商品对且均被数仓确认无记录时才标记整日数据缺失；
+    手动指定范围全空只标记选定范围无数据，单个商品对或任意模块缺失不构成整日异常。
+    参数 report_date：当前业务日期。
+    参数 results：当前日期全部商品对的处理摘要。
+    参数 total_pairs：当前日期配置的商品对总数。
+    参数 covers_all_pairs：当前结果是否覆盖飞书配置的全部商品对。
+    返回值：包含日期、数据状态、无数据商品对数量和总商品对数量的摘要。
+    """
+
+    no_data_pairs = sum(item["status"] == "no_data" for item in results)
+    all_pairs_no_data = bool(results) and len(results) == total_pairs and no_data_pairs == total_pairs
+    if all_pairs_no_data:
+        status = "data_missing" if covers_all_pairs else "selection_no_data"
+    else:
+        status = "available"
+    return {
+        "date": report_date,
+        "status": status,
+        "no_data_pairs": no_data_pairs,
+        "total_pairs": total_pairs,
+    }
+
+
 def run_warehouse_daily_analysis(args: Any) -> None:
     """执行正式数仓日报分析和最近七天缺口修复。
 
@@ -562,13 +612,20 @@ def run_warehouse_daily_analysis(args: Any) -> None:
                 total_items = len(selected_dates) * len(product_pairs)
                 completed_items = 0
                 results = []
+                date_data_statuses = []
                 status_writer.progress(
                     "checking_reports",
                     completed_items=completed_items,
                     total_items=total_items,
                 )
                 skip_ready_reports = bool(getattr(args, "yesterday", False))
+                covers_all_pairs = not getattr(args, "self_spu", None) and not getattr(
+                    args,
+                    "competitor_spu",
+                    None,
+                )
                 for report_date in selected_dates:
+                    date_result_start = len(results)
                     pending_pairs = []
                     status_writer.progress(
                         "checking_reports",
@@ -645,12 +702,33 @@ def run_warehouse_daily_analysis(args: Any) -> None:
                                 progress_callback=record_pair_progress,
                             )
                         )
+                    current_date_results = results[date_result_start:]
+                    date_data_status = _date_data_status(
+                        report_date,
+                        current_date_results,
+                        len(product_pairs),
+                        covers_all_pairs=covers_all_pairs,
+                    )
+                    date_data_statuses.append(date_data_status)
+                    if date_data_status["status"] == "data_missing":
+                        LOGGER.warning(
+                            "业务日期所有商品对均没有数仓记录：date=%s，pairs=%s",
+                            report_date,
+                            len(product_pairs),
+                        )
             finally:
                 engine.dispose()
 
+            data_missing_dates = [
+                item["date"]
+                for item in date_data_statuses
+                if item["status"] == "data_missing"
+            ]
             summary = {
                 "date": selected_date,
                 "dates": selected_dates,
+                "date_data_statuses": date_data_statuses,
+                "data_missing_dates": data_missing_dates,
                 "database_path": str(Path(settings.database_path)),
                 "product_images_path": str(settings.product_images_path),
                 "product_images_sync": product_images_sync,
@@ -659,7 +737,7 @@ def run_warehouse_daily_analysis(args: Any) -> None:
                     for status in (
                         "ready",
                         "existing",
-                        "data_incomplete",
+                        "no_data",
                         "ai_failed",
                         "invalid",
                         "failed",
@@ -685,6 +763,8 @@ def run_warehouse_daily_analysis(args: Any) -> None:
                     concurrency_count,
                 )
                 raise SystemExit(CONCURRENCY_EXHAUSTED_EXIT_CODE)
+            if selected_date in data_missing_dates:
+                raise DailyWarehouseDataMissingError(selected_date)
         except BaseException as error:
             status_writer.fail(error)
             raise

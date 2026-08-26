@@ -120,6 +120,16 @@ class SourceNormalizationTest(unittest.TestCase):
         self.assertEqual(result["records"][0]["self"]["gmv"]["status"], "masked")
         self.assertEqual(result["quality"]["status"], "partial")
 
+    def test_empty_core_metrics_keep_fixed_masked_record(self) -> None:
+        """核心指标整块没有记录时仍应输出可继续分析的固定空结构。"""
+
+        result = normalize_core_metrics([])
+
+        self.assertEqual(len(result["records"]), 1)
+        self.assertEqual(result["records"][0]["self"]["gmv"]["status"], "masked")
+        self.assertEqual(result["records"][0]["competitor"]["visitors"]["status"], "masked")
+        self.assertEqual(result["quality"]["status"], "unavailable")
+
 
 class SelfProductNormalizationTest(unittest.TestCase):
     """验证本品 SKU 固定结构、SPU 汇总和完整日数据组装。"""
@@ -267,6 +277,28 @@ class SelfProductNormalizationTest(unittest.TestCase):
         )
         self.assertEqual(result["self_product"]["spu_daily_metrics"]["gmv"], 1600)
         self.assertEqual(len(result["sources"]), 5)
+        self.assertEqual(result["quality"]["status"], "partial")
+
+    def test_available_source_with_missing_self_product_is_partial(self) -> None:
+        """来源表存在任意事实时，本品 SKU 无记录只应降低质量状态。"""
+
+        result = normalize_daily_dataset(
+            {
+                "core_metrics": [],
+                "traffic_sources": [
+                    source_row(1, {"一级渠道": "站内场域", "访客数": "10 ~ 50"}, "competitor")
+                ],
+                "traffic_keywords": [],
+                "customer_profiles": [],
+                "promotion": [],
+            },
+            PAIR,
+            "2026-08-11",
+            [],
+            [],
+        )
+
+        self.assertEqual(result["self_product"]["quality"]["status"], "unavailable")
         self.assertEqual(result["quality"]["status"], "partial")
 
 

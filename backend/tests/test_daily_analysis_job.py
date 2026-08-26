@@ -12,6 +12,9 @@ from unittest.mock import Mock, patch
 from app.database import Database
 from app.jobs.daily_analysis import (
     ALREADY_RUNNING_EXIT_CODE,
+    DAILY_DATA_MISSING_EXIT_CODE,
+    DailyWarehouseDataMissingError,
+    _date_data_status,
     _selected_report_dates,
     process_daily_pair,
     process_daily_pairs,
@@ -21,7 +24,7 @@ from app.job_lock import acquire_job_lock
 from app.repositories.dataset_repository import DatasetRepository
 from app.repositories.report_repository import ReportRepository
 from app.repositories.task_repository import TaskRepository
-from jd_competitor_analysis.warehouse_daily import WarehouseDataIncompleteError
+from jd_competitor_analysis.warehouse_daily import WarehousePairNoDataError
 from jd_competitor_analysis.warehouse_sources import ProductPair
 from report_fixture import build_report_fixture
 
@@ -213,14 +216,13 @@ class DailyAnalysisJobTest(unittest.TestCase):
         analyze_dataset.assert_not_called()
 
     @patch("app.jobs.daily_analysis.process_daily_pair")
-    def test_incomplete_pair_keeps_gap_without_stopping_batch(self, process_pair: Mock) -> None:
-        """来源记录不完整的商品对应保留缺口并继续下一组。"""
+    def test_pair_without_data_is_skipped_without_stopping_batch(self, process_pair: Mock) -> None:
+        """完全没有数仓记录的商品对应跳过并继续下一组。"""
 
         process_pair.side_effect = [
-            WarehouseDataIncompleteError(
+            WarehousePairNoDataError(
                 "2026-08-18",
                 self.pair,
-                {"promotion": ["competitor"]},
             ),
             {
                 "self_spu": "10002",
@@ -243,10 +245,39 @@ class DailyAnalysisJobTest(unittest.TestCase):
 
         self.assertEqual(
             [item["status"] for item in results],
-            ["data_incomplete", "ready"],
+            ["no_data", "ready"],
         )
-        self.assertEqual(results[0]["missing_roles"], {"promotion": ["competitor"]})
         self.assertEqual(process_pair.call_count, 2)
+
+    def test_date_is_missing_only_when_every_pair_has_no_data(self) -> None:
+        """单个商品对无数据正常，全部商品对无数据才是整日异常。"""
+
+        mixed = _date_data_status(
+            "2026-08-18",
+            [{"status": "no_data"}, {"status": "ready"}],
+            2,
+        )
+        missing = _date_data_status(
+            "2026-08-18",
+            [{"status": "no_data"}, {"status": "no_data"}],
+            2,
+        )
+        selected_missing = _date_data_status(
+            "2026-08-18",
+            [{"status": "no_data"}],
+            1,
+            covers_all_pairs=False,
+        )
+
+        self.assertEqual(mixed["status"], "available")
+        self.assertEqual(mixed["no_data_pairs"], 1)
+        self.assertEqual(missing["status"], "data_missing")
+        self.assertEqual(missing["no_data_pairs"], 2)
+        self.assertEqual(selected_missing["status"], "selection_no_data")
+        self.assertEqual(
+            DailyWarehouseDataMissingError("2026-08-18").code,
+            DAILY_DATA_MISSING_EXIT_CODE,
+        )
 
     @patch("app.jobs.daily_analysis.random.uniform", return_value=0)
     @patch("app.jobs.daily_analysis.time.sleep")

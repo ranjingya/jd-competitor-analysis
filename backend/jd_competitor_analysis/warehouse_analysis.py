@@ -68,12 +68,10 @@ def _first_product_name(dataset: dict[str, Any]) -> str | None:
 
 
 def _adapt_core(dataset: dict[str, Any]) -> dict[str, Any]:
-    """把固定核心指标对象转换为确定性公式输入。"""
+    """把固定核心指标对象转换为确定性公式输入，整块缺失时保留空字段。"""
 
     records = dataset["sources"]["core_metrics"]["records"]
-    if not records:
-        raise ValueError("标准化日数据缺少核心指标记录")
-    record = records[0]
+    record = records[0] if records else {"self": {}, "competitor": {}}
     result: dict[str, Any] = {}
     for metric_id, label in CORE_METRIC_FIELDS:
         result[f"本品{label}"] = _metric_raw(record.get("self", {}).get(metric_id))

@@ -268,8 +268,10 @@ def normalize_core_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
                 CORE_METRICS,
             ),
         }
-    ] if rows else []
+    ]
     issues = _json_field_issues(rows)
+    if not rows:
+        issues.append({"code": "no_records", "message": "当天没有核心指标记录"})
     for role, role_rows in grouped.items():
         if len(role_rows) > 1:
             issues.append(
@@ -554,10 +556,7 @@ def normalize_competitor_sources(
         for source_id in SOURCE_TABLES
     }
     source_statuses = [source["quality"]["status"] for source in sources.values()]
-    core_status = sources["core_metrics"]["quality"]["status"]
-    if core_status == "unavailable":
-        overall_status = "invalid"
-    elif all(status == "ready" for status in source_statuses):
+    if all(status == "ready" for status in source_statuses):
         overall_status = "ready"
     else:
         overall_status = "partial"
@@ -799,9 +798,7 @@ def normalize_daily_dataset(
     competitor_data = normalize_competitor_sources(raw_sources, product_pair, report_date)
     self_product = normalize_self_product(product_pair, report_date, mappings, sku_rows)
     statuses = [competitor_data["quality"]["status"], self_product["quality"]["status"]]
-    if "invalid" in statuses or self_product["quality"]["status"] == "unavailable":
-        overall_status = "invalid"
-    elif all(status == "ready" for status in statuses):
+    if all(status == "ready" for status in statuses):
         overall_status = "ready"
     else:
         overall_status = "partial"

@@ -15,7 +15,6 @@ from .lark_mapping import LarkBaseMappingClient, SkuMapping, load_lark_base_conf
 from .warehouse import create_warehouse_engine, load_warehouse_config
 from .warehouse_normalization import normalize_daily_dataset
 from .warehouse_sources import (
-    COMPETITOR_TABLES,
     ProductPair,
     read_competitor_sources,
     read_self_sku_daily,
@@ -23,55 +22,37 @@ from .warehouse_sources import (
 
 
 LOGGER = logging.getLogger(__name__)
-REQUIRED_PRODUCT_ROLES = {"self", "competitor"}
 
 
 @dataclass(frozen=True)
-class WarehouseDataIncompleteError(LookupError):
-    """表示某个商品对在至少一张来源表中缺少本品或竞品记录。"""
+class WarehousePairNoDataError(LookupError):
+    """表示某个商品对在五张来源表中均没有当天记录。"""
 
     report_date: str
     product_pair: ProductPair
-    missing_roles: dict[str, list[str]]
 
     def __str__(self) -> str:
-        """生成不包含业务字段内容的缺失摘要。"""
+        """生成不包含业务字段内容的无数据摘要。"""
 
-        details = "，".join(
-            f"{source_id}={'+'.join(roles)}"
-            for source_id, roles in self.missing_roles.items()
-        )
         return (
-            f"五张来源表记录不完整：date={self.report_date}，"
+            f"商品对当天没有数仓记录：date={self.report_date}，"
             f"self_spu={self.product_pair.self_spu}，"
-            f"competitor_spu={self.product_pair.competitor_spu}，missing={details}"
+            f"competitor_spu={self.product_pair.competitor_spu}"
         )
 
 
-def find_missing_source_roles(
+def count_competitor_source_rows(
     raw_sources: dict[str, list[dict[str, Any]]],
-) -> dict[str, list[str]]:
-    """检查五张来源表是否同时存在本品和竞品记录。
+) -> int:
+    """统计一个商品对在五张来源表中的当天记录总数。
 
-    功能说明：只判断表级商品记录是否存在，不检查记录内部字段、维度和值；字段为
-    `null`、`masked` 或 `0` 均不影响完整性。
+    功能说明：数仓记录本身就是业务事实，不要求每张表或两侧角色同时存在；该统计
+    只用于识别五张来源表全部为空的商品对。
     参数 raw_sources：按来源 ID 分组的数仓原始记录。
-    返回值：缺失来源及对应商品角色；全部完整时返回空字典。
+    返回值：所有来源记录数量之和。
     """
 
-    missing: dict[str, list[str]] = {}
-    for source in COMPETITOR_TABLES:
-        source_id = source.source_id
-        rows = raw_sources.get(source_id, [])
-        present_roles = {
-            str(row.get("product_role"))
-            for row in rows
-            if row.get("product_role") in REQUIRED_PRODUCT_ROLES
-        }
-        missing_roles = sorted(REQUIRED_PRODUCT_ROLES - present_roles)
-        if missing_roles:
-            missing[source_id] = missing_roles
-    return missing
+    return sum(len(rows) for rows in raw_sources.values())
 
 
 def build_daily_dataset(
@@ -83,7 +64,8 @@ def build_daily_dataset(
 ) -> dict[str, Any]:
     """从外部来源生成完整标准化日数据。
 
-    功能说明：先读取五张竞品表并校验每张表都包含本品和竞品记录，再读取飞书 SKU 映射和本品 SKU 日数据，最后调用纯转换函数组装稳定事实对象。
+    功能说明：先读取五张竞品表；只在五张表全部没有记录时跳过当前商品对，其他情况
+    均按数仓实际内容继续读取飞书 SKU 映射和本品 SKU 日数据，并组装稳定事实对象。
     参数 engine：已配置的 StarRocks SQLAlchemy 引擎。
     参数 product_pair：当前本品与竞品 SPU 商品对。
     参数 report_date：业务日期，格式为 `YYYY-MM-DD`。
@@ -100,9 +82,16 @@ def build_daily_dataset(
         product_pair.competitor_spu,
     )
     raw_sources = read_competitor_sources(engine, product_pair, report_date)
-    missing_roles = find_missing_source_roles(raw_sources)
-    if missing_roles:
-        raise WarehouseDataIncompleteError(report_date, product_pair, missing_roles)
+    source_row_count = count_competitor_source_rows(raw_sources)
+    if source_row_count == 0:
+        raise WarehousePairNoDataError(report_date, product_pair)
+    LOGGER.info(
+        "商品对数仓来源可用：date=%s，self_spu=%s，competitor_spu=%s，rows=%s",
+        report_date,
+        product_pair.self_spu,
+        product_pair.competitor_spu,
+        source_row_count,
+    )
     if mappings_override is not None:
         mappings = list(mappings_override)
         LOGGER.warning("使用显式 SKU 映射覆盖飞书读取：sku_count=%s", len(mappings))
