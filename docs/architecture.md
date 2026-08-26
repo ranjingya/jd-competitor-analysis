@@ -61,6 +61,7 @@ GET  /api/reports/{granularity}/{start_date}/{end_date}
 - `data/data.db`：按模块保存的标准化日数据、AI 执行状态和最终看板报告。
 - `data/daily-analysis-status.json`：当前或最近一次日报批次的原子状态快照。
 - `data/product-images.json`：按商品 SPU 维护的 HTTPS 主图地址，由 Backend CLI 同步到报告主图字段。
+- `data/logs/deepseek-usage-YYYY-MM.jsonl`：DeepSeek 单次成功响应的 Token 用量、基础价格快照和估算费用。
 - StarRocks：业务事实来源，不保存应用的 AI 执行状态。
 
 服务器通过 Docker volume 将宿主机 `data/` 挂载到 Backend 的 `/app/data`。数据库和商品主图配置都由宿主机持久化，Web 容器不直接挂载或读取该目录，只通过 Backend API 获取报告。
@@ -73,7 +74,7 @@ GET  /api/reports/{granularity}/{start_date}/{end_date}
 0 12 * * * /home/yatui/jd-competitor-analysis/scripts/run-daily-analysis.sh
 ```
 
-宿主机 `.env` 使用 `HEALTHCHECKS_PING_URL` 保存检查地址。脚本通过 Backend 容器执行 `warehouse-daily-run --yesterday`；每周一继续执行 `weekly-report-run --previous-week`，每月 1 日继续执行 `monthly-report-run --previous-month`。日志写入 `data/logs/`，宿主机脚本、CLI 和 Uvicorn 均使用 `Asia/Shanghai` 时间。普通运行异常等待 30 秒后整体重试一次；数仓并发上限由 CLI 按 30、60、120 秒定向重试。
+宿主机 `.env` 使用 `HEALTHCHECKS_PING_URL` 保存检查地址。脚本通过 Backend 容器执行 `warehouse-daily-run --yesterday`；每周一继续执行 `weekly-report-run --previous-week`，每月 1 日继续执行 `monthly-report-run --previous-month`。日志写入 `data/logs/`，宿主机脚本、CLI 和 Uvicorn 均使用 `Asia/Shanghai` 时间。DeepSeek 用量日志使用官方基础价格配置计算估算费用，价格倍率固定为 1。普通运行异常等待 30 秒后整体重试一次；数仓并发上限由 CLI 按 30、60、120 秒定向重试。
 
 日报、周报和月报 CLI 共用 `/app/data/warehouse-daily-run.lock` 进程锁。同一分析任务仍在运行时，后续触发直接退出，避免重复读取数仓和覆盖报告。日报定时模式检查最近七天，已有完整报告直接跳过，仅处理报告缺口。
 

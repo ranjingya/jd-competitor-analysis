@@ -75,7 +75,11 @@ class AIAnalyzer(Protocol):
     analysis_version: str
     prompt_hash: str
 
-    def analyze(self, payload: dict[str, Any]) -> dict[str, Any]:
+    def analyze(
+        self,
+        payload: dict[str, Any],
+        context: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """根据确定性事实生成 AI 字段。"""
 
 
@@ -204,7 +208,18 @@ def process_daily_pair(
     try:
         if progress_callback is not None:
             progress_callback("deepseek_analysis", product_pair)
-        ai_result = ai_analyzer.analyze(task_payload)
+        ai_result = ai_analyzer.analyze(
+            task_payload,
+            {
+                "analysis_id": analysis_id,
+                "report_id": report_id,
+                "granularity": "day",
+                "start_date": selected_date,
+                "end_date": selected_date,
+                "self_spu": product_pair.self_spu,
+                "competitor_spu": product_pair.competitor_spu,
+            },
+        )
         if progress_callback is not None:
             progress_callback("report_finalize", product_pair)
         task_repository.complete(analysis_id, ai_result)
@@ -597,6 +612,7 @@ def run_warehouse_daily_analysis(args: Any) -> None:
                     model=settings.deepseek_model,
                     timeout_seconds=settings.deepseek_timeout_seconds,
                     max_attempts=settings.deepseek_max_attempts,
+                    usage_log_dir=settings.deepseek_usage_log_dir,
                 )
             )
             database = Database(settings.database_path)

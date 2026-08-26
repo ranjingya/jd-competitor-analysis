@@ -147,7 +147,18 @@ def _run_period_pair(
         }
     report_repository.activate_pending(report_id, None, report)
     try:
-        ai_result = ai_analyzer.analyze(payload)
+        ai_result = ai_analyzer.analyze(
+            payload,
+            {
+                "analysis_id": start_result.analysis_id,
+                "report_id": report_id,
+                "granularity": granularity,
+                "start_date": start_date,
+                "end_date": end_date,
+                "self_spu": self_spu,
+                "competitor_spu": competitor_spu,
+            },
+        )
         task_repository.complete(start_result.analysis_id, ai_result)
     except Exception as error:
         message, _ = _processing_error_message(error)
@@ -200,6 +211,7 @@ def run_period_analysis(args: Any) -> None:
                 model=settings.deepseek_model,
                 timeout_seconds=settings.deepseek_timeout_seconds,
                 max_attempts=settings.deepseek_max_attempts,
+                usage_log_dir=settings.deepseek_usage_log_dir,
             )
         )
         daily_rows = report_repository.list_ready_day_reports(

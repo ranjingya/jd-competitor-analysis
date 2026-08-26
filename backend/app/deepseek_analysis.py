@@ -13,12 +13,14 @@ from pathlib import Path
 from time import perf_counter
 from typing import Any
 
+from .deepseek_usage import append_usage_log
 from .report_merge import validate_ai_result
 from .schemas import AIAnalysisResult
 
 
 LOGGER = logging.getLogger(__name__)
 DEFAULT_PROMPT_PATH = Path(__file__).resolve().parents[1] / "assets" / "ai-analysis-prompt.md"
+DEFAULT_PRICING_PATH = Path(__file__).resolve().parents[1] / "assets" / "deepseek-pricing.json"
 ANALYSIS_VERSION = "1.0"
 
 
@@ -36,6 +38,8 @@ class DeepSeekAnalysisConfig:
     timeout_seconds: int
     max_attempts: int
     prompt_path: Path = DEFAULT_PROMPT_PATH
+    pricing_path: Path = DEFAULT_PRICING_PATH
+    usage_log_dir: Path | None = None
 
 
 class DeepSeekAnalyzer:
@@ -68,11 +72,16 @@ class DeepSeekAnalyzer:
             config.prompt_path,
         )
 
-    def analyze(self, payload: dict[str, Any]) -> dict[str, Any]:
+    def analyze(
+        self,
+        payload: dict[str, Any],
+        context: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """分析后端准备好的确定性事实。
 
         功能说明：把结构化事实发送给 DeepSeek，要求返回 JSON，并完成基础 Schema 与业务字段校验。
         参数 payload：包含日期、商品对、本品 SPU 汇总值和五张来源表处理结果的 AI 输入。
+        参数 context：可选任务、报告和业务周期标识，只写入独立用量日志。
         返回值：仅包含优缺点双摘要、findings 和 recommendations 的结构化结果。
         """
 
@@ -90,7 +99,20 @@ class DeepSeekAnalyzer:
             "response_format": {"type": "json_object"},
         }
         LOGGER.info("开始调用 DeepSeek：model=%s", self.model)
-        response = self._request(request_body)
+        response, successful_attempt = self._request(request_body)
+        if self.config.usage_log_dir is not None:
+            try:
+                append_usage_log(
+                    self.config.usage_log_dir,
+                    self.config.pricing_path,
+                    response,
+                    self.model,
+                    perf_counter() - started_at,
+                    successful_attempt,
+                    context,
+                )
+            except Exception as error:
+                LOGGER.warning("DeepSeek 用量日志写入失败，报告分析继续：%s", error)
         content = self._extract_content(response)
         try:
             parsed = json.loads(content)
@@ -107,7 +129,7 @@ class DeepSeekAnalyzer:
         )
         return result
 
-    def _request(self, body: dict[str, Any]) -> dict[str, Any]:
+    def _request(self, body: dict[str, Any]) -> tuple[dict[str, Any], int]:
         """调用 Chat Completions 接口并处理有限重试。"""
 
         url = f"{self.config.base_url.rstrip('/')}/chat/completions"
@@ -124,7 +146,7 @@ class DeepSeekAnalyzer:
             )
             try:
                 with urllib.request.urlopen(request, timeout=self.config.timeout_seconds) as response:
-                    return json.loads(response.read().decode("utf-8"))
+                    return json.loads(response.read().decode("utf-8")), attempt
             except urllib.error.HTTPError as error:
                 message = self._http_error_message(error)
                 retryable = error.code == 429 or error.code >= 500

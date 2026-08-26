@@ -1,0 +1,14 @@
+{
+  "currency": "CNY",
+  "unit": "million_tokens",
+  "multiplier": 1,
+  "source": "https://api-docs.deepseek.com/zh-cn/quick_start/pricing",
+  "source_checked_at": "2026-08-26",
+  "models": {
+    "deepseek-v4-pro": {
+      "cache_hit_input": 0.025,
+      "cache_miss_input": 3,
+      "output": 6
+    }
+  }
+}
