@@ -40,6 +40,7 @@ class Settings:
     deepseek_model: str
     deepseek_timeout_seconds: int
     deepseek_max_attempts: int
+    deepseek_pricing_path: Path
     deepseek_usage_log_dir: Path
 
 
@@ -69,5 +70,6 @@ def get_settings() -> Settings:
         deepseek_model=os.getenv("DEEPSEEK_MODEL", "deepseek-v4-pro").strip(),
         deepseek_timeout_seconds=_positive_integer("DEEPSEEK_TIMEOUT_SECONDS", 300),
         deepseek_max_attempts=_positive_integer("DEEPSEEK_MAX_ATTEMPTS", 2),
+        deepseek_pricing_path=database_path.parent / "deepseek-pricing.json",
         deepseek_usage_log_dir=database_path.parent / "logs",
     )

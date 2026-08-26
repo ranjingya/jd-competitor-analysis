@@ -211,6 +211,7 @@ def run_period_analysis(args: Any) -> None:
                 model=settings.deepseek_model,
                 timeout_seconds=settings.deepseek_timeout_seconds,
                 max_attempts=settings.deepseek_max_attempts,
+                pricing_path=settings.deepseek_pricing_path,
                 usage_log_dir=settings.deepseek_usage_log_dir,
             )
         )

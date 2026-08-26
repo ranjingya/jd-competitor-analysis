@@ -15,6 +15,9 @@ from app.deepseek_analysis import (
 )
 
 
+PRICING_PATH = Path(__file__).resolve().parents[2] / "data" / "deepseek-pricing.json"
+
+
 class FakeResponse:
     """模拟 urllib 返回的上下文响应。"""
 
@@ -50,8 +53,9 @@ class DeepSeekAnalyzerTest(unittest.TestCase):
                 model="deepseek-v4-pro",
                 timeout_seconds=30,
                 max_attempts=1,
-                prompt_path=prompt_path,
+                pricing_path=PRICING_PATH,
                 usage_log_dir=usage_log_dir,
+                prompt_path=prompt_path,
             )
         )
 

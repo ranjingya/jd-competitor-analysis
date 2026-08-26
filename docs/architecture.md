@@ -60,11 +60,12 @@ GET  /api/reports/{granularity}/{start_date}/{end_date}
 
 - `data/data.db`：按模块保存的标准化日数据、AI 执行状态和最终看板报告。
 - `data/daily-analysis-status.json`：当前或最近一次日报批次的原子状态快照。
+- `data/deepseek-pricing.json`：DeepSeek 模型的百万 Token 基础单价和费用倍率。
 - `data/product-images.json`：按商品 SPU 维护的 HTTPS 主图地址，由 Backend CLI 同步到报告主图字段。
 - `data/logs/deepseek-usage-YYYY-MM.jsonl`：DeepSeek 单次成功响应的 Token 用量、基础价格快照和估算费用。
 - StarRocks：业务事实来源，不保存应用的 AI 执行状态。
 
-服务器通过 Docker volume 将宿主机 `data/` 挂载到 Backend 的 `/app/data`。数据库和商品主图配置都由宿主机持久化，Web 容器不直接挂载或读取该目录，只通过 Backend API 获取报告。
+服务器通过 Docker volume 将宿主机 `data/` 挂载到 Backend 的 `/app/data`。数据库、价格配置和商品主图配置都由宿主机持久化，Web 容器不直接挂载或读取该目录，只通过 Backend API 获取报告。
 
 ## 定时执行
 

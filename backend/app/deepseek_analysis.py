@@ -20,7 +20,6 @@ from .schemas import AIAnalysisResult
 
 LOGGER = logging.getLogger(__name__)
 DEFAULT_PROMPT_PATH = Path(__file__).resolve().parents[1] / "assets" / "ai-analysis-prompt.md"
-DEFAULT_PRICING_PATH = Path(__file__).resolve().parents[1] / "assets" / "deepseek-pricing.json"
 ANALYSIS_VERSION = "1.0"
 
 
@@ -37,9 +36,9 @@ class DeepSeekAnalysisConfig:
     model: str
     timeout_seconds: int
     max_attempts: int
+    pricing_path: Path
+    usage_log_dir: Path | None
     prompt_path: Path = DEFAULT_PROMPT_PATH
-    pricing_path: Path = DEFAULT_PRICING_PATH
-    usage_log_dir: Path | None = None
 
 
 class DeepSeekAnalyzer:
@@ -49,7 +48,7 @@ class DeepSeekAnalyzer:
         """初始化分析器。
 
         功能说明：读取分析规则并保存 DeepSeek 连接参数，不在初始化阶段发起网络请求。
-        参数 config：API 密钥、模型、超时、重试次数和提示词路径。
+        参数 config：API 密钥、模型、超时、重试次数、提示词、价格配置和用量日志路径。
         返回值：无。
         """
 

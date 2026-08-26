@@ -81,7 +81,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           passphrase: ${{ secrets.SSH_PRIVATE_KEY_PASSPHRASE }}
-          source: "docker-compose.yaml,scripts/run-daily-analysis.sh"
+          source: "docker-compose.yaml,scripts/run-daily-analysis.sh,data/deepseek-pricing.json"
           target: ${{ vars.DEPLOY_DIR }}
 
       - name: Deploy via SSH
