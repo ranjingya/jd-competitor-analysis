@@ -54,6 +54,10 @@ read_env_value() {
 
 PING_URL="$(read_env_value HEALTHCHECKS_PING_URL)"
 PING_URL="${PING_URL%/}"
+LARK_APP_ID="$(read_env_value LARK_APP_ID)"
+LARK_APP_SECRET="$(read_env_value LARK_APP_SECRET)"
+LARK_ALERT_OPEN_ID="$(read_env_value LARK_ALERT_OPEN_ID)"
+LARK_ALERT_READY=1
 
 if [[ -n "$PING_URL" && ! "$PING_URL" =~ ^https?:// ]]; then
   log_message WARNING "HEALTHCHECKS_PING_URL 格式无效，本次任务继续执行但不上报监控状态"
@@ -63,6 +67,20 @@ elif [[ -z "$PING_URL" ]]; then
 elif ! command -v curl >/dev/null 2>&1; then
   log_message WARNING "宿主机未安装 curl，本次任务继续执行但不上报监控状态"
   PING_URL=""
+fi
+
+if [[ -z "$LARK_APP_ID" || -z "$LARK_APP_SECRET" || -z "$LARK_ALERT_OPEN_ID" ]]; then
+  log_message WARNING "飞书告警配置不完整，本次任务失败时不发送飞书消息"
+  LARK_ALERT_READY=0
+elif [[ "$LARK_ALERT_OPEN_ID" != ou_* ]]; then
+  log_message WARNING "LARK_ALERT_OPEN_ID 格式无效，本次任务失败时不发送飞书消息"
+  LARK_ALERT_READY=0
+elif ! command -v curl >/dev/null 2>&1; then
+  log_message WARNING "宿主机未安装 curl，本次任务失败时不发送飞书消息"
+  LARK_ALERT_READY=0
+elif ! command -v jq >/dev/null 2>&1; then
+  log_message WARNING "宿主机未安装 jq，本次任务失败时不发送飞书消息"
+  LARK_ALERT_READY=0
 fi
 
 ping_healthchecks() {
@@ -89,6 +107,142 @@ ping_failure_with_log() {
     --data-binary @- "$PING_URL/fail" >/dev/null 2>&1; then
     log_message WARNING "Healthchecks 失败状态上报失败"
   fi
+}
+
+failure_reason() {
+  # 将程序退出码转换为飞书告警使用的简洁原因。
+  local exit_code="$1"
+
+  case "$exit_code" in
+    "$CONCURRENCY_EXHAUSTED_EXIT_CODE") printf '%s' "数仓并发重试耗尽" ;;
+    "$ALREADY_RUNNING_EXIT_CODE") printf '%s' "已有分析任务正在运行" ;;
+    "$DAILY_DATA_MISSING_EXIT_CODE") printf '%s' "主业务日期全部商品对均无数仓数据" ;;
+    "$AI_PARTIAL_FAILURE_EXIT_CODE") printf '%s' "部分报告 AI 分析失败" ;;
+    *) printf '%s' "定时分析任务异常" ;;
+  esac
+}
+
+send_lark_failure() {
+  # 使用飞书自建应用机器人向指定用户发送最终失败通知。
+  local exit_code="$1"
+  local reason=""
+  local log_excerpt=""
+  local occurred_at=""
+  local server_name=""
+  local card_json=""
+  local token_response=""
+  local tenant_access_token=""
+  local api_response=""
+  local api_code=""
+  local api_message=""
+
+  if [[ "$LARK_ALERT_READY" -ne 1 ]]; then
+    return 0
+  fi
+
+  reason="$(failure_reason "$exit_code")"
+  log_excerpt="$(tail -n 6 "$RUN_LOG" 2>/dev/null || true)"
+  if [[ ${#log_excerpt} -gt 1200 ]]; then
+    log_excerpt="${log_excerpt: -1200}"
+  fi
+  if [[ -z "$log_excerpt" ]]; then
+    log_excerpt="暂无日志"
+  fi
+  occurred_at="$(date '+%Y-%m-%d %H:%M:%S')"
+  server_name="$(hostname)"
+  card_json="$(
+    jq -cn \
+      --arg occurred_at "$occurred_at" \
+      --arg server_name "$server_name" \
+      --arg exit_code "$exit_code" \
+      --arg reason "$reason" \
+      --arg log_excerpt "$log_excerpt" \
+      '{
+        schema: "2.0",
+        config: {
+          update_multi: true,
+          width_mode: "default",
+          summary: {content: "京东竞品分析任务失败"}
+        },
+        header: {
+          title: {tag: "plain_text", content: "京东竞品分析任务失败"},
+          template: "red"
+        },
+        body: {
+          direction: "vertical",
+          padding: "12px 12px 16px 12px",
+          vertical_spacing: "8px",
+          elements: [
+            {
+              tag: "div",
+              fields: [
+                {is_short: false, text: {tag: "lark_md", content: ("**失败原因：** <font color='red'>" + $reason + "</font>")}},
+                {is_short: false, text: {tag: "lark_md", content: ("**时间：** " + $occurred_at)}},
+                {is_short: false, text: {tag: "lark_md", content: ("**服务器：** " + $server_name)}},
+                {is_short: false, text: {tag: "lark_md", content: ("**退出码：** " + $exit_code)}}
+              ]
+            },
+            {
+              tag: "div",
+              text: {
+                tag: "plain_text",
+                content: ("日志摘要：\n" + $log_excerpt),
+                text_size: "notation",
+                lines: 7
+              }
+            }
+          ]
+        }
+      }'
+  )"
+
+  if ! token_response="$(
+    jq -cn \
+      --arg app_id "$LARK_APP_ID" \
+      --arg app_secret "$LARK_APP_SECRET" \
+      '{app_id: $app_id, app_secret: $app_secret}' |
+      curl -fsS --max-time 10 \
+        -H 'Content-Type: application/json; charset=utf-8' \
+        --data-binary @- \
+        'https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal'
+  )"; then
+    log_message WARNING "飞书 tenant_access_token 获取失败"
+    return 0
+  fi
+
+  tenant_access_token="$(jq -r 'if .code == 0 then .tenant_access_token // empty else empty end' <<<"$token_response")"
+  if [[ -z "$tenant_access_token" ]]; then
+    api_code="$(jq -r '.code // "unknown"' <<<"$token_response")"
+    api_message="$(jq -r '.msg // "未知错误"' <<<"$token_response")"
+    log_message WARNING "飞书 tenant_access_token 获取失败：code=$api_code，message=${api_message:0:200}"
+    return 0
+  fi
+
+  if ! api_response="$(
+    jq -cn \
+      --arg receive_id "$LARK_ALERT_OPEN_ID" \
+      --argjson card "$card_json" \
+      '{receive_id: $receive_id, msg_type: "interactive", content: ($card | tojson)}' |
+      curl -fsS --max-time 10 \
+        -H "Authorization: Bearer $tenant_access_token" \
+        -H 'Content-Type: application/json; charset=utf-8' \
+        --data-binary @- \
+        'https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=open_id'
+  )"; then
+    unset tenant_access_token
+    log_message WARNING "飞书失败通知发送失败"
+    return 0
+  fi
+  unset tenant_access_token
+
+  api_code="$(jq -r '.code // "unknown"' <<<"$api_response")"
+  if [[ "$api_code" != "0" ]]; then
+    api_message="$(jq -r '.msg // "未知错误"' <<<"$api_response")"
+    log_message WARNING "飞书失败通知发送失败：code=$api_code，message=${api_message:0:200}"
+    return 0
+  fi
+
+  log_message INFO "飞书失败通知发送成功：recipient=$LARK_ALERT_OPEN_ID"
 }
 
 run_daily_analysis() {
@@ -145,6 +299,7 @@ ping_healthchecks "/start"
 cd "$PROJECT_DIR" || {
   log_message ERROR "无法进入项目目录：$PROJECT_DIR"
   ping_failure_with_log
+  send_lark_failure 1
   exit 1
 }
 
@@ -183,6 +338,7 @@ if [[ "$status" -eq 0 ]]; then
 else
   log_message ERROR "京东竞品日周月报告任务执行失败：exit_code=$status"
   ping_failure_with_log
+  send_lark_failure "$status"
 fi
 
 exit "$status"
