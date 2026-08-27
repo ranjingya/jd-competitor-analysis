@@ -538,6 +538,152 @@ def _existing_report_result(
     }
 
 
+def _repair_strategy(report_state: dict[str, Any] | None) -> str:
+    """判断最近七天日报的修复方式。
+
+    功能说明：完整报告直接跳过；基础数据完整且 AI 失败时只重试 AI；其他状态执行
+    数仓读取、确定性分析和 AI 分析的完整流程。
+    参数 report_state：报告仓库返回的日报状态摘要，不存在报告时为空。
+    返回值：`existing`、`ai_only` 或 `full`。
+    """
+
+    if report_state is None:
+        return "full"
+    if report_state.get("status") == "ready":
+        return "existing"
+    if (
+        report_state.get("status") == "ai_failed"
+        and report_state.get("quality_status") == "ready"
+        and report_state.get("dataset_id")
+    ):
+        return "ai_only"
+    return "full"
+
+
+def _retry_ai_failed_report(
+    report_date: str,
+    product_pair: ProductPair,
+    report_state: dict[str, Any],
+    report_repository: ReportRepository,
+    task_repository: TaskRepository,
+    ai_analyzer: AIAnalyzer,
+    progress_callback: PairProgressCallback | None = None,
+) -> dict[str, Any] | None:
+    """只重新执行基础数据完整日报的 AI 分析。
+
+    功能说明：从失败任务读取后端已经处理好的 AI 输入，保留现有数据集和确定性报告，
+    仅调用 DeepSeek 并合并 AI 字段；没有可复用输入时返回空值，由调用方执行完整流程。
+    参数 report_date：业务日期，格式为 YYYY-MM-DD。
+    参数 product_pair：当前本品与竞品 SPU。
+    参数 report_state：报告仓库返回的日报状态摘要。
+    参数 report_repository：看板报告仓库。
+    参数 task_repository：内部 AI 执行记录仓库。
+    参数 ai_analyzer：根据确定性事实生成 AI 字段的分析器。
+    参数 progress_callback：可选商品对阶段进度回调。
+    返回值：AI 重试结果；无法复用失败任务时返回空值。
+    """
+
+    report_id = str(report_state["report_id"])
+    dataset_id = str(report_state["dataset_id"])
+    task_payload = task_repository.get_failed_payload(report_id)
+    if task_payload is None:
+        LOGGER.warning(
+            "AI 失败日报缺少可复用输入，将执行完整流程：date=%s，self_spu=%s，competitor_spu=%s",
+            report_date,
+            product_pair.self_spu,
+            product_pair.competitor_spu,
+        )
+        return None
+
+    started_at = perf_counter()
+    start_result = start_ai_analysis(
+        task_repository,
+        report_id,
+        task_payload,
+        ai_analyzer.model,
+        ai_analyzer.analysis_version,
+        ai_analyzer.prompt_hash,
+    )
+    analysis_id = start_result.analysis_id
+    if not start_result.should_execute:
+        LOGGER.warning(
+            "AI 失败日报的执行记录已经完成，将按完整流程重新校正报告：report_id=%s",
+            report_id,
+        )
+        return None
+
+    if progress_callback is not None:
+        progress_callback("pair_started", product_pair)
+        progress_callback("ai_prepare", product_pair)
+    report_repository.mark_ai_pending(report_id)
+    try:
+        if progress_callback is not None:
+            progress_callback("deepseek_analysis", product_pair)
+        ai_result = ai_analyzer.analyze(
+            task_payload,
+            {
+                "analysis_id": analysis_id,
+                "report_id": report_id,
+                "granularity": "day",
+                "start_date": report_date,
+                "end_date": report_date,
+                "self_spu": product_pair.self_spu,
+                "competitor_spu": product_pair.competitor_spu,
+            },
+        )
+        if progress_callback is not None:
+            progress_callback("report_finalize", product_pair)
+        task_repository.complete(analysis_id, ai_result)
+    except Exception as error:
+        message, _ = _processing_error_message(error)
+        task_repository.fail(analysis_id, message)
+        LOGGER.error(
+            "日报 AI 补生成失败：date=%s，self_spu=%s，competitor_spu=%s，原因=%s，耗时=%.1fs",
+            report_date,
+            product_pair.self_spu,
+            product_pair.competitor_spu,
+            message,
+            perf_counter() - started_at,
+        )
+        result = {
+            "date": report_date,
+            "self_spu": product_pair.self_spu,
+            "competitor_spu": product_pair.competitor_spu,
+            "status": "ai_failed",
+            "quality_status": "ready",
+            "dataset_id": dataset_id,
+            "report_id": report_id,
+            "analysis_id": analysis_id,
+            "message": message,
+            "attempt": 1,
+            "ai_retry_only": True,
+        }
+    else:
+        LOGGER.info(
+            "日报 AI 补生成完成：date=%s，self_spu=%s，competitor_spu=%s，report_id=%s，耗时=%.1fs",
+            report_date,
+            product_pair.self_spu,
+            product_pair.competitor_spu,
+            report_id,
+            perf_counter() - started_at,
+        )
+        result = {
+            "date": report_date,
+            "self_spu": product_pair.self_spu,
+            "competitor_spu": product_pair.competitor_spu,
+            "status": "ready",
+            "quality_status": "ready",
+            "dataset_id": dataset_id,
+            "report_id": report_id,
+            "analysis_id": analysis_id,
+            "attempt": 1,
+            "ai_retry_only": True,
+        }
+    if progress_callback is not None:
+        progress_callback("pair_completed", product_pair)
+    return result
+
+
 def _date_data_status(
     report_date: str,
     results: list[dict[str, Any]],
@@ -573,7 +719,7 @@ def run_warehouse_daily_analysis(args: Any) -> None:
     """执行正式数仓日报分析和最近七天缺口修复。
 
     功能说明：持有进程锁后处理主业务日期；`--yesterday` 模式同时检查最近七天，
-    跳过已有完整日报，只对报告缺口重新读取数仓并生成报告。
+    跳过已有完整日报，基础数据完整的 AI 失败报告只重试 AI，其余缺口执行完整流程。
     参数 args：包含 env_file、date 或 yesterday、self_spu、competitor_spu 和 title 的命令行参数。
     返回值：无；普通失败抛出异常，数仓并发、整日无数据、AI 部分失败和进程锁冲突使用专用退出码。
     """
@@ -621,6 +767,7 @@ def run_warehouse_daily_analysis(args: Any) -> None:
             database.initialize()
             product_images = load_product_images(settings.product_images_path)
             report_repository = ReportRepository(database)
+            task_repository = TaskRepository(database)
             product_images_sync = report_repository.sync_product_images(product_images)
             engine = create_warehouse_engine(warehouse_config)
             mapping_client = LarkBaseMappingClient(lark_config)
@@ -664,6 +811,24 @@ def run_warehouse_daily_analysis(args: Any) -> None:
                         product_pair.competitor_spu,
                     )
                     for report_date in selected_dates:
+                        def record_pair_progress(
+                            stage: str,
+                            current_pair: ProductPair,
+                        ) -> None:
+                            """把商品对阶段转换为当前批次的持久化进度。"""
+
+                            nonlocal completed_items
+                            if stage == "pair_completed":
+                                completed_items += 1
+                            status_writer.progress(
+                                stage,
+                                current_date=report_date,
+                                self_spu=current_pair.self_spu,
+                                competitor_spu=current_pair.competitor_spu,
+                                completed_items=completed_items,
+                                total_items=total_items,
+                            )
+
                         status_writer.progress(
                             "checking_reports",
                             current_date=report_date,
@@ -672,8 +837,8 @@ def run_warehouse_daily_analysis(args: Any) -> None:
                             completed_items=completed_items,
                             total_items=total_items,
                         )
-                        existing = (
-                            report_repository.find_ready_day_report(
+                        report_state = (
+                            report_repository.find_day_report_for_repair(
                                 report_date,
                                 product_pair.self_spu,
                                 product_pair.competitor_spu,
@@ -681,11 +846,12 @@ def run_warehouse_daily_analysis(args: Any) -> None:
                             if skip_ready_reports
                             else None
                         )
-                        if existing is not None:
+                        repair_strategy = _repair_strategy(report_state)
+                        if repair_strategy == "existing":
                             item_result = _existing_report_result(
                                 report_date,
                                 product_pair,
-                                existing,
+                                report_state,
                             )
                             completed_items += 1
                             status_writer.progress(
@@ -698,42 +864,36 @@ def run_warehouse_daily_analysis(args: Any) -> None:
                             )
                         else:
                             date_started_at = perf_counter()
-
-                            def record_pair_progress(
-                                stage: str,
-                                current_pair: ProductPair,
-                            ) -> None:
-                                """把商品对阶段转换为当前批次的持久化进度。"""
-
-                                nonlocal completed_items
-                                if stage == "pair_completed":
-                                    completed_items += 1
-                                status_writer.progress(
-                                    stage,
-                                    current_date=report_date,
-                                    self_spu=current_pair.self_spu,
-                                    competitor_spu=current_pair.competitor_spu,
-                                    completed_items=completed_items,
-                                    total_items=total_items,
+                            item_result = None
+                            if repair_strategy == "ai_only":
+                                item_result = _retry_ai_failed_report(
+                                    report_date,
+                                    product_pair,
+                                    report_state,
+                                    report_repository,
+                                    task_repository,
+                                    ai_analyzer,
+                                    progress_callback=record_pair_progress,
                                 )
-
-                            item_result = process_daily_pairs(
-                                engine,
-                                mapping_client,
-                                [product_pair],
-                                report_date,
-                                database,
-                                ai_analyzer,
-                                title=getattr(args, "title", None),
-                                product_images=product_images,
-                                progress_callback=record_pair_progress,
-                            )[0]
+                            if item_result is None:
+                                item_result = process_daily_pairs(
+                                    engine,
+                                    mapping_client,
+                                    [product_pair],
+                                    report_date,
+                                    database,
+                                    ai_analyzer,
+                                    title=getattr(args, "title", None),
+                                    product_images=product_images,
+                                    progress_callback=record_pair_progress,
+                                )[0]
                             if item_result["status"] == "ready":
                                 LOGGER.info(
-                                    "[%s/%s][%s] 报告生成完成：quality=%s，report_id=%s，耗时=%.1fs",
+                                    "[%s/%s][%s] 报告%s完成：quality=%s，report_id=%s，耗时=%.1fs",
                                     pair_index,
                                     len(product_pairs),
                                     report_date,
+                                    " AI 补生成" if item_result.get("ai_retry_only") else "生成",
                                     item_result.get("quality_status"),
                                     item_result.get("report_id"),
                                     perf_counter() - date_started_at,

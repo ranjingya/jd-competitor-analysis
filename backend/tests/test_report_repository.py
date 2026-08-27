@@ -139,6 +139,12 @@ class ReportRepositoryTest(unittest.TestCase):
             self.repository.find_ready_day_report("2026-08-17", "10001", "99999")
         )
 
+        repair_state = self.repository.find_day_report_for_repair(
+            "2026-08-17", "10001", "20001"
+        )
+        self.assertEqual(repair_state["status"], "ready")
+        self.assertEqual(repair_state["quality_status"], "partial")
+
     def test_product_pairs_periods_and_trends_are_lightweight(self) -> None:
         """首次导航、周期选择和趋势查询应返回各自需要的轻量数据。"""
 

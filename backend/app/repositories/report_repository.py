@@ -511,6 +511,24 @@ class ReportRepository:
             self._update_report(connection, report_id, dataset_id, "pending_ai", content, now)
         LOGGER.debug("报告已进入 AI 待处理状态：report_id=%s，dataset_id=%s", report_id, dataset_id)
 
+    def mark_ai_pending(self, report_id: str) -> None:
+        """将已有基础报告标记为等待 AI 分析。
+
+        功能说明：仅更新报告状态和更新时间，保留已持久化的数据集关联、确定性指标和明细模块。
+        参数 report_id：需要重新执行 AI 分析的报告 ID。
+        返回值：无。
+        """
+
+        now = utc_now_text()
+        with self.database.connection() as connection:
+            updated = connection.execute(
+                "UPDATE reports SET status = 'pending_ai', updated_at = ? WHERE report_id = ?",
+                (now, report_id),
+            )
+            if updated.rowcount != 1:
+                raise FileNotFoundError(report_id)
+        LOGGER.debug("已有基础报告已进入 AI 待处理状态：report_id=%s", report_id)
+
     def get(self, report_id: str) -> dict[str, Any]:
         """按报告 ID 读取兼容前端的完整报告。
 
@@ -570,6 +588,35 @@ class ReportRepository:
                 FROM reports
                 WHERE granularity = 'day' AND start_date = ? AND end_date = ?
                   AND self_spu = ? AND competitor_spu = ? AND status = 'ready'
+                LIMIT 1
+                """,
+                (report_date, report_date, self_spu, competitor_spu),
+            ).fetchone()
+        return dict(row) if row is not None else None
+
+    def find_day_report_for_repair(
+        self,
+        report_date: str,
+        self_spu: str,
+        competitor_spu: str,
+    ) -> dict[str, Any] | None:
+        """读取最近七天修复流程需要的日报状态。
+
+        功能说明：按日期和商品对读取唯一日报的报告、数据集、报告状态和基础数据质量，
+        用于判断直接跳过、仅重试 AI 或重新执行完整分析。
+        参数 report_date：业务日期，格式为 YYYY-MM-DD。
+        参数 self_spu：本品 SPU ID。
+        参数 competitor_spu：竞品 SPU ID。
+        返回值：日报状态摘要；不存在时返回空值。
+        """
+
+        with self.database.connection() as connection:
+            row = connection.execute(
+                """
+                SELECT report_id, dataset_id, status, quality_status
+                FROM reports
+                WHERE granularity = 'day' AND start_date = ? AND end_date = ?
+                  AND self_spu = ? AND competitor_spu = ?
                 LIMIT 1
                 """,
                 (report_date, report_date, self_spu, competitor_spu),

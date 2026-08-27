@@ -260,6 +260,46 @@ class TaskRepository:
         finally:
             connection.close()
 
+    def get_failed_payload(self, report_id: str) -> dict[str, Any] | None:
+        """读取报告当前失败任务的 AI 输入。
+
+        功能说明：返回最近七天修复流程可直接复用的结构化 AI 输入；只读取未过期的
+        `failed` 任务，不读取已完成、执行中或历史过期版本。
+        参数 report_id：失败任务所属报告 ID。
+        返回值：可重新发送给模型的字典；没有可复用任务或内容无效时返回空值。
+        """
+
+        with self.database.connection() as connection:
+            row = connection.execute(
+                """
+                SELECT analysis_id, payload_json
+                FROM analysis_tasks
+                WHERE report_id = ? AND status = 'failed'
+                ORDER BY updated_at DESC, analysis_id DESC
+                LIMIT 1
+                """,
+                (report_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        try:
+            payload = json.loads(row["payload_json"])
+        except (TypeError, json.JSONDecodeError):
+            LOGGER.warning(
+                "失败任务的 AI 输入无法解析：report_id=%s，analysis_id=%s",
+                report_id,
+                row["analysis_id"],
+            )
+            return None
+        if not isinstance(payload, dict):
+            LOGGER.warning(
+                "失败任务的 AI 输入不是对象：report_id=%s，analysis_id=%s",
+                report_id,
+                row["analysis_id"],
+            )
+            return None
+        return payload
+
     def list_recent(self, status: str | None = None, limit: int = 20) -> list[dict[str, Any]]:
         """读取最近的内部 AI 执行摘要。
 

@@ -7,15 +7,18 @@ import unittest
 from datetime import date
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import Mock, patch
+from unittest.mock import ANY, Mock, patch
 
 from app.database import Database
+from app.jobs.analysis import start_ai_analysis
 from app.jobs.daily_analysis import (
     AI_PARTIAL_FAILURE_EXIT_CODE,
     ALREADY_RUNNING_EXIT_CODE,
     DAILY_DATA_MISSING_EXIT_CODE,
     DailyWarehouseDataMissingError,
     _date_data_status,
+    _repair_strategy,
+    _retry_ai_failed_report,
     _selected_report_dates,
     process_daily_pair,
     process_daily_pairs,
@@ -430,6 +433,85 @@ class DailyAnalysisJobTest(unittest.TestCase):
         self.assertEqual(
             _selected_report_dates(SimpleNamespace(yesterday=False), "2026-08-24"),
             ["2026-08-24"],
+        )
+
+    def test_repair_strategy_only_retries_ai_for_complete_base_data(self) -> None:
+        """最近七天仅对基础数据完整的 AI 失败报告执行模型补生成。"""
+
+        self.assertEqual(_repair_strategy(None), "full")
+        self.assertEqual(
+            _repair_strategy(
+                {
+                    "status": "ready",
+                    "quality_status": "ready",
+                    "dataset_id": "dataset-1",
+                }
+            ),
+            "existing",
+        )
+        self.assertEqual(
+            _repair_strategy(
+                {
+                    "status": "ai_failed",
+                    "quality_status": "ready",
+                    "dataset_id": "dataset-1",
+                }
+            ),
+            "ai_only",
+        )
+        self.assertEqual(
+            _repair_strategy(
+                {
+                    "status": "ai_failed",
+                    "quality_status": "partial",
+                    "dataset_id": "dataset-1",
+                }
+            ),
+            "full",
+        )
+
+    def test_ai_failed_report_reuses_payload_without_warehouse(self) -> None:
+        """AI 补生成应复用失败任务输入并直接完成现有报告。"""
+
+        ready_dataset = dataset_payload("ready")
+        dataset_id = self.datasets.store(ready_dataset)
+        report_id = self.reports.upsert(dataset_id, report_payload())
+        payload = {"facts": {"gmv": {"self": 1200, "competitor": 1000}}}
+        analyzer = ai_analyzer()
+        started = start_ai_analysis(
+            self.tasks,
+            report_id,
+            payload,
+            analyzer.model,
+            analyzer.analysis_version,
+            analyzer.prompt_hash,
+        )
+        self.tasks.fail(started.analysis_id, "模型返回格式无效")
+        report_state = self.reports.find_day_report_for_repair(
+            "2026-08-18",
+            self.pair.self_spu,
+            self.pair.competitor_spu,
+        )
+        events: list[str] = []
+
+        result = _retry_ai_failed_report(
+            "2026-08-18",
+            self.pair,
+            report_state,
+            self.reports,
+            self.tasks,
+            analyzer,
+            progress_callback=lambda stage, _pair: events.append(stage),
+        )
+
+        self.assertEqual(result["status"], "ready")
+        self.assertTrue(result["ai_retry_only"])
+        analyzer.analyze.assert_called_once_with(payload, ANY)
+        self.assertEqual(self.reports.get_record(report_id)["status"], "ready")
+        self.assertEqual(self.tasks.list_recent("completed", 20)[0]["attempt_count"], 2)
+        self.assertEqual(
+            events,
+            ["pair_started", "ai_prepare", "deepseek_analysis", "report_finalize", "pair_completed"],
         )
 
 
