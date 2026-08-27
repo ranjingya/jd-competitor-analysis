@@ -835,6 +835,38 @@ a.product-card:active {
   cursor: not-allowed;
 }
 
+.period-status-marker {
+  position: absolute;
+  right: 5px;
+  bottom: 4px;
+  z-index: 2;
+  color: #7b847f;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.period-status-marker.is-ready,
+.period-status-legend .is-ready {
+  color: var(--teal);
+}
+
+.period-status-marker.is-partial,
+.period-status-legend .is-partial {
+  color: var(--amber);
+}
+
+.period-status-marker.is-ai-failed,
+.period-status-legend .is-ai-failed {
+  color: #bd5847;
+}
+
+.period-status-marker.is-pending,
+.period-status-legend .is-pending {
+  color: #547982;
+}
+
 .period-day-cell:not(:nth-child(7n))::after,
 .period-week-day:not(:last-child)::after {
   position: absolute;
@@ -883,6 +915,7 @@ a.product-card:active {
 }
 
 .period-week-row {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 0;
@@ -894,6 +927,12 @@ a.product-card:active {
   background: transparent;
   color: #aaa297;
   cursor: pointer;
+}
+
+.period-week-row > .period-status-marker {
+  top: 4px;
+  right: 5px;
+  bottom: auto;
 }
 
 .period-week-row:not(:disabled) {
@@ -932,6 +971,20 @@ a.product-card:active {
   font-weight: inherit;
 }
 
+.period-week-day i {
+  position: absolute;
+  bottom: 3px;
+  color: #7b847f;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.period-week-day.is-missing {
+  color: #8d928e;
+  font-weight: 500;
+}
+
 .period-week-day.is-outside {
   background: rgba(244, 231, 211, 0.56);
   color: var(--amber);
@@ -948,6 +1001,28 @@ a.product-card:active {
   background: rgba(244, 231, 211, 0.54);
   color: var(--muted);
   font-size: 10px;
+}
+
+.period-status-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 11px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(222, 214, 200, 0.72);
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.period-status-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.period-status-legend b {
+  width: 10px;
+  text-align: center;
 }
 
 .period-selection-summary strong {
@@ -976,7 +1051,14 @@ a.product-card:active {
 }
 
 .period-month-cell strong {
+  position: relative;
   font: 700 18px/1 Consolas, monospace;
+}
+
+.period-month-cell .period-status-marker {
+  top: -2px;
+  right: -10px;
+  bottom: auto;
 }
 
 .period-month-cell span {
@@ -1180,6 +1262,7 @@ a.product-card:active {
 }
 
 .hero,
+.report-status-banner,
 .metric-card,
 .panel,
 .footnote {
@@ -1187,6 +1270,211 @@ a.product-card:active {
   border-radius: 8px;
   background: rgba(255, 253, 248, 0.88);
   box-shadow: var(--shadow);
+}
+
+.report-status-banner {
+  appearance: none;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  min-height: 58px;
+  padding: 11px 16px;
+  margin-bottom: var(--card-gap);
+  border-left: 4px solid var(--amber);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: none;
+  transition: border-color 140ms ease;
+}
+
+.report-status-banner:hover {
+  border-color: var(--interactive-hover-border);
+  border-left-color: var(--teal);
+}
+
+.report-status-banner:focus-visible {
+  outline: 3px solid rgba(15, 123, 115, 0.24);
+  outline-offset: 2px;
+}
+
+.report-status-banner[data-tone="danger"] {
+  border-left-color: #c8614d;
+}
+
+.report-status-banner[data-tone="pending"] {
+  border-left-color: #789aa2;
+}
+
+.report-status-symbol {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--soft-amber);
+  color: var(--amber);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.report-status-banner[data-tone="danger"] .report-status-symbol {
+  background: #f7e2dc;
+  color: #a84938;
+}
+
+.report-status-banner[data-tone="pending"] .report-status-symbol {
+  background: #e5eef0;
+  color: #4f747c;
+}
+
+.report-status-copy {
+  display: grid;
+  min-width: 0;
+}
+
+.report-status-copy strong {
+  overflow: hidden;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.report-status-copy > span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.report-status-action {
+  color: var(--teal);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.report-status-dialog {
+  width: min(600px, calc(100vw - 32px));
+  max-width: none;
+  max-height: min(680px, calc(100vh - 48px));
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 24px 64px rgba(31, 41, 51, 0.2);
+}
+
+.report-status-dialog[open] {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.report-status-dialog::backdrop {
+  background: rgba(31, 41, 51, 0.42);
+  backdrop-filter: blur(2px);
+}
+
+.report-status-dialog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.report-status-dialog-header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.report-status-dialog-header p {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.report-status-dialog-close {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 25px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.report-status-dialog-close:hover {
+  background: rgba(102, 112, 133, 0.1);
+  color: var(--text);
+}
+
+.report-status-dialog-close:focus-visible {
+  outline: 2px solid rgba(15, 123, 115, 0.34);
+  outline-offset: 2px;
+}
+
+.report-status-dialog-body {
+  min-height: 0;
+  padding: 8px 20px 20px;
+  overflow-y: auto;
+}
+
+.report-status-row {
+  display: grid;
+  grid-template-columns: 90px 92px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 13px 0;
+  border-bottom: 1px solid #ebe5da;
+}
+
+.report-status-row:last-child {
+  border-bottom: 0;
+}
+
+.report-status-row time {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.report-status-row > span:last-child {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.report-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: fit-content;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: #eeece8;
+  color: #69717a;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.report-status-pill.tone-danger {
+  background: #f7e2dc;
+  color: #a84938;
+}
+
+.report-status-pill.tone-pending {
+  background: #e5eef0;
+  color: #4f747c;
 }
 
 .hero {
@@ -2051,6 +2339,31 @@ a.product-card:active {
   background: var(--soft-teal);
 }
 
+.ai-report-state {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  border: 1px solid #c9dade;
+  border-radius: 8px;
+  background: #edf3f4;
+  color: #486a72;
+}
+
+.ai-report-state.is-error {
+  border-color: #e8beb5;
+  background: #f8e7e2;
+  color: #9c493a;
+}
+
+.ai-report-state strong {
+  font-size: 13px;
+}
+
+.ai-report-state span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .ai-recommendation-card p {
   margin: 0;
 }
@@ -2185,6 +2498,7 @@ a.product-card:active {
   .product-card,
   .pair-panel-trigger,
   .hero,
+  .report-status-banner,
   .metric-card,
   .tab,
   .dimension-tab,
@@ -2241,6 +2555,22 @@ a.product-card:active {
   .report-header,
   .hero {
     grid-template-columns: 1fr;
+  }
+
+  .report-status-banner {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .report-status-action {
+    display: none;
+  }
+
+  .report-status-row {
+    grid-template-columns: 1fr auto;
+  }
+
+  .report-status-row > span:last-child {
+    grid-column: 1 / -1;
   }
 
   .report-header {

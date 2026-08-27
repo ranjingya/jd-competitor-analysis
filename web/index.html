@@ -47,6 +47,15 @@
     <section class="page-state" id="page-state" aria-live="polite">正在加载报告数据</section>
 
     <div id="dashboard" hidden>
+      <button class="report-status-banner" id="report-status-trigger" type="button" aria-haspopup="dialog" aria-controls="report-status-dialog" hidden>
+        <span class="report-status-symbol" data-status-symbol aria-hidden="true">▲</span>
+        <span class="report-status-copy">
+          <strong data-status-title>数据不完整</strong>
+          <span data-status-detail>-</span>
+        </span>
+        <span class="report-status-action">查看异常明细 ›</span>
+      </button>
+
       <button class="hero" id="hero-summary-trigger" type="button" aria-haspopup="dialog" aria-controls="summary-dialog" aria-label="查看优点与弱点详情">
         <span class="hero-block">
           <span class="hero-label advantage">优点</span>
@@ -129,6 +138,17 @@
         <button class="summary-dialog-done" type="submit">关闭</button>
       </form>
     </footer>
+  </dialog>
+
+  <dialog class="report-status-dialog" id="report-status-dialog" aria-labelledby="report-status-dialog-title">
+    <header class="report-status-dialog-header">
+      <div>
+        <h2 id="report-status-dialog-title">报告状态明细</h2>
+        <p id="report-status-dialog-subtitle">-</p>
+      </div>
+      <button class="report-status-dialog-close" type="button" data-report-status-close aria-label="关闭报告状态明细">×</button>
+    </header>
+    <div class="report-status-dialog-body" id="report-status-dialog-body"></div>
   </dialog>
 
   <script type="module" src="/src/main.js"></script>

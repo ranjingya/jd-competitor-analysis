@@ -4,6 +4,7 @@ import { GridComponent, LegendComponent, TooltipComponent } from "echarts/compon
 import { SVGRenderer } from "echarts/renderers";
 import { mountAnalysisVxeTable, unmountAnalysisVxeTable } from "./analysis-vxe-table.js";
 import { compactHeroSummary, hasDetailPoints } from "./hero-summary.js";
+import { renderReportStatus } from "./report-status.js";
 
 echarts.use([LineChart, GridComponent, LegendComponent, TooltipComponent, SVGRenderer]);
 
@@ -311,6 +312,16 @@ function renderTabs() {
 
 function renderAiRecommendations() {
   const target = document.querySelector("#ai-recommendations");
+  const reportStatus = dashboardState.data?.report_status;
+  if (reportStatus === "ai_failed" || reportStatus === "pending_ai") {
+    const failed = reportStatus === "ai_failed";
+    target.innerHTML = `
+      <div class="ai-report-state ${failed ? "is-error" : "is-pending"}">
+        <strong>${failed ? "AI 劣势建议生成失败" : "AI 劣势建议生成中"}</strong>
+        <span>${failed ? "基础分析结果仍可查看，该区块不展示旧建议。" : "基础分析结果已完成，建议生成后会在这里显示。"}</span>
+      </div>`;
+    return;
+  }
   const suggestions = (dashboardState.data?.ai_recommendations || [])
     .filter((item) => item.status === "warning")
     .slice(0, 5);
@@ -379,41 +390,82 @@ export function showTrendState(message, isError = false) {
   target.innerHTML = `<div class="trend-empty ${isError ? "error" : ""}">${escapeHtml(message)}</div>`;
 }
 
+function isoDatesBetween(startDate, endDate) {
+  const dates = [];
+  const cursor = new Date(`${startDate}T00:00:00Z`);
+  const end = new Date(`${endDate}T00:00:00Z`);
+  while (cursor <= end) {
+    dates.push(cursor.toISOString().slice(0, 10));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return dates;
+}
+
+/**
+ * 功能说明：把趋势报告转换为完整时间轴，日报缺失日期保留空点以中断折线。
+ * 参数 reports：趋势接口返回的轻量报告数组。
+ * 参数 metricId：需要绘制的核心指标 ID。
+ * 参数 granularity：day、week 或 month。
+ * 参数 range：趋势查询的开始和结束日期。
+ * 返回值：包含正常点和缺失空点的有序数组。
+ */
+export function buildTrendPoints(reports, metricId, granularity, range = {}) {
+  const reportPoints = reports.map((report) => {
+    const metric = (report.core_metrics || []).find((item) => item.id === metricId);
+    const periodStart = String(report.meta?.period_start || "");
+    return {
+      period: report.meta?.period || periodStart || "-",
+      periodStart,
+      label: trendPeriodLabel(report.meta || {}, granularity),
+      selfValue: typeof metric?.self_value === "number" ? metric.self_value : null,
+      competitorValue: typeof metric?.competitor_value === "number" ? metric.competitor_value : null,
+      metric: metric || null,
+      reportStatus: report.report_status || "ready",
+      qualityStatus: report.quality_status || "ready",
+      missing: false
+    };
+  });
+  if (granularity !== "day" || !range.startDate || !range.endDate) {
+    return reportPoints;
+  }
+  const byDate = new Map(reportPoints.map((item) => [item.periodStart, item]));
+  return isoDatesBetween(range.startDate, range.endDate).map((date) => byDate.get(date) || {
+    period: date,
+    periodStart: date,
+    label: date.slice(5),
+    selfValue: null,
+    competitorValue: null,
+    metric: null,
+    reportStatus: "missing",
+    qualityStatus: "missing",
+    missing: true
+  });
+}
+
 /**
  * 功能说明：使用多个周期的分析结果绘制本品和竞品趋势折线图。
  * 参数 reports：按时间升序排列的报告对象数组。
  * 参数 metricId：当前选择的核心指标 ID。
  * 参数 granularity：当前报告粒度。
  * 参数 selectedPeriodStart：当前选中报告的开始日期，用于标记趋势中的当前点。
+ * 参数 range：趋势查询的自然日期范围。
  * 返回值：无；直接更新趋势标题、范围说明和 ECharts 图表。
  */
-export function renderTrendChart(reports, metricId, granularity, selectedPeriodStart = "") {
-  const series = reports.map((report) => {
-    const metric = (report.core_metrics || []).find((item) => item.id === metricId);
-    if (!metric || typeof metric.self_value !== "number" || typeof metric.competitor_value !== "number") {
-      return null;
-    }
-    return {
-      period: report.meta?.period || "-",
-      periodStart: String(report.meta?.period_start || ""),
-      label: trendPeriodLabel(report.meta || {}, granularity),
-      selfValue: metric.self_value,
-      competitorValue: metric.competitor_value,
-      metric
-    };
-  }).filter(Boolean);
-  if (!series.length) {
+export function renderTrendChart(reports, metricId, granularity, selectedPeriodStart = "", range = {}) {
+  const points = buildTrendPoints(reports, metricId, granularity, range);
+  const availablePoints = points.filter((item) => item.metric && item.selfValue != null && item.competitorValue != null);
+  if (!availablePoints.length) {
     showTrendState("当前范围暂无可用趋势数据");
     return;
   }
 
-  const metric = series[0].metric;
+  const metric = availablePoints[0].metric;
   document.querySelector("#trend-title").textContent = `${metric.label || "指标"}趋势`;
-  if (series.length < 2) {
+  if (availablePoints.length < 2) {
     showTrendState("当前只有 1 个周期的数据，至少需要 2 个周期才能形成趋势");
     return;
   }
-  const selectedItem = series.find((item) => item.periodStart === selectedPeriodStart);
+  const selectedItem = points.find((item) => item.periodStart === selectedPeriodStart);
   const target = document.querySelector("#trend-chart");
   disposeTrendChart();
   target.innerHTML = "";
@@ -433,7 +485,7 @@ export function renderTrendChart(reports, metricId, granularity, selectedPeriodS
       formatter(params) {
         const rows = Array.isArray(params) ? params : [params];
         const index = rows[0]?.dataIndex ?? 0;
-        const item = series[index];
+        const item = points[index];
         return `
           <strong>${escapeHtml(item.period)}</strong><br>
           ${rows.map((row) => `${row.marker}${escapeHtml(row.seriesName)}　<b>${escapeHtml(formatValue(row.value, metric.unit))}</b>`).join("<br>")}
@@ -451,8 +503,13 @@ export function renderTrendChart(reports, metricId, granularity, selectedPeriodS
     grid: { top: 36, right: 18, bottom: 8, left: 8, containLabel: true },
     xAxis: {
       type: "category",
-      boundaryGap: series.length === 1,
-      data: series.map((item) => item.label),
+      boundaryGap: points.length === 1,
+      data: points.map((item) => {
+        if (item.missing) return `${item.label}\n—`;
+        if (item.reportStatus === "ai_failed") return `${item.label}\n!`;
+        if (granularity !== "day" && item.qualityStatus === "partial") return `${item.label}\n▲`;
+        return item.label;
+      }),
       axisLine: { lineStyle: { color: "#ded6c8" } },
       axisTick: { show: false },
       axisLabel: { color: "#667085", fontSize: 11, margin: 12 }
@@ -474,8 +531,9 @@ export function renderTrendChart(reports, metricId, granularity, selectedPeriodS
         symbol: "circle",
         symbolSize: 7,
         showSymbol: true,
+        connectNulls: false,
         lineStyle: { width: 3 },
-        data: series.map((item) => item.periodStart === selectedPeriodStart ? {
+        data: points.map((item) => item.selfValue == null ? null : item.periodStart === selectedPeriodStart ? {
           value: item.selfValue,
           symbolSize: 11,
           itemStyle: { borderColor: "#fffdf8", borderWidth: 3, shadowBlur: 6, shadowColor: "rgba(15, 123, 115, 0.28)" }
@@ -488,8 +546,9 @@ export function renderTrendChart(reports, metricId, granularity, selectedPeriodS
         symbol: "circle",
         symbolSize: 7,
         showSymbol: true,
+        connectNulls: false,
         lineStyle: { width: 3 },
-        data: series.map((item) => item.periodStart === selectedPeriodStart ? {
+        data: points.map((item) => item.competitorValue == null ? null : item.periodStart === selectedPeriodStart ? {
           value: item.competitorValue,
           symbolSize: 11,
           itemStyle: { borderColor: "#fffdf8", borderWidth: 3, shadowBlur: 6, shadowColor: "rgba(185, 105, 5, 0.25)" }
@@ -520,6 +579,7 @@ export function renderDashboard(data, activeMetricId = "") {
     meta.granularity ? `分析粒度：${granularityLabels[meta.granularity] || meta.granularity}` : ""
   ].filter(Boolean).join(" · ");
   renderProductComparison(meta);
+  renderReportStatus(data);
   const summary = meta.summary || "-";
   const weakness = meta.weakness_summary || "-";
   const metricItems = data.core_metrics || [];

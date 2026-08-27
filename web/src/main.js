@@ -18,6 +18,7 @@ import {
 } from "./report-selection.js";
 import { bindSkuDialog, closeSkuDialog } from "./sku-dialog.js";
 import { bindHeroSummaryDialog } from "./hero-summary.js";
+import { bindReportStatusDialog } from "./report-status.js";
 
 const granularityLabels = {
   day: "日",
@@ -268,7 +269,8 @@ async function renderActiveTrend(entry) {
       result.items || [],
       state.activeMetricId,
       state.activeGranularity,
-      entry.start_date
+      entry.start_date,
+      range
     );
   } catch (error) {
     console.error("趋势数据加载失败", error);
@@ -340,6 +342,10 @@ async function initialize() {
     bindHeroSummaryDialog(
       document.querySelector("#summary-dialog"),
       document.querySelector("#hero-summary-trigger")
+    );
+    bindReportStatusDialog(
+      document.querySelector("#report-status-trigger"),
+      document.querySelector("#report-status-dialog")
     );
     await selectActiveReport();
   } catch (error) {

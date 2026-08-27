@@ -317,7 +317,11 @@ class ReportRepositoryTest(unittest.TestCase):
                 "self_spu": "10001",
                 "competitor_spu": "20001",
                 "source_report_ids": ["report-day"],
-            }
+                "period_days": 7,
+                "available_days": 6,
+                "missing_days": ["2026-08-19"],
+            },
+            "quality_status": "partial",
         }
 
         report_id = self.repository.upsert(None, weekly_report, report_id="report-week")
@@ -329,6 +333,11 @@ class ReportRepositoryTest(unittest.TestCase):
         self.assertEqual(record["start_date"], "2026-08-17")
         self.assertEqual(record["end_date"], "2026-08-23")
         self.assertEqual(weekly_entry["period_key"], "week:2026-08-17:2026-08-23")
+        self.assertEqual(weekly_entry["period_days"], 7)
+        self.assertEqual(weekly_entry["available_days"], 6)
+        self.assertEqual(weekly_entry["missing_days"], ["2026-08-19"])
+        self.assertEqual(record["report"]["quality_status"], "partial")
+        self.assertEqual(record["report"]["report_status"], "pending_ai")
         self.assertEqual(
             self.repository.read_report("week", "2026-08-17", "2026-08-23")["meta"]["title"],
             "自然周报告",

@@ -161,6 +161,13 @@ def _report_entry(row: sqlite3.Row) -> dict[str, Any]:
     granularity = str(row["granularity"])
     start_date = str(row["start_date"])
     end_date = str(row["end_date"])
+    audit = _json_value(row, "audit_json", {}) if "audit_json" in row.keys() else {}
+    meta_extra = audit.get("meta_extra") if isinstance(audit, dict) else {}
+    if not isinstance(meta_extra, dict):
+        meta_extra = {}
+    missing_days = meta_extra.get("missing_days")
+    if not isinstance(missing_days, list):
+        missing_days = []
     period_key = (
         f"day:{start_date}"
         if granularity == "day"
@@ -181,6 +188,9 @@ def _report_entry(row: sqlite3.Row) -> dict[str, Any]:
         "competitor_image_url": row["competitor_image_url"],
         "quality_status": row["quality_status"],
         "status": row["status"],
+        "period_days": meta_extra.get("period_days"),
+        "available_days": meta_extra.get("available_days"),
+        "missing_days": missing_days,
         "title": "竞品准真实值看板",
         "summary": row["advantage_summary"],
         "path": f"/api/reports/{row['report_id']}",
@@ -721,6 +731,8 @@ class ReportRepository:
         report.update(
             {
                 "schema_version": row["schema_version"], "meta": meta,
+                "quality_status": row["quality_status"],
+                "report_status": row["status"],
                 "source_files": audit.get("source_files", []),
                 "self_validation": audit.get("self_validation", []),
                 "competitor_core_conversions": audit.get("competitor_core_conversions", []),
@@ -812,7 +824,7 @@ class ReportRepository:
                     SELECT report_id, dataset_id, granularity, start_date, end_date,
                            self_spu, competitor_spu, self_name, self_image_url,
                            competitor_name, competitor_image_url, advantage_summary,
-                           quality_status, status, updated_at,
+                           quality_status, status, audit_json, updated_at,
                            COUNT(*) OVER (
                                PARTITION BY self_spu, competitor_spu, granularity
                            ) AS report_count,
@@ -903,7 +915,7 @@ class ReportRepository:
                 SELECT report_id, dataset_id, granularity, start_date, end_date,
                        self_spu, competitor_spu, self_name, self_image_url,
                        competitor_name, competitor_image_url, advantage_summary,
-                       quality_status, status, updated_at
+                       quality_status, status, audit_json, updated_at
                 FROM reports
                 WHERE self_spu = ? AND competitor_spu = ? AND granularity = ?
                   AND substr(start_date, 1, {context_length}) = ?
@@ -955,7 +967,7 @@ class ReportRepository:
                 SELECT report_id, granularity, start_date, end_date,
                        self_gmv, competitor_gmv, self_visitors, competitor_visitors,
                        self_conversion_rate, competitor_conversion_rate,
-                       self_aov, competitor_aov
+                       self_aov, competitor_aov, quality_status, status
                 FROM reports
                 WHERE self_spu = ? AND competitor_spu = ? AND granularity = ?
                   AND start_date BETWEEN ? AND ?
@@ -972,6 +984,8 @@ class ReportRepository:
                     "period_end": row["end_date"],
                     "granularity": row["granularity"],
                 },
+                "quality_status": row["quality_status"],
+                "report_status": row["status"],
                 "core_metrics": _build_core_metrics(row),
             }
             for row in rows
