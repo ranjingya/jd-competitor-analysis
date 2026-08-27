@@ -176,6 +176,46 @@ docker compose exec -T jd-competitor-analysis-backend \
 
 周报和月报只聚合 `data.db` 中状态为 `ready` 的日报。周期报告保存来源日报 ID、自然周期天数、可用日报天数和缺失日期。数量、金额和次数累加；转化率、客单价、渠道占比、关键词占比和画像占比使用周期累计值重新计算。周期日均值使用自然周 7 天或自然月实际天数作为分母。
 
+## 服务器手动命令速查
+
+以下命令均在 `/home/yatui/jd-competitor-analysis` 执行：
+
+```bash
+cd /home/yatui/jd-competitor-analysis
+
+# 完整执行与 Cron 相同的日周月定时流程，并上报 Healthchecks
+/bin/bash scripts/run-daily-analysis.sh
+
+# 指定一天的全部飞书商品对
+docker compose exec -T jd-competitor-analysis-backend \
+  python /app/cli.py warehouse-daily-run --date YYYY-MM-DD
+
+# 指定一天的一个商品对
+docker compose exec -T jd-competitor-analysis-backend \
+  python /app/cli.py warehouse-daily-run --date YYYY-MM-DD \
+  --self-spu SELF_SPU --competitor-spu COMPETITOR_SPU
+
+# 指定自然周的全部商品对；start-date 必须是周一
+docker compose exec -T jd-competitor-analysis-backend \
+  python /app/cli.py weekly-report-run --start-date YYYY-MM-DD
+
+# 指定自然周的一个商品对
+docker compose exec -T jd-competitor-analysis-backend \
+  python /app/cli.py weekly-report-run --start-date YYYY-MM-DD \
+  --self-spu SELF_SPU --competitor-spu COMPETITOR_SPU
+
+# 指定自然月的全部商品对
+docker compose exec -T jd-competitor-analysis-backend \
+  python /app/cli.py monthly-report-run --month YYYY-MM
+
+# 指定自然月的一个商品对
+docker compose exec -T jd-competitor-analysis-backend \
+  python /app/cli.py monthly-report-run --month YYYY-MM \
+  --self-spu SELF_SPU --competitor-spu COMPETITOR_SPU
+```
+
+上一个完整自然周使用 `weekly-report-run --previous-week`，上一个完整自然月使用 `monthly-report-run --previous-month`。周报和月报只聚合数据库中已有的 `ready` 日报，不读取数仓；需要补日报时先逐日执行 `warehouse-daily-run --date`。所有分析命令共用任务锁，不能并行执行。
+
 ## 日报生成门槛
 
 数仓记录是日报的业务事实来源。一个商品对在以下五张来源表中存在任意记录时，后端按实际内容继续生成报告：
