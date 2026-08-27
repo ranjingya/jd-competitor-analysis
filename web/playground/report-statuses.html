@@ -1,0 +1,1236 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>报告异常状态 Playground</title>
+    <style>
+      :root {
+        --bg: #f4efe6;
+        --panel: #fffdf8;
+        --panel-muted: #f8f5ee;
+        --line: #ded6c8;
+        --line-strong: #cfc4b3;
+        --text: #1f2933;
+        --muted: #667085;
+        --teal: #0f7b73;
+        --teal-dark: #09645e;
+        --soft-teal: #dff1ec;
+        --amber: #a8650c;
+        --soft-amber: #f7ead3;
+        --coral: #bd5847;
+        --soft-coral: #f8e5e0;
+        --grey: #7a8491;
+        --soft-grey: #ecebea;
+        --focus: rgba(15, 123, 115, 0.24);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+        line-height: 1.5;
+      }
+
+      button {
+        color: inherit;
+        font: inherit;
+      }
+
+      button:focus-visible {
+        outline: 3px solid var(--focus);
+        outline-offset: 2px;
+      }
+
+      .page {
+        width: min(1240px, calc(100% - 40px));
+        margin: 0 auto;
+        padding: 28px 0 48px;
+      }
+
+      .playground-header {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 24px;
+        margin-bottom: 18px;
+      }
+
+      .eyebrow {
+        margin: 0 0 4px;
+        color: var(--teal);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin-top: 0;
+      }
+
+      h1 {
+        margin-bottom: 4px;
+        font-size: 30px;
+        line-height: 1.2;
+      }
+
+      .subtitle {
+        margin-bottom: 0;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .scenario-switcher {
+        display: flex;
+        gap: 4px;
+        padding: 4px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: rgba(255, 253, 248, 0.74);
+      }
+
+      .scenario-button {
+        min-height: 36px;
+        padding: 0 14px;
+        border: 0;
+        border-radius: 7px;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .scenario-button:hover {
+        background: #fffdf8;
+        color: var(--text);
+      }
+
+      .scenario-button[aria-selected="true"] {
+        background: var(--teal);
+        color: #fff;
+      }
+
+      .dashboard-shell {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 336px;
+        gap: 12px;
+      }
+
+      .report-toolbar,
+      .calendar-card,
+      .trend-card,
+      .report-card,
+      .empty-card {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--panel);
+      }
+
+      .report-toolbar {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: minmax(0, 1.45fr) minmax(330px, 0.65fr);
+        min-height: 126px;
+        overflow: hidden;
+      }
+
+      .pair-panel {
+        padding: 16px 18px;
+        border-right: 1px solid var(--line);
+      }
+
+      .section-label {
+        display: block;
+        margin-bottom: 10px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .pair-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 30px minmax(0, 1fr);
+        gap: 8px;
+        align-items: center;
+      }
+
+      .product-button {
+        display: grid;
+        grid-template-columns: 50px minmax(0, 1fr);
+        gap: 10px;
+        align-items: center;
+        min-width: 0;
+        padding: 7px;
+        border: 1px solid transparent;
+        border-radius: 9px;
+        background: transparent;
+        text-align: left;
+        cursor: pointer;
+      }
+
+      .product-button:hover {
+        border-color: rgba(15, 123, 115, 0.42);
+        background: #fbfaf6;
+      }
+
+      .product-image {
+        display: grid;
+        width: 50px;
+        height: 50px;
+        place-items: center;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel-muted);
+        color: var(--muted);
+        font-size: 22px;
+      }
+
+      .product-title {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        min-width: 0;
+        font-size: 14px;
+        font-weight: 700;
+      }
+
+      .product-title span:last-child {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .product-tag {
+        flex: none;
+        padding: 1px 6px;
+        border-radius: 999px;
+        background: var(--soft-teal);
+        color: var(--teal-dark);
+        font-size: 11px;
+      }
+
+      .product-tag.competitor {
+        background: var(--soft-amber);
+        color: var(--amber);
+      }
+
+      .product-id {
+        margin: 2px 0 0;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .versus {
+        color: var(--muted);
+        font-size: 12px;
+        text-align: center;
+      }
+
+      .period-panel {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 96px;
+        gap: 10px;
+        align-content: center;
+        padding: 18px;
+      }
+
+      .period-field label,
+      .sku-field label {
+        display: block;
+        margin-bottom: 7px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .period-button,
+      .sku-button {
+        width: 100%;
+        min-height: 42px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+        cursor: pointer;
+      }
+
+      .period-button {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 12px;
+        text-align: left;
+      }
+
+      .period-button:hover,
+      .sku-button:hover {
+        border-color: rgba(15, 123, 115, 0.55);
+      }
+
+      .period-icon {
+        color: var(--teal);
+      }
+
+      .sku-button {
+        color: var(--teal);
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .status-banner {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+        width: 100%;
+        min-height: 58px;
+        padding: 12px 16px;
+        border: 1px solid var(--line);
+        border-left: 4px solid var(--amber);
+        border-radius: 10px;
+        background: var(--panel);
+        text-align: left;
+        cursor: pointer;
+      }
+
+      .status-banner:hover {
+        border-color: var(--line-strong);
+        border-left-color: var(--teal);
+      }
+
+      .status-banner[data-tone="danger"] {
+        border-left-color: var(--coral);
+      }
+
+      .status-banner-icon {
+        display: grid;
+        width: 30px;
+        height: 30px;
+        place-items: center;
+        border-radius: 50%;
+        background: var(--soft-amber);
+        color: var(--amber);
+        font-size: 14px;
+        font-weight: 800;
+      }
+
+      .status-banner[data-tone="danger"] .status-banner-icon {
+        background: var(--soft-coral);
+        color: var(--coral);
+      }
+
+      .status-banner-title {
+        display: block;
+        margin-bottom: 1px;
+        font-size: 14px;
+        font-weight: 700;
+      }
+
+      .status-banner-detail {
+        display: block;
+        overflow: hidden;
+        color: var(--muted);
+        font-size: 12px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .status-banner-action {
+        color: var(--teal);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .calendar-card {
+        padding: 18px;
+      }
+
+      .calendar-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 14px;
+      }
+
+      .calendar-head h2,
+      .trend-head h2,
+      .report-card h2,
+      .empty-card h2 {
+        margin-bottom: 0;
+        font-size: 18px;
+      }
+
+      .calendar-caption {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .weekdays,
+      .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 4px;
+      }
+
+      .weekdays {
+        margin-bottom: 4px;
+      }
+
+      .weekday {
+        color: var(--muted);
+        font-size: 11px;
+        text-align: center;
+      }
+
+      .date-button,
+      .date-placeholder {
+        min-height: 42px;
+      }
+
+      .date-button {
+        position: relative;
+        display: grid;
+        place-items: center;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        background: transparent;
+        cursor: pointer;
+        font-size: 12px;
+      }
+
+      .date-button:hover {
+        border-color: var(--line);
+        background: var(--panel-muted);
+      }
+
+      .date-button[aria-pressed="true"] {
+        border-color: var(--teal);
+        background: var(--soft-teal);
+        color: var(--teal-dark);
+        font-weight: 700;
+      }
+
+      .date-button:disabled {
+        color: #b2b5ba;
+        cursor: default;
+      }
+
+      .date-button:disabled:hover {
+        border-color: transparent;
+        background: transparent;
+      }
+
+      .date-mark {
+        position: absolute;
+        right: 4px;
+        bottom: 2px;
+        color: var(--grey);
+        font-size: 9px;
+        font-weight: 900;
+        line-height: 1;
+      }
+
+      .date-mark.ready {
+        color: var(--teal);
+      }
+
+      .date-mark.partial {
+        color: var(--amber);
+      }
+
+      .date-mark.failed {
+        color: var(--coral);
+      }
+
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px 12px;
+        margin-top: 14px;
+        padding-top: 12px;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .legend-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+      }
+
+      .legend-symbol {
+        width: 12px;
+        color: var(--grey);
+        font-weight: 900;
+        text-align: center;
+      }
+
+      .legend-symbol.ready {
+        color: var(--teal);
+      }
+
+      .legend-symbol.partial {
+        color: var(--amber);
+      }
+
+      .legend-symbol.failed {
+        color: var(--coral);
+      }
+
+      .trend-card {
+        min-height: 350px;
+        padding: 18px 20px 12px;
+      }
+
+      .trend-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+      }
+
+      .trend-kicker {
+        margin-bottom: 2px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .chart-legend {
+        display: flex;
+        gap: 12px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .series-dot {
+        display: inline-block;
+        width: 7px;
+        height: 7px;
+        margin-right: 5px;
+        border-radius: 50%;
+        background: var(--teal);
+      }
+
+      .series-dot.competitor {
+        background: var(--amber);
+      }
+
+      .chart-wrap {
+        width: 100%;
+        margin-top: 10px;
+        overflow: hidden;
+      }
+
+      .chart-wrap svg {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+
+      .axis-label {
+        fill: var(--muted);
+        font-size: 10px;
+      }
+
+      .grid-line {
+        stroke: #e5ded2;
+        stroke-dasharray: 4 4;
+      }
+
+      .series-self,
+      .series-competitor {
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 3;
+      }
+
+      .series-self {
+        stroke: var(--teal);
+      }
+
+      .series-competitor {
+        stroke: var(--amber);
+      }
+
+      .missing-band {
+        fill: rgba(189, 88, 71, 0.07);
+      }
+
+      .missing-label {
+        fill: var(--coral);
+        font-size: 9px;
+        font-weight: 700;
+      }
+
+      .report-card,
+      .empty-card {
+        grid-column: 1 / -1;
+        padding: 20px;
+      }
+
+      .report-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .metric-card {
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: var(--panel-muted);
+      }
+
+      .metric-label {
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .metric-value {
+        margin-top: 4px;
+        font-size: 22px;
+        font-weight: 700;
+      }
+
+      .ai-local-error {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-top: 14px;
+        padding: 14px;
+        border: 1px solid #efc7bd;
+        border-radius: 9px;
+        background: var(--soft-coral);
+      }
+
+      .ai-local-error strong {
+        display: block;
+        margin-bottom: 2px;
+        color: #8f4235;
+        font-size: 13px;
+      }
+
+      .ai-local-error span {
+        color: #936257;
+        font-size: 12px;
+      }
+
+      .retry-badge {
+        flex: none;
+        padding: 4px 8px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.62);
+        color: var(--coral);
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .empty-card {
+        display: grid;
+        min-height: 250px;
+        place-items: center;
+        text-align: center;
+      }
+
+      .empty-symbol {
+        display: grid;
+        width: 48px;
+        height: 48px;
+        margin: 0 auto 12px;
+        place-items: center;
+        border-radius: 50%;
+        background: var(--soft-grey);
+        color: var(--grey);
+        font-size: 20px;
+        font-weight: 800;
+      }
+
+      .empty-card p {
+        max-width: 520px;
+        margin: 7px auto 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      dialog {
+        width: min(590px, calc(100% - 32px));
+        max-height: min(680px, calc(100vh - 48px));
+        padding: 0;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: var(--panel);
+        color: var(--text);
+        box-shadow: 0 18px 60px rgba(31, 41, 51, 0.18);
+      }
+
+      dialog::backdrop {
+        background: rgba(31, 41, 51, 0.36);
+        backdrop-filter: blur(2px);
+      }
+
+      .dialog-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 20px 20px 14px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .dialog-head h2 {
+        margin-bottom: 3px;
+        font-size: 19px;
+      }
+
+      .dialog-head p {
+        margin-bottom: 0;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .close-button {
+        display: grid;
+        width: 34px;
+        height: 34px;
+        flex: none;
+        place-items: center;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+        cursor: pointer;
+        font-size: 18px;
+      }
+
+      .close-button:hover {
+        border-color: rgba(15, 123, 115, 0.55);
+      }
+
+      .dialog-body {
+        max-height: 520px;
+        padding: 8px 20px 20px;
+        overflow-y: auto;
+      }
+
+      .status-row {
+        display: grid;
+        grid-template-columns: 98px 86px minmax(0, 1fr);
+        gap: 10px;
+        align-items: start;
+        padding: 13px 0;
+        border-bottom: 1px solid #ebe5da;
+      }
+
+      .status-row:last-child {
+        border-bottom: 0;
+      }
+
+      .status-date {
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        width: fit-content;
+        padding: 3px 7px;
+        border-radius: 999px;
+        background: var(--soft-grey);
+        color: var(--grey);
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .status-pill.ready {
+        background: var(--soft-teal);
+        color: var(--teal-dark);
+      }
+
+      .status-pill.partial {
+        background: var(--soft-amber);
+        color: var(--amber);
+      }
+
+      .status-pill.failed {
+        background: var(--soft-coral);
+        color: var(--coral);
+      }
+
+      .status-reason {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      @media (max-width: 880px) {
+        .playground-header {
+          align-items: stretch;
+          flex-direction: column;
+        }
+
+        .scenario-switcher {
+          width: fit-content;
+        }
+
+        .dashboard-shell {
+          grid-template-columns: 1fr;
+        }
+
+        .report-toolbar {
+          grid-template-columns: 1fr;
+        }
+
+        .pair-panel {
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+
+        .status-banner,
+        .report-toolbar,
+        .report-card,
+        .empty-card {
+          grid-column: 1;
+        }
+      }
+
+      @media (max-width: 620px) {
+        .page {
+          width: min(100% - 24px, 1240px);
+          padding-top: 18px;
+        }
+
+        .scenario-switcher {
+          display: grid;
+          width: 100%;
+          grid-template-columns: repeat(3, 1fr);
+        }
+
+        .scenario-button {
+          padding: 0 7px;
+          font-size: 12px;
+        }
+
+        .pair-row {
+          grid-template-columns: 1fr;
+        }
+
+        .versus {
+          display: none;
+        }
+
+        .period-panel {
+          grid-template-columns: 1fr;
+        }
+
+        .status-banner {
+          grid-template-columns: auto minmax(0, 1fr);
+        }
+
+        .status-banner-action {
+          display: none;
+        }
+
+        .report-summary-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .status-row {
+          grid-template-columns: 1fr auto;
+        }
+
+        .status-reason {
+          grid-column: 1 / -1;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <header class="playground-header">
+        <div>
+          <p class="eyebrow">UI Playground · 示意数据</p>
+          <h1>报告异常状态</h1>
+          <p class="subtitle">在日期入口、报告正文和趋势图中使用同一套状态语言。</p>
+        </div>
+        <div class="scenario-switcher" role="tablist" aria-label="切换异常场景">
+          <button class="scenario-button" type="button" role="tab" aria-selected="true" data-scenario="week-partial">周报缺天</button>
+          <button class="scenario-button" type="button" role="tab" aria-selected="false" data-scenario="day-empty">单日无数据</button>
+          <button class="scenario-button" type="button" role="tab" aria-selected="false" data-scenario="ai-failed">AI 分析失败</button>
+        </div>
+      </header>
+
+      <section class="dashboard-shell" aria-live="polite">
+        <div class="report-toolbar">
+          <div class="pair-panel">
+            <span class="section-label">当前商品对</span>
+            <div class="pair-row">
+              <button class="product-button" type="button" aria-label="打开本品商品详情">
+                <span class="product-image" aria-hidden="true">衣</span>
+                <span>
+                  <span class="product-title"><span class="product-tag">本品</span><span>儿童雨衣 A</span></span>
+                  <span class="product-id">商品 ID 100000000001</span>
+                </span>
+              </button>
+              <span class="versus">vs</span>
+              <button class="product-button" type="button" aria-label="打开竞品商品详情">
+                <span class="product-image" aria-hidden="true">衣</span>
+                <span>
+                  <span class="product-title"><span class="product-tag competitor">竞品</span><span>儿童雨衣 B</span></span>
+                  <span class="product-id">商品 ID 100000000002</span>
+                </span>
+              </button>
+            </div>
+          </div>
+          <div class="period-panel">
+            <div class="period-field">
+              <label for="period-button">分析周期</label>
+              <button class="period-button" id="period-button" type="button">
+                <span><span class="period-icon" aria-hidden="true">▦</span> <span id="period-label">2026年8月17日—23日</span></span>
+                <span aria-hidden="true">⌄</span>
+              </button>
+            </div>
+            <div class="sku-field">
+              <label for="sku-button">本品组成</label>
+              <button class="sku-button" id="sku-button" type="button">查看 SKU</button>
+            </div>
+          </div>
+        </div>
+
+        <button class="status-banner" id="status-banner" type="button" aria-haspopup="dialog">
+          <span class="status-banner-icon" id="banner-icon" aria-hidden="true">▲</span>
+          <span>
+            <span class="status-banner-title" id="banner-title">数据不完整 · 5/7 天可用</span>
+            <span class="status-banner-detail" id="banner-detail">8月19日数仓无数据，8月21日 AI 分析失败</span>
+          </span>
+          <span class="status-banner-action">查看异常明细 ›</span>
+        </button>
+
+        <aside class="calendar-card" aria-labelledby="calendar-title">
+          <div class="calendar-head">
+            <h2 id="calendar-title">2026 年 8 月</h2>
+            <span class="calendar-caption">点击异常日期查看原因</span>
+          </div>
+          <div class="weekdays" aria-hidden="true">
+            <span class="weekday">一</span><span class="weekday">二</span><span class="weekday">三</span><span class="weekday">四</span><span class="weekday">五</span><span class="weekday">六</span><span class="weekday">日</span>
+          </div>
+          <div class="calendar-grid" id="calendar-grid" aria-label="报告日期"></div>
+          <div class="legend" aria-label="日期状态图例">
+            <span class="legend-item"><span class="legend-symbol ready">●</span>正常</span>
+            <span class="legend-item"><span class="legend-symbol partial">▲</span>部分可用</span>
+            <span class="legend-item"><span class="legend-symbol">—</span>无数仓数据</span>
+            <span class="legend-item"><span class="legend-symbol failed">!</span>AI 失败</span>
+            <span class="legend-item"><span class="legend-symbol failed">×</span>处理失败</span>
+          </div>
+        </aside>
+
+        <section class="trend-card" aria-labelledby="trend-title">
+          <div class="trend-head">
+            <div>
+              <p class="trend-kicker">指标趋势 · 缺失日期不连线</p>
+              <h2 id="trend-title">成交金额趋势</h2>
+            </div>
+            <div class="chart-legend" aria-label="折线图图例">
+              <span><span class="series-dot"></span>本品</span>
+              <span><span class="series-dot competitor"></span>竞品</span>
+            </div>
+          </div>
+          <div class="chart-wrap" id="chart-wrap"></div>
+        </section>
+
+        <section class="report-card" id="report-card" aria-labelledby="report-title">
+          <h2 id="report-title">确定性数据仍可查看</h2>
+          <div class="report-summary-grid">
+            <div class="metric-card"><div class="metric-label">成交金额</div><div class="metric-value">¥ 31,420</div></div>
+            <div class="metric-card"><div class="metric-label">访客数</div><div class="metric-value">7,186</div></div>
+            <div class="metric-card"><div class="metric-label">成交转化率</div><div class="metric-value">5.72%</div></div>
+          </div>
+          <div class="ai-local-error" id="ai-local-error" hidden>
+            <div><strong>AI 优劣势分析生成失败</strong><span>基础指标、趋势和差距来源仍可查看；该区块不展示旧结果。</span></div>
+            <span class="retry-badge">等待下次生成</span>
+          </div>
+        </section>
+
+        <section class="empty-card" id="empty-card" hidden aria-labelledby="empty-title">
+          <div>
+            <span class="empty-symbol" aria-hidden="true">—</span>
+            <h2 id="empty-title">这一天没有数仓数据</h2>
+            <p>已确认 2026年8月19日整日没有可用记录，因此不生成报告。你仍可切换到其他日期查看。</p>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <dialog id="status-dialog" aria-labelledby="dialog-title">
+      <div class="dialog-head">
+        <div>
+          <h2 id="dialog-title">报告状态明细</h2>
+          <p id="dialog-subtitle">2026年8月17日—23日 · 共 7 天</p>
+        </div>
+        <button class="close-button" id="dialog-close" type="button" aria-label="关闭状态明细">×</button>
+      </div>
+      <div class="dialog-body" id="dialog-body"></div>
+    </dialog>
+
+    <script>
+      const scenarios = {
+        "week-partial": {
+          periodLabel: "2026年8月17日—23日",
+          bannerTitle: "数据不完整 · 5/7 天可用",
+          bannerDetail: "8月19日数仓无数据，8月21日 AI 分析失败",
+          bannerIcon: "▲",
+          tone: "warning",
+          selectedDay: 23,
+          reportMode: "report",
+          aiFailed: false,
+          days: {
+            17: ["ready", "正常", "五张竞品表及本品数据均可用"],
+            18: ["ready", "正常", "五张竞品表及本品数据均可用"],
+            19: ["no-data", "无数据", "数仓当日没有任何业务记录，未生成报告"],
+            20: ["ready", "正常", "五张竞品表及本品数据均可用"],
+            21: ["ai-failed", "AI 失败", "确定性分析已完成，AI 返回内容不符合结构要求"],
+            22: ["ready", "正常", "五张竞品表及本品数据均可用"],
+            23: ["ready", "正常", "五张竞品表及本品数据均可用"]
+          }
+        },
+        "day-empty": {
+          periodLabel: "2026年8月19日",
+          bannerTitle: "当日无数据 · 未生成报告",
+          bannerDetail: "已完成数仓检查，这一天没有任何可用业务记录",
+          bannerIcon: "—",
+          tone: "danger",
+          selectedDay: 19,
+          reportMode: "empty",
+          aiFailed: false,
+          days: {
+            17: ["ready", "正常", "日报已生成"],
+            18: ["ready", "正常", "日报已生成"],
+            19: ["no-data", "无数据", "数仓当日没有任何业务记录，未生成报告"],
+            20: ["ready", "正常", "日报已生成"],
+            21: ["ai-failed", "AI 失败", "确定性分析已完成，AI 分析未生成"],
+            22: ["ready", "正常", "日报已生成"],
+            23: ["ready", "正常", "日报已生成"]
+          }
+        },
+        "ai-failed": {
+          periodLabel: "2026年8月21日",
+          bannerTitle: "AI 分析失败 · 基础报告可用",
+          bannerDetail: "确定性计算已完成，仅优劣势与建议暂不可用",
+          bannerIcon: "!",
+          tone: "danger",
+          selectedDay: 21,
+          reportMode: "report",
+          aiFailed: true,
+          days: {
+            17: ["ready", "正常", "日报已生成"],
+            18: ["ready", "正常", "日报已生成"],
+            19: ["no-data", "无数据", "数仓当日没有任何业务记录，未生成报告"],
+            20: ["ready", "正常", "日报已生成"],
+            21: ["ai-failed", "AI 失败", "确定性分析已完成，AI 返回内容不符合结构要求"],
+            22: ["ready", "正常", "日报已生成"],
+            23: ["ready", "正常", "日报已生成"]
+          }
+        }
+      };
+
+      const statusMeta = {
+        ready: { symbol: "●", className: "ready" },
+        partial: { symbol: "▲", className: "partial" },
+        "no-data": { symbol: "—", className: "" },
+        "ai-failed": { symbol: "!", className: "failed" },
+        failed: { symbol: "×", className: "failed" }
+      };
+
+      const calendarGrid = document.querySelector("#calendar-grid");
+      const periodLabel = document.querySelector("#period-label");
+      const statusBanner = document.querySelector("#status-banner");
+      const bannerIcon = document.querySelector("#banner-icon");
+      const bannerTitle = document.querySelector("#banner-title");
+      const bannerDetail = document.querySelector("#banner-detail");
+      const reportCard = document.querySelector("#report-card");
+      const emptyCard = document.querySelector("#empty-card");
+      const aiLocalError = document.querySelector("#ai-local-error");
+      const chartWrap = document.querySelector("#chart-wrap");
+      const statusDialog = document.querySelector("#status-dialog");
+      const dialogBody = document.querySelector("#dialog-body");
+      const dialogSubtitle = document.querySelector("#dialog-subtitle");
+      let currentScenario = "week-partial";
+
+      /**
+       * 功能说明：构造报告日期按钮，并将业务状态同时表达为符号和文本。
+       * @param {number} day 日期中的日。
+       * @param {Array<string>|undefined} status 日期对应的状态数据。
+       * @param {number} selectedDay 当前选中的日期。
+       * @returns {HTMLButtonElement} 可交互的日期按钮。
+       */
+      function createDateButton(day, status, selectedDay) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "date-button";
+        button.dataset.day = String(day);
+        button.setAttribute("aria-pressed", String(day === selectedDay));
+        button.append(String(day));
+
+        if (!status) {
+          button.disabled = true;
+          button.setAttribute("aria-label", `8月${day}日，尚未执行`);
+          return button;
+        }
+
+        const [statusCode, statusText] = status;
+        const meta = statusMeta[statusCode];
+        const mark = document.createElement("span");
+        mark.className = `date-mark ${meta.className}`.trim();
+        mark.textContent = meta.symbol;
+        mark.setAttribute("aria-hidden", "true");
+        button.append(mark);
+        button.setAttribute("aria-label", `8月${day}日，${statusText}`);
+        button.addEventListener("click", () => showDateDetail(day));
+        return button;
+      }
+
+      /**
+       * 功能说明：绘制八月日期网格并标记每一天的报告状态。
+       * @param {object} scenario 当前场景配置。
+       * @returns {void} 无返回值。
+       */
+      function renderCalendar(scenario) {
+        calendarGrid.replaceChildren();
+        for (let index = 0; index < 5; index += 1) {
+          const placeholder = document.createElement("span");
+          placeholder.className = "date-placeholder";
+          placeholder.setAttribute("aria-hidden", "true");
+          calendarGrid.append(placeholder);
+        }
+        for (let day = 1; day <= 31; day += 1) {
+          calendarGrid.append(createDateButton(day, scenario.days[day], scenario.selectedDay));
+        }
+      }
+
+      /**
+       * 功能说明：生成保留缺失日期断点的趋势图，避免跨空缺日期连线。
+       * @param {object} scenario 当前场景配置。
+       * @returns {void} 无返回值。
+       */
+      function renderChart(scenario) {
+        const missingDay = scenario.days[19]?.[0] === "no-data" ? 19 : null;
+        chartWrap.innerHTML = `
+          <svg viewBox="0 0 760 255" role="img" aria-label="8月17日至23日成交金额趋势，8月19日无数据并断开折线">
+            <line class="grid-line" x1="48" y1="36" x2="732" y2="36"></line>
+            <line class="grid-line" x1="48" y1="95" x2="732" y2="95"></line>
+            <line class="grid-line" x1="48" y1="154" x2="732" y2="154"></line>
+            <line class="grid-line" x1="48" y1="213" x2="732" y2="213"></line>
+            ${missingDay ? '<rect class="missing-band" x="225" y="25" width="62" height="188" rx="6"></rect><text class="missing-label" x="256" y="47" text-anchor="middle">无数据</text>' : ""}
+            <text class="axis-label" x="8" y="40">8K</text>
+            <text class="axis-label" x="8" y="99">6K</text>
+            <text class="axis-label" x="8" y="158">4K</text>
+            <text class="axis-label" x="8" y="217">2K</text>
+            <path class="series-self" d="M58 91 C93 76, 126 70, 158 77"></path>
+            <path class="series-self" d="M354 114 C392 101, 432 107, 452 120 S532 145, 550 124 S633 84, 648 97 S704 116, 728 72"></path>
+            <path class="series-competitor" d="M58 163 C94 152, 126 141, 158 148"></path>
+            <path class="series-competitor" d="M354 178 C391 166, 426 170, 452 180 S526 192, 550 174 S622 145, 648 155 S696 176, 728 165"></path>
+            <g fill="var(--teal)"><circle cx="58" cy="91" r="4"></circle><circle cx="158" cy="77" r="4"></circle><circle cx="354" cy="114" r="4"></circle><circle cx="452" cy="120" r="4"></circle><circle cx="550" cy="124" r="4"></circle><circle cx="648" cy="97" r="4"></circle><circle cx="728" cy="72" r="4"></circle></g>
+            <g fill="var(--amber)"><circle cx="58" cy="163" r="4"></circle><circle cx="158" cy="148" r="4"></circle><circle cx="354" cy="178" r="4"></circle><circle cx="452" cy="180" r="4"></circle><circle cx="550" cy="174" r="4"></circle><circle cx="648" cy="155" r="4"></circle><circle cx="728" cy="165" r="4"></circle></g>
+            <text class="axis-label" x="58" y="239" text-anchor="middle">08-17</text>
+            <text class="axis-label" x="158" y="239" text-anchor="middle">08-18</text>
+            <text class="axis-label" x="256" y="239" text-anchor="middle">08-19 —</text>
+            <text class="axis-label" x="354" y="239" text-anchor="middle">08-20</text>
+            <text class="axis-label" x="452" y="239" text-anchor="middle">08-21 !</text>
+            <text class="axis-label" x="550" y="239" text-anchor="middle">08-22</text>
+            <text class="axis-label" x="648" y="239" text-anchor="middle">08-23</text>
+          </svg>`;
+      }
+
+      /**
+       * 功能说明：渲染当前场景的状态明细列表。
+       * @param {object} scenario 当前场景配置。
+       * @param {number|null} focusDay 需要突出展示的日期，空值代表显示全部。
+       * @returns {void} 无返回值。
+       */
+      function renderDialog(scenario, focusDay = null) {
+        const entries = Object.entries(scenario.days).filter(([day]) => focusDay === null || Number(day) === focusDay);
+        dialogSubtitle.textContent = focusDay === null ? `${scenario.periodLabel} · 状态逐日记录` : `2026年8月${focusDay}日 · 状态说明`;
+        dialogBody.innerHTML = entries.map(([day, item]) => {
+          const [statusCode, statusText, reason] = item;
+          const meta = statusMeta[statusCode];
+          return `<div class="status-row">
+            <span class="status-date">8月${day}日</span>
+            <span class="status-pill ${meta.className}"><span aria-hidden="true">${meta.symbol}</span>${statusText}</span>
+            <span class="status-reason">${reason}</span>
+          </div>`;
+        }).join("");
+      }
+
+      /**
+       * 功能说明：打开指定日期的状态说明，并同步日期选中态。
+       * @param {number} day 需要查看的日期。
+       * @returns {void} 无返回值。
+       */
+      function showDateDetail(day) {
+        document.querySelectorAll(".date-button").forEach((button) => {
+          button.setAttribute("aria-pressed", String(Number(button.dataset.day) === day));
+        });
+        renderDialog(scenarios[currentScenario], day);
+        statusDialog.showModal();
+      }
+
+      /**
+       * 功能说明：切换 Playground 场景并同步页面所有相关区块。
+       * @param {string} scenarioName 场景标识。
+       * @returns {void} 无返回值。
+       */
+      function renderScenario(scenarioName) {
+        currentScenario = scenarioName;
+        const scenario = scenarios[scenarioName];
+        document.querySelectorAll(".scenario-button").forEach((button) => {
+          button.setAttribute("aria-selected", String(button.dataset.scenario === scenarioName));
+        });
+        periodLabel.textContent = scenario.periodLabel;
+        bannerIcon.textContent = scenario.bannerIcon;
+        bannerTitle.textContent = scenario.bannerTitle;
+        bannerDetail.textContent = scenario.bannerDetail;
+        statusBanner.dataset.tone = scenario.tone;
+        reportCard.hidden = scenario.reportMode === "empty";
+        emptyCard.hidden = scenario.reportMode !== "empty";
+        aiLocalError.hidden = !scenario.aiFailed;
+        renderCalendar(scenario);
+        renderChart(scenario);
+      }
+
+      document.querySelectorAll(".scenario-button").forEach((button) => {
+        button.addEventListener("click", () => renderScenario(button.dataset.scenario));
+      });
+
+      statusBanner.addEventListener("click", () => {
+        const scenario = scenarios[currentScenario];
+        const focusDay = currentScenario === "week-partial" ? null : scenario.selectedDay;
+        renderDialog(scenario, focusDay);
+        statusDialog.showModal();
+      });
+
+      document.querySelector("#dialog-close").addEventListener("click", () => statusDialog.close());
+      statusDialog.addEventListener("click", (event) => {
+        if (event.target === statusDialog) {
+          statusDialog.close();
+        }
+      });
+
+      renderScenario(currentScenario);
+    </script>
+  </body>
+</html>
