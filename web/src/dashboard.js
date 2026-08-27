@@ -4,7 +4,6 @@ import { GridComponent, LegendComponent, TooltipComponent } from "echarts/compon
 import { SVGRenderer } from "echarts/renderers";
 import { mountAnalysisVxeTable, unmountAnalysisVxeTable } from "./analysis-vxe-table.js";
 import { compactHeroSummary, hasDetailPoints } from "./hero-summary.js";
-import { renderReportStatus } from "./report-status.js";
 
 echarts.use([LineChart, GridComponent, LegendComponent, TooltipComponent, SVGRenderer]);
 
@@ -318,7 +317,6 @@ function renderAiRecommendations() {
     target.innerHTML = `
       <div class="ai-report-state ${failed ? "is-error" : "is-pending"}">
         <strong>${failed ? "AI 劣势建议生成失败" : "AI 劣势建议生成中"}</strong>
-        <span>${failed ? "基础分析结果仍可查看，该区块不展示旧建议。" : "基础分析结果已完成，建议生成后会在这里显示。"}</span>
       </div>`;
     return;
   }
@@ -579,7 +577,6 @@ export function renderDashboard(data, activeMetricId = "") {
     meta.granularity ? `分析粒度：${granularityLabels[meta.granularity] || meta.granularity}` : ""
   ].filter(Boolean).join(" · ");
   renderProductComparison(meta);
-  renderReportStatus(data);
   const summary = meta.summary || "-";
   const weakness = meta.weakness_summary || "-";
   const metricItems = data.core_metrics || [];

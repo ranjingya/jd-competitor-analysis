@@ -18,7 +18,6 @@ import {
 } from "./report-selection.js";
 import { bindSkuDialog, closeSkuDialog } from "./sku-dialog.js";
 import { bindHeroSummaryDialog } from "./hero-summary.js";
-import { bindReportStatusDialog } from "./report-status.js";
 
 const granularityLabels = {
   day: "日",
@@ -342,10 +341,6 @@ async function initialize() {
     bindHeroSummaryDialog(
       document.querySelector("#summary-dialog"),
       document.querySelector("#hero-summary-trigger")
-    );
-    bindReportStatusDialog(
-      document.querySelector("#report-status-trigger"),
-      document.querySelector("#report-status-dialog")
     );
     await selectActiveReport();
   } catch (error) {
