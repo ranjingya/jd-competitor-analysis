@@ -1037,6 +1037,7 @@ a.product-card:active {
 }
 
 .period-month-cell {
+  position: relative;
   min-height: 68px;
   border: 1px solid var(--line);
   border-radius: 7px;
@@ -1051,13 +1052,12 @@ a.product-card:active {
 }
 
 .period-month-cell strong {
-  position: relative;
   font: 700 18px/1 Consolas, monospace;
 }
 
 .period-month-cell .period-status-marker {
-  top: -2px;
-  right: -10px;
+  top: 1px;
+  right: 8px;
   bottom: auto;
 }
 
@@ -1077,6 +1077,10 @@ a.product-card:active {
   background: var(--teal);
   color: #fff;
   box-shadow: 0 6px 14px rgba(15, 123, 115, 0.2);
+}
+
+.period-month-cell.is-selected .period-status-marker {
+  color: #fff;
 }
 
 .period-month-cell.is-selected span {

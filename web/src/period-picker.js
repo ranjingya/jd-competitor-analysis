@@ -272,7 +272,7 @@ function createMonthPanel(options) {
         const entry = entries.find((item) => Number(item.start_date.slice(5, 7)) === month);
         const status = entryStatus(entry, "month");
         const coverage = coverageLabel(entry);
-        return `<button type="button" data-report-id="${entry?.report_id || ""}" ${entry ? "" : "disabled"} class="period-month-cell${entry?.report_id === selected?.report_id ? " is-selected" : ""}" aria-pressed="${entry?.report_id === selected?.report_id}" ${entry ? `aria-label="${month}月，${status.label}${coverage ? `，${coverage}` : ""}"` : ""}><strong>${String(month).padStart(2, "0")}${entry ? statusMarker(entry, "month") : ""}</strong><span>${entry ? coverage || status.label : "暂无报告"}</span></button>`;
+        return `<button type="button" data-report-id="${entry?.report_id || ""}" ${entry ? "" : "disabled"} class="period-month-cell${entry?.report_id === selected?.report_id ? " is-selected" : ""}" aria-pressed="${entry?.report_id === selected?.report_id}" ${entry ? `aria-label="${month}月，${status.label}${coverage ? `，${coverage}` : ""}"` : ""}><strong>${String(month).padStart(2, "0")}</strong>${entry ? statusMarker(entry, "month") : ""}<span>${entry ? coverage || status.label : "暂无报告"}</span></button>`;
       }).join("")}
     </div>
     ${selected ? `<footer class="period-selection-summary period-month-summary"><span>已选月份</span><strong>${formatPeriodLabel("month", selected)}</strong></footer>` : ""}
