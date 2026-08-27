@@ -1,11 +1,12 @@
 import * as echarts from "echarts/core";
-import { LineChart } from "echarts/charts";
+import { CustomChart, LineChart } from "echarts/charts";
 import { GridComponent, LegendComponent, TooltipComponent } from "echarts/components";
 import { SVGRenderer } from "echarts/renderers";
 import { mountAnalysisVxeTable, unmountAnalysisVxeTable } from "./analysis-vxe-table.js";
 import { compactHeroSummary, hasDetailPoints } from "./hero-summary.js";
+import { buildMissingTrendSeries, buildTrendPoints } from "./trend-data.js";
 
-echarts.use([LineChart, GridComponent, LegendComponent, TooltipComponent, SVGRenderer]);
+echarts.use([CustomChart, LineChart, GridComponent, LegendComponent, TooltipComponent, SVGRenderer]);
 
 const granularityLabels = {
   day: "日",
@@ -355,18 +356,6 @@ function compactNumber(value) {
   return value.toFixed(2);
 }
 
-function trendPeriodLabel(meta, granularity) {
-  const start = String(meta.period_start || "");
-  const end = String(meta.period_end || "");
-  if (granularity === "month") {
-    return start.slice(0, 7) || meta.period || "-";
-  }
-  if (granularity === "week" && end && end !== start) {
-    return `${start.slice(5)}~${end.slice(5)}`;
-  }
-  return start.slice(5) || meta.period || "-";
-}
-
 function disposeTrendChart() {
   trendResizeObserver?.disconnect();
   trendResizeObserver = null;
@@ -388,58 +377,6 @@ export function showTrendState(message, isError = false) {
   target.innerHTML = `<div class="trend-empty ${isError ? "error" : ""}">${escapeHtml(message)}</div>`;
 }
 
-function isoDatesBetween(startDate, endDate) {
-  const dates = [];
-  const cursor = new Date(`${startDate}T00:00:00Z`);
-  const end = new Date(`${endDate}T00:00:00Z`);
-  while (cursor <= end) {
-    dates.push(cursor.toISOString().slice(0, 10));
-    cursor.setUTCDate(cursor.getUTCDate() + 1);
-  }
-  return dates;
-}
-
-/**
- * 功能说明：把趋势报告转换为完整时间轴，日报缺失日期保留空点以中断折线。
- * 参数 reports：趋势接口返回的轻量报告数组。
- * 参数 metricId：需要绘制的核心指标 ID。
- * 参数 granularity：day、week 或 month。
- * 参数 range：趋势查询的开始和结束日期。
- * 返回值：包含正常点和缺失空点的有序数组。
- */
-export function buildTrendPoints(reports, metricId, granularity, range = {}) {
-  const reportPoints = reports.map((report) => {
-    const metric = (report.core_metrics || []).find((item) => item.id === metricId);
-    const periodStart = String(report.meta?.period_start || "");
-    return {
-      period: report.meta?.period || periodStart || "-",
-      periodStart,
-      label: trendPeriodLabel(report.meta || {}, granularity),
-      selfValue: typeof metric?.self_value === "number" ? metric.self_value : null,
-      competitorValue: typeof metric?.competitor_value === "number" ? metric.competitor_value : null,
-      metric: metric || null,
-      reportStatus: report.report_status || "ready",
-      qualityStatus: report.quality_status || "ready",
-      missing: false
-    };
-  });
-  if (granularity !== "day" || !range.startDate || !range.endDate) {
-    return reportPoints;
-  }
-  const byDate = new Map(reportPoints.map((item) => [item.periodStart, item]));
-  return isoDatesBetween(range.startDate, range.endDate).map((date) => byDate.get(date) || {
-    period: date,
-    periodStart: date,
-    label: date.slice(5),
-    selfValue: null,
-    competitorValue: null,
-    metric: null,
-    reportStatus: "missing",
-    qualityStatus: "missing",
-    missing: true
-  });
-}
-
 /**
  * 功能说明：使用多个周期的分析结果绘制本品和竞品趋势折线图。
  * 参数 reports：按时间升序排列的报告对象数组。
@@ -451,6 +388,7 @@ export function buildTrendPoints(reports, metricId, granularity, range = {}) {
  */
 export function renderTrendChart(reports, metricId, granularity, selectedPeriodStart = "", range = {}) {
   const points = buildTrendPoints(reports, metricId, granularity, range);
+  const missingSeries = buildMissingTrendSeries(points);
   const availablePoints = points.filter((item) => item.metric && item.selfValue != null && item.competitorValue != null);
   if (!availablePoints.length) {
     showTrendState("当前范围暂无可用趋势数据");
@@ -467,7 +405,11 @@ export function renderTrendChart(reports, metricId, granularity, selectedPeriodS
   const target = document.querySelector("#trend-chart");
   disposeTrendChart();
   target.innerHTML = "";
-  target.setAttribute("aria-label", `${metric.label || "指标"}本品与竞品趋势图${selectedItem ? `，当前选中 ${selectedItem.label}` : ""}`);
+  const missingLabels = points.filter((item) => item.missing).map((item) => item.label);
+  target.setAttribute(
+    "aria-label",
+    `${metric.label || "指标"}本品与竞品趋势图${selectedItem ? `，当前选中 ${selectedItem.label}` : ""}${missingLabels.length ? `，无数据日期 ${missingLabels.join("、")}` : ""}`
+  );
   trendChartInstance = echarts.init(target, null, { renderer: "svg" });
   const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
   trendChartInstance.setOption({
@@ -522,6 +464,7 @@ export function renderTrendChart(reports, metricId, granularity, selectedPeriodS
       splitLine: { lineStyle: { color: "#ded6c8", type: "dashed" } }
     },
     series: [
+      ...(missingSeries ? [missingSeries] : []),
       {
         name: "本品",
         type: "line",
