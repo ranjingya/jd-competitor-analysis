@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
 from time import perf_counter
 from typing import Any
 
@@ -11,6 +10,7 @@ from .contracts import validate_contract
 from .estimation import PHistory, analyze_core
 from .product_assets import load_product_images
 from .report import build_analysis_result
+from .time_utils import beijing_now_text
 
 
 LOGGER = logging.getLogger(__name__)
@@ -36,7 +36,7 @@ def analyze_normalized(
     core = analyze_core(normalized, history)
     resolved_product_images = product_images if product_images is not None else load_product_images()
     result = build_analysis_result(normalized, core, resolved_product_images)
-    result["meta"]["generated_at"] = datetime.now().isoformat(timespec="seconds")
+    result["meta"]["generated_at"] = beijing_now_text()
     validate_contract(result)
     LOGGER.debug("标准化事实分析完成：%s，耗时=%.3fs", period_key, perf_counter() - started_at)
     return result, core["p_samples"]

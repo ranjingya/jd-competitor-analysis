@@ -5,14 +5,15 @@ from __future__ import annotations
 import json
 import logging
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
+from jd_competitor_analysis.time_utils import BEIJING_TIMEZONE
+
 
 LOGGER = logging.getLogger(__name__)
-BEIJING_TIMEZONE = timezone(timedelta(hours=8), "Asia/Shanghai")
 TOKENS_PER_MILLION = Decimal("1000000")
 
 
@@ -164,8 +165,10 @@ def append_usage_log(
     log_dir.mkdir(parents=True, exist_ok=True)
     log_path = log_dir / f"deepseek-usage-{now:%Y-%m}.jsonl"
     line = json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n"
-    descriptor = os.open(log_path, os.O_APPEND | os.O_CREAT | os.O_WRONLY, 0o640)
+    descriptor = os.open(log_path, os.O_APPEND | os.O_CREAT | os.O_WRONLY, 0o644)
     try:
+        # 容器通常以 root 写入挂载目录，统一开放宿主机只读权限。
+        os.fchmod(descriptor, 0o644)
         os.write(descriptor, line.encode("utf-8"))
     finally:
         os.close(descriptor)

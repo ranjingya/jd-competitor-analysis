@@ -13,6 +13,8 @@ Backend 使用一个 SQLite 数据库保存标准化日数据、日周月报告�
 
 数据库结构版本写入 SQLite `PRAGMA user_version`，当前版本为 `2`。应用启动和 CLI 运行时都会初始化当前结构。
 
+数据库时间字段统一使用带 `+08:00` 偏移的 ISO 8601 文本，例如 `2026-08-28T10:30:00+08:00`。初始化过程会将已有 UTC 时间和无偏移北京时间转换为该格式；`report_date`、`start_date`、`end_date` 等业务日期继续使用 `YYYY-MM-DD`。
+
 ```text
 analysis_datasets  1 ─── 0..1  reports（日）
                               │

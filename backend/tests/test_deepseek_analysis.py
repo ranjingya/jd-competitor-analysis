@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import stat
 import tempfile
 import unittest
 from pathlib import Path
@@ -177,10 +178,12 @@ class DeepSeekAnalyzerTest(unittest.TestCase):
                 )
             log_paths = list(usage_log_dir.glob("deepseek-usage-*.jsonl"))
             record = json.loads(log_paths[0].read_text(encoding="utf-8"))
+            file_mode = stat.S_IMODE(log_paths[0].stat().st_mode)
 
         self.assertEqual(len(log_paths), 1)
         self.assertEqual(record["analysis_id"], "analysis-1")
         self.assertEqual(record["usage"]["reasoning_tokens"], 124)
+        self.assertEqual(file_mode, 0o644)
         self.assertEqual(record["pricing"]["multiplier"], 1.0)
         self.assertEqual(record["estimated_cost"], 0.000852)
         self.assertEqual(record["generation_attempt"], 1)

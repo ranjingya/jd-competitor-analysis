@@ -12,8 +12,9 @@ from time import perf_counter
 from typing import Any
 
 from jd_competitor_analysis.report import build_tabs, gap_text, relative_gap_pct
+from jd_competitor_analysis.time_utils import beijing_now_text
 
-from ..database import Database, utc_now_text
+from ..database import Database
 
 
 LOGGER = logging.getLogger(__name__)
@@ -301,7 +302,7 @@ class ReportRepository:
         if status not in REPORT_STATUSES:
             raise ValueError(f"报告状态无效：{status}")
         selected_report_id = report_id or str(uuid.uuid4())
-        now = utc_now_text()
+        now = beijing_now_text()
         with self.database.connection() as connection:
             scope = self._resolve_scope(connection, dataset_id, report)
             content = self._report_content(connection, dataset_id, report)
@@ -500,7 +501,7 @@ class ReportRepository:
         返回值：无。
         """
 
-        now = utc_now_text()
+        now = beijing_now_text()
         with self.database.connection() as connection:
             content = self._report_content(connection, dataset_id, report)
             exists = connection.execute(
@@ -519,7 +520,7 @@ class ReportRepository:
         返回值：无。
         """
 
-        now = utc_now_text()
+        now = beijing_now_text()
         with self.database.connection() as connection:
             updated = connection.execute(
                 "UPDATE reports SET status = 'pending_ai', updated_at = ? WHERE report_id = ?",

@@ -7,9 +7,10 @@ import logging
 import sqlite3
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+from jd_competitor_analysis.time_utils import beijing_now_text
 
 from ..database import Database
 from ..report_merge import validate_ai_result
@@ -28,12 +29,6 @@ class TaskStartResult:
 
     analysis_id: str
     should_execute: bool
-
-
-def _utc_now_text() -> str:
-    """返回带时区的当前 UTC 时间。"""
-
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
 class TaskRepository:
@@ -75,7 +70,7 @@ class TaskRepository:
         """
 
         task_id = analysis_id or str(uuid.uuid4())
-        now = _utc_now_text()
+        now = beijing_now_text()
         connection = self._connect()
         try:
             connection.execute("BEGIN IMMEDIATE")
@@ -178,7 +173,7 @@ class TaskRepository:
 
         validated_result = validate_ai_result(result)
         result_json = json.dumps(validated_result, ensure_ascii=False, sort_keys=True)
-        now = _utc_now_text()
+        now = beijing_now_text()
         connection = self._connect()
         try:
             connection.execute("BEGIN IMMEDIATE")
@@ -222,7 +217,7 @@ class TaskRepository:
         返回值：无。
         """
 
-        now = _utc_now_text()
+        now = beijing_now_text()
         connection = self._connect()
         try:
             connection.execute("BEGIN IMMEDIATE")

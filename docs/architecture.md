@@ -75,7 +75,7 @@ GET  /api/reports/{granularity}/{start_date}/{end_date}
 0 12 * * * /home/yatui/jd-competitor-analysis/scripts/run-daily-analysis.sh
 ```
 
-宿主机 `.env` 使用 `HEALTHCHECKS_PING_URL` 保存检查地址，使用 `LARK_ALERT_OPEN_ID` 保存当前飞书应用下的失败通知接收人。脚本通过 Backend 容器执行 `warehouse-daily-run --yesterday`；每周一继续执行 `weekly-report-run --previous-week`，每月 1 日继续执行 `monthly-report-run --previous-month`。最终失败时，脚本向 Healthchecks 上报失败日志，并使用飞书自建应用机器人发送包含失败原因、时间、服务器、退出码和末尾日志摘要的单聊卡片。飞书接口异常不改变分析任务退出码。日志写入 `data/logs/`，宿主机脚本、CLI 和 Uvicorn 均使用 `Asia/Shanghai` 时间。DeepSeek 用量日志使用官方基础价格配置计算估算费用，价格倍率固定为 1。模型结果不符合 JSON 契约时只重新生成当前分析一次，最终 AI 失败使用专用退出码上报告警且不执行整体重试；其他普通运行异常等待 30 秒后整体重试一次，数仓并发上限由 CLI 按 30、60、120 秒定向重试。
+宿主机 `.env` 使用 `HEALTHCHECKS_PING_URL` 保存检查地址，使用 `LARK_ALERT_OPEN_ID` 保存当前飞书应用下的失败通知接收人。脚本通过 Backend 容器执行 `warehouse-daily-run --yesterday`；每周一继续执行 `weekly-report-run --previous-week`，每月 1 日继续执行 `monthly-report-run --previous-month`。最终失败时，脚本向 Healthchecks 上报失败日志，并使用飞书自建应用机器人发送包含失败原因、时间、服务器、退出码和末尾日志摘要的单聊卡片。飞书接口异常不改变分析任务退出码。宿主机、Backend、Web/Nginx、运行日志和数据库时间统一使用 `Asia/Shanghai`；数据库和 API 时间字段使用带 `+08:00` 的 ISO 8601 文本，前端固定按 `Asia/Shanghai` 展示。DeepSeek 用量日志使用官方基础价格配置计算估算费用，价格倍率固定为 1，并以 `0644` 权限保存在宿主机挂载目录。模型结果不符合 JSON 契约时只重新生成当前分析一次，最终 AI 失败使用专用退出码上报告警且不执行整体重试；其他普通运行异常等待 30 秒后整体重试一次，数仓并发上限由 CLI 按 30、60、120 秒定向重试。
 
 日报、周报和月报 CLI 共用 `/app/data/warehouse-daily-run.lock` 进程锁。同一分析任务仍在运行时，后续触发直接退出，避免重复读取数仓和覆盖报告。日报定时模式检查最近七天，已有完整报告直接跳过；基础数据质量为 `ready` 的 `ai_failed` 报告复用失败任务中的结构化输入，仅重新执行 DeepSeek 分析；其余报告缺口重新读取数仓并执行完整流程。
 

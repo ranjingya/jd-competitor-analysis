@@ -15,12 +15,12 @@ from jd_competitor_analysis.period_aggregation import (
     aggregate_period_report,
     build_period_ai_payload,
 )
+from jd_competitor_analysis.time_utils import BEIJING_TIMEZONE
 
 from ..config import get_settings
 from ..database import Database
 from ..deepseek_analysis import DeepSeekAnalysisConfig, DeepSeekAnalyzer
 from ..job_lock import acquire_job_lock
-from ..logging_config import BEIJING_TIMEZONE
 from ..repositories.report_repository import ReportRepository
 from ..repositories.task_repository import TaskRepository
 from .analysis import start_ai_analysis

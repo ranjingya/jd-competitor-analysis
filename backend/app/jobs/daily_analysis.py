@@ -17,6 +17,7 @@ from sqlalchemy.engine import Engine
 
 from jd_competitor_analysis.lark_mapping import LarkBaseMappingClient, load_lark_base_config
 from jd_competitor_analysis.product_assets import load_product_images
+from jd_competitor_analysis.time_utils import BEIJING_TIMEZONE
 from jd_competitor_analysis.warehouse import create_warehouse_engine, load_warehouse_config
 from jd_competitor_analysis.warehouse_analysis import analyze_daily_dataset, build_ai_task_payload
 from jd_competitor_analysis.warehouse_daily import (
@@ -30,7 +31,6 @@ from ..database import Database
 from ..job_status import DailyAnalysisStatusWriter
 from ..deepseek_analysis import DeepSeekAnalysisConfig, DeepSeekAnalyzer
 from ..job_lock import acquire_job_lock
-from ..logging_config import BEIJING_TIMEZONE
 from ..repositories.dataset_repository import DatasetRepository
 from ..repositories.report_repository import ReportRepository
 from ..repositories.task_repository import TaskRepository

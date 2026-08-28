@@ -10,7 +10,9 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from ..database import Database, utc_now_text
+from jd_competitor_analysis.time_utils import beijing_now_text
+
+from ..database import Database
 
 
 LOGGER = logging.getLogger(__name__)
@@ -127,7 +129,7 @@ class DatasetRepository:
                         canonical_json(source_status),
                         quality_status,
                         source_hash,
-                        utc_now_text(),
+                        beijing_now_text(),
                     ),
                 )
             except sqlite3.IntegrityError as error:

@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from typing import Any
+
+from jd_competitor_analysis.time_utils import BEIJING_TIMEZONE
 
 
 LOG_FORMAT = "%(asctime)s.%(msecs)03d %(levelname)s %(name)s - %(message)s"
 LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
-BEIJING_TIMEZONE = timezone(timedelta(hours=8), "Asia/Shanghai")
 
 
 class BeijingFormatter(logging.Formatter):

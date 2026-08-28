@@ -18,6 +18,7 @@ import {
 } from "./report-selection.js";
 import { bindSkuDialog, closeSkuDialog } from "./sku-dialog.js";
 import { bindHeroSummaryDialog } from "./hero-summary.js";
+import { formatBeijingDateTime } from "./time-format.js";
 
 const granularityLabels = {
   day: "日",
@@ -327,8 +328,9 @@ async function initialize() {
     state.index = indexFromProductPairs(await loadProductPairs());
     state.activePairKey = defaultPairKey(state.index);
     selectReportsForActivePair();
-    document.querySelector("#updated-at").textContent = state.index.updated_at
-      ? `数据生成于 ${state.index.updated_at.slice(0, 19).replace("T", " ")}`
+    const updatedAt = formatBeijingDateTime(state.index.updated_at);
+    document.querySelector("#updated-at").textContent = updatedAt
+      ? `数据生成于 ${updatedAt}`
       : "暂无分析结果";
     renderControls();
     bindPeriodPickerDismissal();

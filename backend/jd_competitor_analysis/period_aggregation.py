@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import copy
 from collections import defaultdict
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, timedelta
 from typing import Any, Iterable
 
 from .report import build_core_views, build_tabs
+from .time_utils import beijing_now_text
 
 
-BEIJING_TIMEZONE = timezone(timedelta(hours=8), "Asia/Shanghai")
 SUM_CORE_METRICS = ("gmv", "sold_units", "orders", "views", "visitors", "cart_users")
 
 
@@ -516,7 +516,7 @@ def aggregate_period_report(
                 }.items()
                 if metric_id in SUM_CORE_METRICS
             },
-            "generated_at": datetime.now(BEIJING_TIMEZONE).isoformat(timespec="seconds"),
+            "generated_at": beijing_now_text(),
         }
     )
     return report

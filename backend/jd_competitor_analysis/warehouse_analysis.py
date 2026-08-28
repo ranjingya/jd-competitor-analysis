@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import copy
 import logging
-from datetime import datetime
 from typing import Any
 
 from .pipeline import analyze_normalized
+from .time_utils import beijing_now_text
 
 
 LOGGER = logging.getLogger(__name__)
@@ -199,7 +199,7 @@ def adapt_daily_dataset(dataset: dict[str, Any], title: str | None = None) -> di
             "self_spu": pair["self_spu"],
             "competitor_spu": pair["competitor_spu"],
             "competitor_prefix": COMPETITOR_PREFIX,
-            "generated_at": datetime.now().isoformat(timespec="seconds"),
+            "generated_at": beijing_now_text(),
         },
         "self_real": self_real,
         "core_raw": _adapt_core(dataset),

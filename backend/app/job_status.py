@@ -7,20 +7,16 @@ import logging
 import os
 import tempfile
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+from jd_competitor_analysis.time_utils import beijing_now, beijing_now_text
 
 
 LOGGER = logging.getLogger(__name__)
 STATUS_SCHEMA_VERSION = "1.0"
 STALE_PROGRESS_SECONDS = 15 * 60
-
-
-def _utc_now_text() -> str:
-    """返回带时区和秒精度的 UTC 时间。"""
-
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
 def read_daily_analysis_status(path: Path) -> dict[str, Any]:
@@ -82,7 +78,7 @@ def read_daily_analysis_status(path: Path) -> dict[str, Any]:
             if progress_at.tzinfo is not None:
                 progress_age_seconds = max(
                     0,
-                    int((datetime.now(timezone.utc) - progress_at).total_seconds()),
+                    int((beijing_now() - progress_at).total_seconds()),
                 )
         except ValueError:
             progress_age_seconds = None
@@ -126,7 +122,7 @@ class DailyAnalysisStatusWriter:
         返回值：无。
         """
 
-        now = _utc_now_text()
+        now = beijing_now_text()
         self.payload = {
             "schema_version": STATUS_SCHEMA_VERSION,
             "run_id": self.run_id,
@@ -179,7 +175,7 @@ class DailyAnalysisStatusWriter:
                 "current_date": current_date,
                 "self_spu": self_spu,
                 "competitor_spu": competitor_spu,
-                "progress_at": _utc_now_text(),
+                "progress_at": beijing_now_text(),
             }
         )
         if completed_items is not None:
@@ -203,7 +199,7 @@ class DailyAnalysisStatusWriter:
         返回值：无。
         """
 
-        now = _utc_now_text()
+        now = beijing_now_text()
         self.payload.update(
             {
                 "status": "completed",
@@ -228,7 +224,7 @@ class DailyAnalysisStatusWriter:
         返回值：无。
         """
 
-        now = _utc_now_text()
+        now = beijing_now_text()
         last_stage = self.payload.get("stage")
         self.payload.update(
             {

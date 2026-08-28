@@ -53,6 +53,7 @@ class DailyAnalysisStatusTest(unittest.TestCase):
         self.assertEqual(completed["status"], "completed")
         self.assertEqual(completed["counts"], {"ready": 4})
         self.assertIsNotNone(completed["completed_at"])
+        self.assertTrue(completed["completed_at"].endswith("+08:00"))
 
     def test_failure_keeps_last_business_stage(self) -> None:
         """失败状态应保留退出前的最后业务阶段和错误摘要。"""

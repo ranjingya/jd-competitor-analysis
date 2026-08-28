@@ -5,21 +5,58 @@ from __future__ import annotations
 import logging
 import sqlite3
 from contextlib import contextmanager
-from datetime import datetime, timezone
 from pathlib import Path
 from time import perf_counter
 from typing import Iterator
+
+from jd_competitor_analysis.time_utils import normalize_beijing_time_text
 
 
 LOGGER = logging.getLogger(__name__)
 DATABASE_SCHEMA_VERSION = 2
 BUSINESS_TABLES = {"analysis_datasets", "reports", "analysis_tasks"}
+TIMESTAMP_COLUMNS = {
+    "analysis_datasets": ("created_at",),
+    "reports": ("generated_at", "created_at", "updated_at"),
+    "analysis_tasks": ("created_at", "updated_at", "completed_at"),
+}
 
 
-def utc_now_text() -> str:
-    """返回带时区、秒精度的当前 UTC 时间。"""
+def _normalize_database_timestamps(connection: sqlite3.Connection) -> int:
+    """将已有数据库时间字段统一转换为北京时间。
 
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    功能说明：扫描三张业务表中的时间字段，将 UTC 或无偏移历史值转换为 `+08:00`。
+    参数 connection：已经完成结构初始化的 SQLite 连接。
+    返回值：实际更新的字段数量。
+    """
+
+    updated_fields = 0
+    for table, columns in TIMESTAMP_COLUMNS.items():
+        for column in columns:
+            rows = connection.execute(
+                f"SELECT rowid, {column} FROM {table} "
+                f"WHERE {column} IS NOT NULL AND {column} NOT LIKE '%+08:00'"
+            ).fetchall()
+            for row in rows:
+                raw_value = str(row[column])
+                try:
+                    normalized = normalize_beijing_time_text(raw_value)
+                except ValueError:
+                    LOGGER.warning(
+                        "数据库时间格式无法转换：table=%s，column=%s，value=%s",
+                        table,
+                        column,
+                        raw_value,
+                    )
+                    continue
+                if normalized == raw_value:
+                    continue
+                connection.execute(
+                    f"UPDATE {table} SET {column} = ? WHERE rowid = ?",
+                    (normalized, row["rowid"]),
+                )
+                updated_fields += 1
+    return updated_fields
 
 
 class Database:
@@ -162,6 +199,12 @@ class Database:
 
                 PRAGMA user_version = 2;
                 """
+            )
+            normalized_fields = _normalize_database_timestamps(connection)
+        if normalized_fields:
+            LOGGER.info(
+                "数据库历史时间已统一为北京时间：updated_fields=%s",
+                normalized_fields,
             )
         LOGGER.debug(
             "Backend 数据库初始化完成：%s，schema_version=%s，耗时=%.3fs",
