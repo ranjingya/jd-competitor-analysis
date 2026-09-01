@@ -57,6 +57,7 @@ read_env_value() {
 PING_URL="$(read_env_value HEALTHCHECKS_PING_URL)"
 PING_URL="${PING_URL%/}"
 LARK_COMPLETION_WEBHOOK_URL="$(read_env_value LARK_COMPLETION_WEBHOOK_URL)"
+LARK_COMPLETION_WEBHOOK_SECRET="$(read_env_value LARK_COMPLETION_WEBHOOK_SECRET)"
 LARK_APP_ID="$(read_env_value LARK_APP_ID)"
 LARK_APP_SECRET="$(read_env_value LARK_APP_SECRET)"
 LARK_ALERT_OPEN_ID="$(read_env_value LARK_ALERT_OPEN_ID)"
@@ -78,11 +79,17 @@ if [[ -z "$LARK_COMPLETION_WEBHOOK_URL" ]]; then
 elif [[ ! "$LARK_COMPLETION_WEBHOOK_URL" =~ ^https://open\.feishu\.cn/open-apis/bot/v2/hook/ ]]; then
   log_message WARNING "飞书完成通知 Webhook 地址格式无效，本次任务成功时不发送机器人消息"
   LARK_COMPLETION_WEBHOOK_READY=0
+elif [[ -z "$LARK_COMPLETION_WEBHOOK_SECRET" ]]; then
+  log_message WARNING "未配置飞书完成通知签名密钥，本次任务成功时不发送机器人消息"
+  LARK_COMPLETION_WEBHOOK_READY=0
 elif ! command -v curl >/dev/null 2>&1; then
   log_message WARNING "宿主机未安装 curl，本次任务成功时不发送飞书机器人消息"
   LARK_COMPLETION_WEBHOOK_READY=0
 elif ! command -v jq >/dev/null 2>&1; then
   log_message WARNING "宿主机未安装 jq，本次任务成功时不发送飞书机器人消息"
+  LARK_COMPLETION_WEBHOOK_READY=0
+elif ! command -v openssl >/dev/null 2>&1; then
+  log_message WARNING "宿主机未安装 openssl，本次任务成功时不发送飞书机器人消息"
   LARK_COMPLETION_WEBHOOK_READY=0
 fi
 
@@ -144,6 +151,19 @@ format_duration() {
   fi
 }
 
+generate_lark_webhook_sign() {
+  # 功能说明：按照飞书群机器人签名规则生成 HMAC-SHA256 Base64 签名。
+  # 参数 timestamp：当前 Unix 秒级时间戳。
+  # 参数 secret：飞书群机器人安全设置中的签名校验密钥。
+  # 返回值：通过标准输出返回签名文本；openssl 执行失败时返回非零状态。
+  local timestamp="$1"
+  local secret="$2"
+  local string_to_sign=""
+
+  string_to_sign="${timestamp}"$'\n'"${secret}"
+  printf '' | openssl dgst -sha256 -hmac "$string_to_sign" -binary | openssl base64 -A
+}
+
 send_lark_completion_webhook() {
   # 功能说明：整个日周月批次成功后，通过飞书群机器人 Webhook 发送一次完成卡片。
   # 参数：无，使用脚本当前批次的执行内容、开始时间和 Webhook 配置。
@@ -151,7 +171,10 @@ send_lark_completion_webhook() {
   local completed_at=""
   local duration_text=""
   local elapsed_seconds=0
+  local card_payload=""
   local payload=""
+  local webhook_timestamp=""
+  local webhook_sign=""
   local api_response=""
   local api_code=""
   local api_message=""
@@ -167,7 +190,7 @@ send_lark_completion_webhook() {
   completed_at="$(date '+%Y-%m-%d %H:%M:%S')"
   elapsed_seconds=$(($(date '+%s') - TASK_STARTED_EPOCH))
   duration_text="$(format_duration "$elapsed_seconds")"
-  payload="$(
+  card_payload="$(
     jq -cn \
       --arg report_types "$EXECUTED_REPORT_TYPES" \
       --arg completed_at "$completed_at" \
@@ -195,6 +218,21 @@ send_lark_completion_webhook() {
   )"
 
   while true; do
+    webhook_timestamp="$(date '+%s')"
+    if ! webhook_sign="$(
+      generate_lark_webhook_sign "$webhook_timestamp" "$LARK_COMPLETION_WEBHOOK_SECRET"
+    )"; then
+      log_message WARNING "飞书完成通知签名生成失败：attempt=$attempt/$max_attempts"
+      return 0
+    fi
+    payload="$(
+      jq -c \
+        --argjson timestamp "$webhook_timestamp" \
+        --arg sign "$webhook_sign" \
+        '. + {timestamp: $timestamp, sign: $sign}' \
+        <<<"$card_payload"
+    )"
+
     if ! api_response="$(
       printf '%s' "$payload" | curl -fsS --max-time 10 --retry 3 \
         -H 'Content-Type: application/json; charset=utf-8' \
