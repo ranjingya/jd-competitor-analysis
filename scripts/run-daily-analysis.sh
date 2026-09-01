@@ -10,7 +10,6 @@ PROJECT_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 ENV_FILE="$PROJECT_DIR/.env"
 LOG_DIR="$PROJECT_DIR/data/logs"
 RUN_LOG="$LOG_DIR/daily-analysis-$(date '+%Y-%m-%d').log"
-TASK_STARTED_EPOCH="$(date '+%s')"
 EXECUTED_REPORT_TYPES="日报"
 GENERAL_RETRY_DELAY_SECONDS=30
 CONCURRENCY_EXHAUSTED_EXIT_CODE=11
@@ -58,6 +57,7 @@ PING_URL="$(read_env_value HEALTHCHECKS_PING_URL)"
 PING_URL="${PING_URL%/}"
 LARK_COMPLETION_WEBHOOK_URL="$(read_env_value LARK_COMPLETION_WEBHOOK_URL)"
 LARK_COMPLETION_WEBHOOK_SECRET="$(read_env_value LARK_COMPLETION_WEBHOOK_SECRET)"
+DASHBOARD_URL="$(read_env_value DASHBOARD_URL)"
 LARK_APP_ID="$(read_env_value LARK_APP_ID)"
 LARK_APP_SECRET="$(read_env_value LARK_APP_SECRET)"
 LARK_ALERT_OPEN_ID="$(read_env_value LARK_ALERT_OPEN_ID)"
@@ -81,6 +81,9 @@ elif [[ ! "$LARK_COMPLETION_WEBHOOK_URL" =~ ^https://open\.feishu\.cn/open-apis/
   LARK_COMPLETION_WEBHOOK_READY=0
 elif [[ -z "$LARK_COMPLETION_WEBHOOK_SECRET" ]]; then
   log_message WARNING "未配置飞书完成通知签名密钥，本次任务成功时不发送机器人消息"
+  LARK_COMPLETION_WEBHOOK_READY=0
+elif [[ -z "$DASHBOARD_URL" || ! "$DASHBOARD_URL" =~ ^https?:// ]]; then
+  log_message WARNING "在线看板地址未配置或格式无效，本次任务成功时不发送机器人消息"
   LARK_COMPLETION_WEBHOOK_READY=0
 elif ! command -v curl >/dev/null 2>&1; then
   log_message WARNING "宿主机未安装 curl，本次任务成功时不发送飞书机器人消息"
@@ -133,24 +136,6 @@ ping_failure_with_log() {
   fi
 }
 
-format_duration() {
-  # 功能说明：将总秒数转换为简洁的中文耗时文本。
-  # 参数 total_seconds：需要格式化的非负秒数。
-  # 返回值：通过标准输出返回小时、分钟和秒组成的文本。
-  local total_seconds="$1"
-  local hours=$((total_seconds / 3600))
-  local minutes=$(((total_seconds % 3600) / 60))
-  local seconds=$((total_seconds % 60))
-
-  if [[ "$hours" -gt 0 ]]; then
-    printf '%s小时%s分%s秒' "$hours" "$minutes" "$seconds"
-  elif [[ "$minutes" -gt 0 ]]; then
-    printf '%s分%s秒' "$minutes" "$seconds"
-  else
-    printf '%s秒' "$seconds"
-  fi
-}
-
 generate_lark_webhook_sign() {
   # 功能说明：按照飞书群机器人签名规则生成 HMAC-SHA256 Base64 签名。
   # 参数 timestamp：当前 Unix 秒级时间戳。
@@ -166,11 +151,9 @@ generate_lark_webhook_sign() {
 
 send_lark_completion_webhook() {
   # 功能说明：整个日周月批次成功后，通过飞书群机器人 Webhook 发送一次完成卡片。
-  # 参数：无，使用脚本当前批次的执行内容、开始时间和 Webhook 配置。
+  # 参数：无，使用脚本当前批次的执行内容、完成时间、在线看板地址和 Webhook 配置。
   # 返回值：始终返回成功；通知异常仅写入运行日志，不改变分析任务退出码。
   local completed_at=""
-  local duration_text=""
-  local elapsed_seconds=0
   local card_payload=""
   local payload=""
   local webhook_timestamp=""
@@ -188,13 +171,11 @@ send_lark_completion_webhook() {
   fi
 
   completed_at="$(date '+%Y-%m-%d %H:%M:%S')"
-  elapsed_seconds=$(($(date '+%s') - TASK_STARTED_EPOCH))
-  duration_text="$(format_duration "$elapsed_seconds")"
   card_payload="$(
     jq -cn \
       --arg report_types "$EXECUTED_REPORT_TYPES" \
       --arg completed_at "$completed_at" \
-      --arg duration "$duration_text" \
+      --arg dashboard_url "$DASHBOARD_URL" \
       '{
         msg_type: "interactive",
         card: {
@@ -208,8 +189,18 @@ send_lark_completion_webhook() {
               tag: "div",
               fields: [
                 {is_short: false, text: {tag: "lark_md", content: ("**执行内容：** " + $report_types)}},
-                {is_short: false, text: {tag: "lark_md", content: ("**完成时间：** " + $completed_at)}},
-                {is_short: false, text: {tag: "lark_md", content: ("**总耗时：** " + $duration)}}
+                {is_short: false, text: {tag: "lark_md", content: ("**完成时间：** " + $completed_at)}}
+              ]
+            },
+            {
+              tag: "action",
+              actions: [
+                {
+                  tag: "button",
+                  text: {tag: "plain_text", content: "打开在线看板"},
+                  type: "primary",
+                  url: $dashboard_url
+                }
               ]
             }
           ]
