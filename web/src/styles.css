@@ -828,11 +828,45 @@ a.product-card:active {
 .period-day-cell {
   position: relative;
   min-height: 53px;
+  padding: 0;
   border: 0;
   border-radius: 7px;
   background: transparent;
   color: #aaa297;
   cursor: not-allowed;
+}
+
+.period-status-marker {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  bottom: auto;
+  z-index: 2;
+  color: #7b847f;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.period-status-marker.is-ready,
+.period-status-legend .is-ready {
+  color: var(--teal);
+}
+
+.period-status-marker.is-partial,
+.period-status-legend .is-partial {
+  color: var(--amber);
+}
+
+.period-status-marker.is-ai-failed,
+.period-status-legend .is-ai-failed {
+  color: #bd5847;
+}
+
+.period-status-marker.is-pending,
+.period-status-legend .is-pending {
+  color: #547982;
 }
 
 .period-day-cell:not(:nth-child(7n))::after,
@@ -883,6 +917,7 @@ a.product-card:active {
 }
 
 .period-week-row {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 0;
@@ -932,6 +967,20 @@ a.product-card:active {
   font-weight: inherit;
 }
 
+.period-week-day i {
+  position: absolute;
+  bottom: 3px;
+  color: #7b847f;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.period-week-day.is-missing {
+  color: #8d928e;
+  font-weight: 500;
+}
+
 .period-week-day.is-outside {
   background: rgba(244, 231, 211, 0.56);
   color: var(--amber);
@@ -950,6 +999,28 @@ a.product-card:active {
   font-size: 10px;
 }
 
+.period-status-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 11px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(222, 214, 200, 0.72);
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.period-status-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.period-status-legend b {
+  width: 10px;
+  text-align: center;
+}
+
 .period-selection-summary strong {
   color: var(--text);
   font-size: 11px;
@@ -962,7 +1033,9 @@ a.product-card:active {
 }
 
 .period-month-cell {
+  position: relative;
   min-height: 68px;
+  padding: 0;
   border: 1px solid var(--line);
   border-radius: 7px;
   background: var(--panel);
@@ -971,7 +1044,7 @@ a.product-card:active {
 }
 
 .period-month-cell strong,
-.period-month-cell span {
+.period-month-cell > span:not(.period-status-marker) {
   display: block;
 }
 
@@ -979,10 +1052,15 @@ a.product-card:active {
   font: 700 18px/1 Consolas, monospace;
 }
 
-.period-month-cell span {
+.period-month-cell > span:not(.period-status-marker) {
   margin-top: 6px;
   color: var(--muted);
   font-size: 9px;
+}
+
+.period-month-cell > .period-status-marker {
+  top: 7px;
+  right: 7px;
 }
 
 .period-month-cell:disabled {
@@ -997,7 +1075,11 @@ a.product-card:active {
   box-shadow: 0 6px 14px rgba(15, 123, 115, 0.2);
 }
 
-.period-month-cell.is-selected span {
+.period-month-cell.is-selected .period-status-marker {
+  color: #fff;
+}
+
+.period-month-cell.is-selected > span:not(.period-status-marker) {
   color: rgba(255, 255, 255, 0.8);
 }
 
@@ -2049,6 +2131,31 @@ a.product-card:active {
 
 .ai-recommendation-card.warning {
   background: var(--soft-teal);
+}
+
+.ai-report-state {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  border: 1px solid #c9dade;
+  border-radius: 8px;
+  background: #edf3f4;
+  color: #486a72;
+}
+
+.ai-report-state.is-error {
+  border-color: #e8beb5;
+  background: #f8e7e2;
+  color: #9c493a;
+}
+
+.ai-report-state strong {
+  font-size: 13px;
+}
+
+.ai-report-state span {
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .ai-recommendation-card p {

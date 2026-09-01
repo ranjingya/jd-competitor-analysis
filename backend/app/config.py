@@ -34,11 +34,14 @@ class Settings:
     database_path: Path
     product_images_path: Path
     analysis_lock_path: Path
+    analysis_status_path: Path
     deepseek_api_key: str | None
     deepseek_base_url: str
     deepseek_model: str
     deepseek_timeout_seconds: int
     deepseek_max_attempts: int
+    deepseek_pricing_path: Path
+    deepseek_usage_log_dir: Path
 
 
 @lru_cache(maxsize=1)
@@ -61,9 +64,12 @@ def get_settings() -> Settings:
         database_path=database_path,
         product_images_path=database_path.parent / "product-images.json",
         analysis_lock_path=lock_path,
+        analysis_status_path=database_path.parent / "daily-analysis-status.json",
         deepseek_api_key=os.getenv("DEEPSEEK_API_KEY", "").strip() or None,
         deepseek_base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com").strip().rstrip("/"),
         deepseek_model=os.getenv("DEEPSEEK_MODEL", "deepseek-v4-pro").strip(),
         deepseek_timeout_seconds=_positive_integer("DEEPSEEK_TIMEOUT_SECONDS", 300),
         deepseek_max_attempts=_positive_integer("DEEPSEEK_MAX_ATTEMPTS", 2),
+        deepseek_pricing_path=database_path.parent / "deepseek-pricing.json",
+        deepseek_usage_log_dir=database_path.parent / "logs",
     )

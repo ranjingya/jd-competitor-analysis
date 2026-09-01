@@ -170,8 +170,10 @@ def _select_candidate(
     current_p_valid: bool,
     historical_p: float | None,
 ) -> tuple[float | None, str]:
-    """按当期 P、历史 P、中位值顺序选择候选。"""
+    """按数据可用性、当期 P、历史 P 和中位值顺序选择候选。"""
 
+    if interval.missing:
+        return None, "missing"
     if current_p_valid:
         return _candidate_from_p(interval, current_p), "same_period_p"
     if historical_p is not None:
@@ -436,7 +438,7 @@ def analyze_core(normalized: dict[str, Any], history: PHistory | None = None) ->
     p_samples: list[dict[str, Any]] = []
 
     started_at = perf_counter()
-    LOGGER.info("开始核心估算：%s", meta["period_key"])
+    LOGGER.debug("开始核心估算：%s", meta["period_key"])
     for metric in CORE_METRICS:
         actual = to_number(self_row.get(metric.label))
         self_interval = parse_range(core_row.get(f"本品{metric.label}"))
@@ -502,6 +504,7 @@ def analyze_core(normalized: dict[str, Any], history: PHistory | None = None) ->
             "same_period_p": "同周期本品 P 候选",
             "historical_p": "同粒度历史 P 候选",
             "median": "竞品区间中位值兜底",
+            "missing": "竞品指标未提供",
         }
         conversions.append(
             {
@@ -528,7 +531,7 @@ def analyze_core(normalized: dict[str, Any], history: PHistory | None = None) ->
 
     if checks["conflicts"]:
         risks.extend(checks["conflicts"])
-    LOGGER.info(
+    LOGGER.debug(
         "核心估算完成：%s，耗时=%.3fs",
         meta["period_key"],
         perf_counter() - started_at,

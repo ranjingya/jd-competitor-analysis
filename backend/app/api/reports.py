@@ -11,24 +11,84 @@ from .dependencies import get_report_repository
 
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
+product_pairs_router = APIRouter(prefix="/api/product-pairs", tags=["product-pairs"])
 
 
-@router.get("")
-def list_reports(repository: ReportRepository = Depends(get_report_repository)) -> dict[str, Any]:
-    """返回日、周、月报告索引。
+@product_pairs_router.get("")
+def list_product_pairs(
+    repository: ReportRepository = Depends(get_report_repository),
+) -> dict[str, Any]:
+    """返回商品对和最新报告导航信息。
 
-    功能说明：读取后端报告目录中的轻量索引，并将报告地址转换为 API 路径。
-    参数 repository：只读报告仓库。
-    返回值：包含 day、week 和 month 数组的报告索引。
+    功能说明：页面首次打开时仅返回商品对、各粒度最新报告和数量。
+    参数 repository：报告数据库仓库。
+    返回值：商品对列表及最近更新时间。
+    """
+
+    return repository.list_product_pairs()
+
+
+@router.get("/periods")
+def list_report_periods(
+    self_spu: str,
+    competitor_spu: str,
+    granularity: str,
+    context: str,
+    repository: ReportRepository = Depends(get_report_repository),
+) -> dict[str, Any]:
+    """返回当前日历上下文的可用报告。
+
+    功能说明：日期选择器展开或切换年月时，按商品对和上下文读取轻量报告条目。
+    参数 self_spu：本品 SPU。
+    参数 competitor_spu：竞品 SPU。
+    参数 granularity：day、week 或 month。
+    参数 context：日报/周报月份 YYYY-MM，或月报年份 YYYY。
+    参数 repository：报告数据库仓库。
+    返回值：当前上下文报告、可导航上下文和报告元数据。
     """
 
     try:
-        return repository.read_index()
-    except (ValueError, OSError) as error:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"报告索引不可用：{error}",
-        ) from error
+        return repository.list_periods(
+            self_spu,
+            competitor_spu,
+            granularity,
+            context,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+
+
+@router.get("/trends")
+def get_report_trends(
+    self_spu: str,
+    competitor_spu: str,
+    granularity: str,
+    start_date: str,
+    end_date: str,
+    repository: ReportRepository = Depends(get_report_repository),
+) -> dict[str, Any]:
+    """返回核心指标轻量趋势。
+
+    功能说明：只读取成交金额、访客数、转化率和客单价，供趋势图异步展示。
+    参数 self_spu：本品 SPU。
+    参数 competitor_spu：竞品 SPU。
+    参数 granularity：day、week 或 month。
+    参数 start_date：报告开始日期下界。
+    参数 end_date：报告开始日期上界。
+    参数 repository：报告数据库仓库。
+    返回值：指定范围的轻量核心指标报告数组。
+    """
+
+    try:
+        return repository.read_trends(
+            self_spu,
+            competitor_spu,
+            granularity,
+            start_date,
+            end_date,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
 
 
 @router.get("/{report_id}")

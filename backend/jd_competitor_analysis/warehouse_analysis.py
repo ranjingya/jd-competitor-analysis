@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import copy
 import logging
-from datetime import datetime
 from typing import Any
 
 from .pipeline import analyze_normalized
+from .time_utils import beijing_now_text
 
 
 LOGGER = logging.getLogger(__name__)
@@ -68,12 +68,10 @@ def _first_product_name(dataset: dict[str, Any]) -> str | None:
 
 
 def _adapt_core(dataset: dict[str, Any]) -> dict[str, Any]:
-    """把固定核心指标对象转换为确定性公式输入。"""
+    """把固定核心指标对象转换为确定性公式输入，整块缺失时保留空字段。"""
 
     records = dataset["sources"]["core_metrics"]["records"]
-    if not records:
-        raise ValueError("标准化日数据缺少核心指标记录")
-    record = records[0]
+    record = records[0] if records else {"self": {}, "competitor": {}}
     result: dict[str, Any] = {}
     for metric_id, label in CORE_METRIC_FIELDS:
         result[f"本品{label}"] = _metric_raw(record.get("self", {}).get(metric_id))
@@ -201,7 +199,7 @@ def adapt_daily_dataset(dataset: dict[str, Any], title: str | None = None) -> di
             "self_spu": pair["self_spu"],
             "competitor_spu": pair["competitor_spu"],
             "competitor_prefix": COMPETITOR_PREFIX,
-            "generated_at": datetime.now().isoformat(timespec="seconds"),
+            "generated_at": beijing_now_text(),
         },
         "self_real": self_real,
         "core_raw": _adapt_core(dataset),
@@ -218,10 +216,11 @@ def adapt_daily_dataset(dataset: dict[str, Any], title: str | None = None) -> di
             for source_id, role in source_roles.items()
         ],
     }
-    LOGGER.info(
-        "数仓日数据已适配确定性分析：date=%s，compare_number=%s",
+    LOGGER.debug(
+        "数仓日数据已适配确定性分析：date=%s，self_spu=%s，competitor_spu=%s",
         report_date,
-        pair["compare_number"],
+        pair["self_spu"],
+        pair["competitor_spu"],
     )
     return normalized
 

@@ -22,7 +22,7 @@ def load_product_images(path: Path = PRODUCT_IMAGES_PATH) -> dict[str, dict[str,
     """
 
     started_at = perf_counter()
-    LOGGER.info("开始读取商品主图素材：%s", path)
+    LOGGER.debug("开始读取商品主图素材：%s", path)
     if not path.is_file():
         LOGGER.warning("商品主图素材文件不存在，报告将使用缺图占位：%s", path)
         return {}
@@ -53,7 +53,7 @@ def load_product_images(path: Path = PRODUCT_IMAGES_PATH) -> dict[str, dict[str,
             "name": name.strip() if isinstance(name, str) and name.strip() else None,
             "image_url": image_url,
         }
-    LOGGER.info(
+    LOGGER.debug(
         "商品主图素材读取完成：count=%s，耗时=%.3fs",
         len(products),
         perf_counter() - started_at,

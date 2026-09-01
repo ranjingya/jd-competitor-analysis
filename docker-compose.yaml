@@ -3,6 +3,8 @@ services:
     image: "ghcr.io/ranjingya/jd-competitor-analysis-web:latest"
     container_name: jd-competitor-analysis-web
     restart: unless-stopped
+    environment:
+      TZ: Asia/Shanghai
     depends_on:
       jd-competitor-analysis-backend:
         condition: service_healthy
@@ -26,19 +28,17 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    environment:
+      TZ: Asia/Shanghai
     expose:
       - "8000"
     volumes:
       - ./data:/app/data
     networks:
       - app-internal
-      - kocotree-skills
 
 networks:
   app-internal:
     driver: bridge
-    internal: true
-  kocotree-skills:
-    external: true
   traefik-network:
     external: true

@@ -1,15 +1,24 @@
 import { renderDashboard, renderTrendChart, showPageState, showTrendState } from "./dashboard.js";
-import { loadReport, loadReportIndex } from "./data-client.js";
+import {
+  loadProductPairs,
+  loadReport,
+  loadReportPeriods,
+  loadReportTrends
+} from "./data-client.js";
 import { closePairPicker, renderPairPicker } from "./pair-picker.js";
 import { closePeriodPicker, renderPeriodPicker } from "./period-picker.js";
 import {
   defaultPairKey,
+  indexFromProductPairs,
   indexForPair,
+  mergePeriodEntries,
+  reportPair,
   reportPairs,
   reportsForPair
 } from "./report-selection.js";
 import { bindSkuDialog, closeSkuDialog } from "./sku-dialog.js";
 import { bindHeroSummaryDialog } from "./hero-summary.js";
+import { formatBeijingDateTime } from "./time-format.js";
 
 const granularityLabels = {
   day: "日",
@@ -24,6 +33,9 @@ const state = {
   activeMetricId: "gmv",
   currentEntry: null,
   selectedReportIds: {},
+  periodContexts: {},
+  loadedPeriodContexts: new Set(),
+  loadingPeriodContexts: new Map(),
   reportRequestId: 0,
   trendRequestId: 0
 };
@@ -44,6 +56,52 @@ const pairPickerState = {
 
 function reportsFor(granularity) {
   return reportsForPair(state.index, granularity, state.activePairKey);
+}
+
+function activePair() {
+  return reportPair(state.index, state.activePairKey);
+}
+
+function contextForEntry(granularity, entry) {
+  if (!entry) return "";
+  return granularity === "month"
+    ? String(entry.start_date || "").slice(0, 4)
+    : String(entry.start_date || "").slice(0, 7);
+}
+
+/**
+ * 功能说明：按需加载当前商品对指定年月的可用报告，并合并到页面导航状态。
+ * 参数 granularity：day、week 或 month。
+ * 参数 context：日报/周报月份 YYYY-MM，或月报年份 YYYY。
+ * 返回值：Promise；周期元数据加载并渲染完成后结束。
+ */
+async function ensurePeriodContext(granularity, context) {
+  const pair = activePair();
+  if (!pair || !context) return;
+  const pairKey = pair.key;
+  const requestKey = `${pairKey}:${granularity}:${context}`;
+  if (state.loadedPeriodContexts.has(requestKey)) return;
+  if (state.loadingPeriodContexts.has(requestKey)) {
+    return state.loadingPeriodContexts.get(requestKey);
+  }
+  const request = loadReportPeriods(pair, granularity, context)
+    .then((result) => {
+      mergePeriodEntries(state.index, granularity, pairKey, context, result.items);
+      state.periodContexts[pairKey] ||= { day: [], week: [], month: [] };
+      state.periodContexts[pairKey][granularity] = result.contexts || [];
+      state.loadedPeriodContexts.add(requestKey);
+      if (state.activePairKey === pairKey) {
+        renderControls();
+      }
+    })
+    .catch((error) => {
+      console.error("可用报告周期加载失败", error);
+    })
+    .finally(() => {
+      state.loadingPeriodContexts.delete(requestKey);
+    });
+  state.loadingPeriodContexts.set(requestKey, request);
+  return request;
 }
 
 /**
@@ -96,6 +154,7 @@ function selectReportsForActivePair() {
 
 function renderControls() {
   renderPairSelector();
+  const pair = activePair();
   const reports = reportsFor(state.activeGranularity);
   const latest = reports.at(-1);
   const selectedReportId = state.selectedReportIds[state.activeGranularity]
@@ -110,6 +169,11 @@ function renderControls() {
       [state.activeGranularity]: selectedReportId
     },
     pickerState: periodPickerState,
+    periodContexts: state.periodContexts[state.activePairKey] || {},
+    reportCounts: pair?.reportCounts || {},
+    onContextChange(granularity, context) {
+      ensurePeriodContext(granularity, context);
+    },
     onReportChange(granularity, reportId) {
       state.activeGranularity = granularity;
       state.selectedReportIds[granularity] = reportId;
@@ -149,27 +213,31 @@ function bindPairPickerDismissal() {
   });
 }
 
+function isoDate(date) {
+  return date.toISOString().slice(0, 10);
+}
+
 /**
- * 功能说明：按当前粒度和所选周期筛选趋势报告，日报围绕选中日期双向补齐至 7 条。
- * 参数 entry：当前周期的报告索引条目。
- * 返回值：按日期升序排列的趋势报告条目数组。
+ * 功能说明：计算当前周期趋势图需要查询的自然日期范围。
+ * 参数 entry：当前选中的轻量报告条目。
+ * 返回值：包含 startDate 和 endDate 的查询范围。
  */
-function trendEntriesFor(entry) {
-  const reports = [...reportsFor(state.activeGranularity)].sort((left, right) =>
-    String(left.start_date || "").localeCompare(String(right.start_date || ""))
-  );
+function trendRangeFor(entry) {
+  const startDate = new Date(`${entry.start_date}T00:00:00Z`);
   if (state.activeGranularity === "day") {
-    const selectedIndex = Math.max(0, reports.findIndex((item) => item.report_id === entry.report_id));
-    const windowSize = 7;
-    const centeredStart = selectedIndex - Math.floor(windowSize / 2);
-    const start = Math.min(Math.max(0, centeredStart), Math.max(0, reports.length - windowSize));
-    return reports.slice(start, start + windowSize);
+    startDate.setUTCDate(startDate.getUTCDate() - 6);
+    return { startDate: isoDate(startDate), endDate: entry.start_date };
   }
   if (state.activeGranularity === "week") {
-    const selectedMonth = String(entry.start_date || "").slice(0, 7);
-    return reports.filter((item) => String(item.start_date || "").startsWith(selectedMonth));
+    const year = startDate.getUTCFullYear();
+    const month = startDate.getUTCMonth();
+    return {
+      startDate: isoDate(new Date(Date.UTC(year, month, 1))),
+      endDate: isoDate(new Date(Date.UTC(year, month + 1, 0)))
+    };
   }
-  return reports;
+  const year = startDate.getUTCFullYear();
+  return { startDate: `${year}-01-01`, endDate: `${year}-12-31` };
 }
 
 /**
@@ -180,14 +248,30 @@ function trendEntriesFor(entry) {
 async function renderActiveTrend(entry) {
   const requestId = state.trendRequestId + 1;
   state.trendRequestId = requestId;
-  const entries = trendEntriesFor(entry);
+  const pair = activePair();
+  if (!pair) {
+    showTrendState("当前商品对不存在", true);
+    return;
+  }
+  const range = trendRangeFor(entry);
   showTrendState("正在加载趋势数据");
   try {
-    const reports = await Promise.all(entries.map((item) => loadReport(item)));
+    const result = await loadReportTrends(
+      pair,
+      state.activeGranularity,
+      range.startDate,
+      range.endDate
+    );
     if (requestId !== state.trendRequestId) {
       return;
     }
-    renderTrendChart(reports, state.activeMetricId, state.activeGranularity, entry.start_date);
+    renderTrendChart(
+      result.items || [],
+      state.activeMetricId,
+      state.activeGranularity,
+      entry.start_date,
+      range
+    );
   } catch (error) {
     console.error("趋势数据加载失败", error);
     if (requestId === state.trendRequestId) {
@@ -241,11 +325,12 @@ document.addEventListener("dashboard:metric-select", (event) => {
 
 async function initialize() {
   try {
-    state.index = await loadReportIndex();
+    state.index = indexFromProductPairs(await loadProductPairs());
     state.activePairKey = defaultPairKey(state.index);
     selectReportsForActivePair();
-    document.querySelector("#updated-at").textContent = state.index.updated_at
-      ? `数据生成于 ${state.index.updated_at.slice(0, 19).replace("T", " ")}`
+    const updatedAt = formatBeijingDateTime(state.index.updated_at);
+    document.querySelector("#updated-at").textContent = updatedAt
+      ? `数据生成于 ${updatedAt}`
       : "暂无分析结果";
     renderControls();
     bindPeriodPickerDismissal();
@@ -261,9 +346,9 @@ async function initialize() {
     );
     await selectActiveReport();
   } catch (error) {
-    console.error("报告索引加载失败", error);
-    document.querySelector("#updated-at").textContent = "索引读取失败";
-    showPageState("无法读取报告索引，请先运行批量分析脚本", true);
+    console.error("商品对列表加载失败", error);
+    document.querySelector("#updated-at").textContent = "商品对读取失败";
+    showPageState("无法读取商品对，请先运行批量分析脚本", true);
   }
 }
 

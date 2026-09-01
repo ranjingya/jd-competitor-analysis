@@ -191,4 +191,4 @@ def validate_contract(data: dict[str, Any], allow_empty: bool = False) -> None:
             for field in ("metric_id", "candidate_source", "selected_candidate", "final_value", "checks"):
                 if field not in item:
                     raise ValueError(f"核心转换审计缺少字段：{field}")
-    LOGGER.info("JSON 契约校验通过：allow_empty=%s", allow_empty)
+    LOGGER.debug("JSON 契约校验通过：allow_empty=%s", allow_empty)

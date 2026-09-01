@@ -21,7 +21,6 @@ def recommendation(source_id: str, source_label: str) -> dict[str, object]:
         "source_id": source_id,
         "source_label": source_label,
         "target": "测试对象",
-        "status": "warning",
         "evidence": "本品指标低于竞品估算值",
         "actions": ["调整对应运营动作"],
         "validation": "后续日数据差距缩小",
@@ -74,8 +73,32 @@ class ReportMergeTest(unittest.TestCase):
         self.assertEqual(merged["meta"]["deterministic_summary"], deterministic_summary)
         self.assertEqual(merged["meta"]["deterministic_weakness_summary"], deterministic_weakness)
         self.assertEqual(merged["ai_findings"], result["findings"])
-        self.assertEqual(merged["ai_recommendations"], result["recommendations"])
+        self.assertTrue(
+            all(item["status"] == "warning" for item in merged["ai_recommendations"])
+        )
         self.assertEqual(report["ai_findings"], [])
+
+    def test_recommendation_status_is_owned_by_backend(self) -> None:
+        """模型省略或误填建议状态时，后端应统一保存为 warning。"""
+
+        first = recommendation("traffic", "流量来源")
+        second = recommendation("promotion", "推广数据")
+        first["status"] = "normal"
+        validated = validate_ai_result(
+            {
+                "summary": {
+                    "advantage": {"brief": "流量领先", "detail": ["本品流量领先。"]},
+                    "weakness": {"brief": "转化落后", "detail": ["本品转化落后。"]},
+                },
+                "findings": [],
+                "recommendations": [first, second],
+            }
+        )
+
+        self.assertEqual(
+            [item["status"] for item in validated["recommendations"]],
+            ["warning", "warning"],
+        )
 
     def test_empty_recommendations_are_allowed_when_evidence_is_insufficient(self) -> None:
         """证据不足时可以完成分析但不生成建议。"""

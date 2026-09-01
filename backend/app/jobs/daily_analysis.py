@@ -4,24 +4,31 @@ from __future__ import annotations
 
 import json
 import logging
+import random
 import re
 import sys
-from datetime import date, timedelta
+import time
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from time import perf_counter
-from typing import Any, Iterable, Protocol
+from typing import Any, Callable, Iterable, Protocol
 
 from sqlalchemy.engine import Engine
 
 from jd_competitor_analysis.lark_mapping import LarkBaseMappingClient, load_lark_base_config
 from jd_competitor_analysis.product_assets import load_product_images
+from jd_competitor_analysis.time_utils import BEIJING_TIMEZONE
 from jd_competitor_analysis.warehouse import create_warehouse_engine, load_warehouse_config
 from jd_competitor_analysis.warehouse_analysis import analyze_daily_dataset, build_ai_task_payload
-from jd_competitor_analysis.warehouse_daily import build_daily_dataset
+from jd_competitor_analysis.warehouse_daily import (
+    WarehousePairNoDataError,
+    build_daily_dataset,
+)
 from jd_competitor_analysis.warehouse_sources import ProductPair, parse_report_date
 
 from ..config import get_settings
 from ..database import Database
+from ..job_status import DailyAnalysisStatusWriter
 from ..deepseek_analysis import DeepSeekAnalysisConfig, DeepSeekAnalyzer
 from ..job_lock import acquire_job_lock
 from ..repositories.dataset_repository import DatasetRepository
@@ -32,6 +39,34 @@ from .analysis import persist_base_report, persist_daily_dataset, start_ai_analy
 
 LOGGER = logging.getLogger(__name__)
 CONCURRENCY_LIMIT_PATTERN = re.compile(r"Exceed concurrency limit:\s*(\d+)", re.IGNORECASE)
+CONCURRENCY_RETRY_DELAYS = (30, 60, 120)
+CONCURRENCY_RETRY_JITTER_SECONDS = 10
+CONCURRENCY_EXHAUSTED_EXIT_CODE = 11
+ALREADY_RUNNING_EXIT_CODE = 12
+DAILY_DATA_MISSING_EXIT_CODE = 13
+AI_PARTIAL_FAILURE_EXIT_CODE = 14
+DAILY_REPAIR_WINDOW_DAYS = 7
+PairProgressCallback = Callable[[str, ProductPair], None]
+
+
+class DailyWarehouseDataMissingError(SystemExit):
+    """表示主业务日期的所有商品对均没有数仓记录。"""
+
+    def __init__(self, report_date: str) -> None:
+        """初始化整日数据异常。
+
+        功能说明：保存业务日期并使用专用退出码结束命令，供宿主机上报告警且避免普通重试。
+        参数 report_date：完全没有商品对记录的主业务日期。
+        返回值：无。
+        """
+
+        self.report_date = report_date
+        super().__init__(DAILY_DATA_MISSING_EXIT_CODE)
+
+    def __str__(self) -> str:
+        """生成整日无数据的可读错误信息。"""
+
+        return f"主业务日期所有商品对均没有数仓记录：date={self.report_date}"
 
 
 class AIAnalyzer(Protocol):
@@ -41,7 +76,11 @@ class AIAnalyzer(Protocol):
     analysis_version: str
     prompt_hash: str
 
-    def analyze(self, payload: dict[str, Any]) -> dict[str, Any]:
+    def analyze(
+        self,
+        payload: dict[str, Any],
+        context: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """根据确定性事实生成 AI 字段。"""
 
 
@@ -75,6 +114,7 @@ def process_daily_pair(
     ai_analyzer: AIAnalyzer,
     title: str | None = None,
     product_images: dict[str, dict[str, Any]] | None = None,
+    progress_callback: PairProgressCallback | None = None,
 ) -> dict[str, Any]:
     """处理一天的一组本品与竞品。
 
@@ -89,33 +129,41 @@ def process_daily_pair(
     参数 ai_analyzer：根据确定性事实生成 AI 字段的分析器。
     参数 title：可选看板标题。
     参数 product_images：可选商品主图索引。
+    参数 progress_callback：可选商品对阶段进度回调。
     返回值：包含处理状态和三个持久化 ID 的摘要。
     """
 
     started_at = perf_counter()
     selected_date = parse_report_date(report_date).isoformat()
-    LOGGER.info(
-        "开始处理商品对：date=%s，compare_number=%s",
+    LOGGER.debug(
+        "开始处理商品对：date=%s，self_spu=%s，competitor_spu=%s",
         selected_date,
-        product_pair.compare_number,
+        product_pair.self_spu,
+        product_pair.competitor_spu,
     )
+    if progress_callback is not None:
+        progress_callback("warehouse_read", product_pair)
     dataset = build_daily_dataset(
         engine,
         product_pair,
         selected_date,
         mapping_client,
     )
+    if progress_callback is not None:
+        progress_callback("dataset_persist", product_pair)
     dataset_id = persist_daily_dataset(dataset_repository, dataset)
     quality_status = str(dataset["quality"]["status"])
     if quality_status == "invalid":
         LOGGER.warning(
-            "数据集质量无效，仅保留数据集：dataset_id=%s，compare_number=%s，耗时=%.3fs",
+            "数据集质量无效，仅保留数据集：dataset_id=%s，self_spu=%s，competitor_spu=%s，耗时=%.3fs",
             dataset_id,
-            product_pair.compare_number,
+            product_pair.self_spu,
+            product_pair.competitor_spu,
             perf_counter() - started_at,
         )
         return {
-            "compare_number": product_pair.compare_number,
+            "self_spu": product_pair.self_spu,
+            "competitor_spu": product_pair.competitor_spu,
             "status": "invalid",
             "quality_status": quality_status,
             "dataset_id": dataset_id,
@@ -123,8 +171,12 @@ def process_daily_pair(
             "analysis_id": None,
         }
 
+    if progress_callback is not None:
+        progress_callback("deterministic_analysis", product_pair)
     report = analyze_daily_dataset(dataset, title=title, product_images=product_images)
     report_id = persist_base_report(report_repository, dataset_id, report)
+    if progress_callback is not None:
+        progress_callback("ai_prepare", product_pair)
     task_payload = build_ai_task_payload(dataset, report)
     start_result = start_ai_analysis(
         task_repository,
@@ -136,14 +188,15 @@ def process_daily_pair(
     )
     analysis_id = start_result.analysis_id
     if not start_result.should_execute:
-        LOGGER.info(
+        LOGGER.debug(
             "商品对日分析复用已完成 AI 结果：report_id=%s，analysis_id=%s，耗时=%.3fs",
             report_id,
             analysis_id,
             perf_counter() - started_at,
         )
         return {
-            "compare_number": product_pair.compare_number,
+            "self_spu": product_pair.self_spu,
+            "competitor_spu": product_pair.competitor_spu,
             "status": "ready",
             "quality_status": quality_status,
             "dataset_id": dataset_id,
@@ -154,21 +207,38 @@ def process_daily_pair(
 
     report_repository.activate_pending(report_id, dataset_id, report)
     try:
-        ai_result = ai_analyzer.analyze(task_payload)
+        if progress_callback is not None:
+            progress_callback("deepseek_analysis", product_pair)
+        ai_result = ai_analyzer.analyze(
+            task_payload,
+            {
+                "analysis_id": analysis_id,
+                "report_id": report_id,
+                "granularity": "day",
+                "start_date": selected_date,
+                "end_date": selected_date,
+                "self_spu": product_pair.self_spu,
+                "competitor_spu": product_pair.competitor_spu,
+            },
+        )
+        if progress_callback is not None:
+            progress_callback("report_finalize", product_pair)
         task_repository.complete(analysis_id, ai_result)
     except Exception as error:
         message, _ = _processing_error_message(error)
         task_repository.fail(analysis_id, message)
         LOGGER.error(
-            "商品对 AI 分析失败：compare_number=%s，analysis_id=%s，原因=%s，耗时=%.3fs",
-            product_pair.compare_number,
+            "商品对 AI 分析失败：self_spu=%s，competitor_spu=%s，analysis_id=%s，原因=%s，耗时=%.3fs",
+            product_pair.self_spu,
+            product_pair.competitor_spu,
             analysis_id,
             message,
             perf_counter() - started_at,
         )
         LOGGER.debug("商品对 AI 分析失败堆栈：analysis_id=%s", analysis_id, exc_info=True)
         return {
-            "compare_number": product_pair.compare_number,
+            "self_spu": product_pair.self_spu,
+            "competitor_spu": product_pair.competitor_spu,
             "status": "ai_failed",
             "quality_status": quality_status,
             "dataset_id": dataset_id,
@@ -176,7 +246,7 @@ def process_daily_pair(
             "analysis_id": analysis_id,
             "message": message,
         }
-    LOGGER.info(
+    LOGGER.debug(
         "商品对日分析完成：dataset_id=%s，report_id=%s，analysis_id=%s，耗时=%.3fs",
         dataset_id,
         report_id,
@@ -184,13 +254,113 @@ def process_daily_pair(
         perf_counter() - started_at,
     )
     return {
-        "compare_number": product_pair.compare_number,
+        "self_spu": product_pair.self_spu,
+        "competitor_spu": product_pair.competitor_spu,
         "status": "ready",
         "quality_status": quality_status,
         "dataset_id": dataset_id,
         "report_id": report_id,
         "analysis_id": analysis_id,
     }
+
+
+def _process_daily_pair_safely(
+    engine: Engine,
+    mapping_client: LarkBaseMappingClient,
+    product_pair: ProductPair,
+    report_date: str,
+    dataset_repository: DatasetRepository,
+    report_repository: ReportRepository,
+    task_repository: TaskRepository,
+    ai_analyzer: AIAnalyzer,
+    title: str | None = None,
+    product_images: dict[str, dict[str, Any]] | None = None,
+    progress_callback: PairProgressCallback | None = None,
+) -> dict[str, Any]:
+    """执行一个商品对并转换为批处理可识别的结果。
+
+    功能说明：将商品对无数据、数仓并发上限和普通异常转换为独立状态，保证单项问题
+    不会中断后续商品对。
+    参数 engine：StarRocks SQLAlchemy 引擎。
+    参数 mapping_client：飞书只读客户端。
+    参数 product_pair：当前处理的本品与竞品 SPU。
+    参数 report_date：业务日期。
+    参数 dataset_repository：标准化日数据集仓库。
+    参数 report_repository：最终报告仓库。
+    参数 task_repository：内部 AI 执行记录仓库。
+    参数 ai_analyzer：DeepSeek 分析器。
+    参数 title：可选看板标题。
+    参数 product_images：可选商品主图索引。
+    参数 progress_callback：可选商品对阶段进度回调。
+    返回值：当前商品对的状态、日期和持久化摘要。
+    """
+
+    pair_started_at = perf_counter()
+    try:
+        result = process_daily_pair(
+            engine,
+            mapping_client,
+            product_pair,
+            report_date,
+            dataset_repository,
+            report_repository,
+            task_repository,
+            ai_analyzer,
+            title=title,
+            product_images=product_images,
+            progress_callback=progress_callback,
+        )
+    except WarehousePairNoDataError as error:
+        LOGGER.debug(
+            "商品对当天没有数仓记录，跳过报告：date=%s，self_spu=%s，"
+            "competitor_spu=%s，耗时=%.3fs",
+            report_date,
+            product_pair.self_spu,
+            product_pair.competitor_spu,
+            perf_counter() - pair_started_at,
+        )
+        result = {
+            "self_spu": product_pair.self_spu,
+            "competitor_spu": product_pair.competitor_spu,
+            "status": "no_data",
+            "quality_status": None,
+            "dataset_id": None,
+            "report_id": None,
+            "analysis_id": None,
+            "message": str(error),
+        }
+    except Exception as error:
+        message, retryable = _processing_error_message(error)
+        status = "concurrency" if retryable else "failed"
+        LOGGER.error(
+            "商品对处理失败%s：date=%s，self_spu=%s，competitor_spu=%s，原因=%s，耗时=%.3fs",
+            "（数仓并发）" if retryable else "",
+            report_date,
+            product_pair.self_spu,
+            product_pair.competitor_spu,
+            message,
+            perf_counter() - pair_started_at,
+        )
+        LOGGER.debug(
+            "商品对处理失败堆栈：date=%s，self_spu=%s，competitor_spu=%s",
+            report_date,
+            product_pair.self_spu,
+            product_pair.competitor_spu,
+            exc_info=True,
+        )
+        result = {
+            "self_spu": product_pair.self_spu,
+            "competitor_spu": product_pair.competitor_spu,
+            "status": status,
+            "quality_status": None,
+            "dataset_id": None,
+            "report_id": None,
+            "analysis_id": None,
+            "message": message,
+            "retryable": retryable,
+        }
+    result["date"] = report_date
+    return result
 
 
 def process_daily_pairs(
@@ -202,10 +372,12 @@ def process_daily_pairs(
     ai_analyzer: AIAnalyzer,
     title: str | None = None,
     product_images: dict[str, dict[str, Any]] | None = None,
+    progress_callback: PairProgressCallback | None = None,
 ) -> list[dict[str, Any]]:
-    """顺序处理一天的多组商品对。
+    """顺序处理一天的多组商品对并定向重试数仓并发异常。
 
-    功能说明：复用一个数仓连接池、飞书客户端、模型分析器和统一数据库，逐个串行完成商品对；单项异常不影响后续商品对。
+    功能说明：首轮不中断地处理全部商品对，将遇到数仓并发上限的组合放入队列，
+    再按 30、60、120 秒和随机抖动执行三轮定向重试。
     参数 engine：StarRocks SQLAlchemy 引擎。
     参数 mapping_client：飞书只读客户端。
     参数 product_pairs：需要顺序处理的商品对。
@@ -214,82 +386,103 @@ def process_daily_pairs(
     参数 ai_analyzer：DeepSeek 分析器。
     参数 title：可选看板标题。
     参数 product_images：可选商品主图索引。
-    返回值：每个商品对的处理摘要。
+    参数 progress_callback：可选商品对阶段进度回调。
+    返回值：保持输入商品对顺序的处理摘要。
     """
 
+    selected_pairs = list(product_pairs)
     dataset_repository = DatasetRepository(database)
     report_repository = ReportRepository(database)
     task_repository = TaskRepository(database)
-    results = []
-    for product_pair in product_pairs:
-        pair_started_at = perf_counter()
-        try:
-            result = process_daily_pair(
-                engine,
-                mapping_client,
-                product_pair,
-                report_date,
-                dataset_repository,
-                report_repository,
-                task_repository,
-                ai_analyzer,
-                title=title,
-                product_images=product_images,
-            )
-        except LookupError as error:
-            LOGGER.warning(
-                "商品对在核心指标表中不存在，跳过：%s，耗时=%.3fs",
-                error,
-                perf_counter() - pair_started_at,
-            )
-            result = {
-                "compare_number": product_pair.compare_number,
-                "status": "skipped",
-                "quality_status": None,
-                "dataset_id": None,
-                "report_id": None,
-                "analysis_id": None,
-                "message": str(error),
-            }
-        except Exception as error:
-            message, retryable = _processing_error_message(error)
-            LOGGER.error(
-                "商品对处理失败%s：compare_number=%s，原因=%s，耗时=%.3fs",
-                "（可重试）" if retryable else "",
-                product_pair.compare_number,
-                message,
-                perf_counter() - pair_started_at,
-            )
-            LOGGER.debug(
-                "商品对处理失败堆栈：compare_number=%s",
-                product_pair.compare_number,
-                exc_info=True,
-            )
-            result = {
-                "compare_number": product_pair.compare_number,
-                "status": "failed",
-                "quality_status": None,
-                "dataset_id": None,
-                "report_id": None,
-                "analysis_id": None,
-                "message": message,
-                "retryable": retryable,
-            }
-        results.append(result)
-    return results
+    results_by_pair: dict[tuple[str, str], dict[str, Any]] = {}
+    pending_pairs: list[ProductPair] = []
+
+    def execute(product_pair: ProductPair, attempt: int) -> dict[str, Any]:
+        if progress_callback is not None:
+            progress_callback("pair_started", product_pair)
+        result = _process_daily_pair_safely(
+            engine,
+            mapping_client,
+            product_pair,
+            report_date,
+            dataset_repository,
+            report_repository,
+            task_repository,
+            ai_analyzer,
+            title=title,
+            product_images=product_images,
+            progress_callback=progress_callback,
+        )
+        result["attempt"] = attempt
+        if result["status"] != "concurrency" and progress_callback is not None:
+            progress_callback("pair_completed", product_pair)
+        return result
+
+    for product_pair in selected_pairs:
+        result = execute(product_pair, 1)
+        key = (product_pair.self_spu, product_pair.competitor_spu)
+        results_by_pair[key] = result
+        if result["status"] == "concurrency":
+            pending_pairs.append(product_pair)
+
+    for retry_index, delay_seconds in enumerate(CONCURRENCY_RETRY_DELAYS, start=1):
+        if not pending_pairs:
+            break
+        jitter_seconds = random.uniform(0, CONCURRENCY_RETRY_JITTER_SECONDS)
+        wait_seconds = delay_seconds + jitter_seconds
+        LOGGER.warning(
+            "数仓并发商品对准备定向重试：date=%s，retry=%s/%s，pairs=%s，等待=%.1fs",
+            report_date,
+            retry_index,
+            len(CONCURRENCY_RETRY_DELAYS),
+            len(pending_pairs),
+            wait_seconds,
+        )
+        time.sleep(wait_seconds)
+        next_pending = []
+        for product_pair in pending_pairs:
+            result = execute(product_pair, retry_index + 1)
+            key = (product_pair.self_spu, product_pair.competitor_spu)
+            results_by_pair[key] = result
+            if result["status"] == "concurrency":
+                next_pending.append(product_pair)
+        pending_pairs = next_pending
+
+    for product_pair in pending_pairs:
+        key = (product_pair.self_spu, product_pair.competitor_spu)
+        result = results_by_pair[key]
+        result["status"] = "concurrency_exhausted"
+        result["retryable"] = False
+        if progress_callback is not None:
+            progress_callback("pair_completed", product_pair)
+        LOGGER.error(
+            "数仓并发重试已耗尽：date=%s，self_spu=%s，competitor_spu=%s，attempts=%s",
+            report_date,
+            product_pair.self_spu,
+            product_pair.competitor_spu,
+            result["attempt"],
+        )
+
+    return [
+        results_by_pair[(product_pair.self_spu, product_pair.competitor_spu)]
+        for product_pair in selected_pairs
+    ]
 
 
 def _selected_pairs(
     mapping_client: LarkBaseMappingClient,
-    compare_numbers: list[str],
+    self_spu: str | None,
+    competitor_spu: str | None,
 ) -> list[ProductPair]:
-    """解析命令行商品对或从飞书读取候选。"""
+    """解析命令行 SPU 或从飞书读取候选商品对。"""
 
-    if compare_numbers:
-        pairs = [ProductPair.parse(value) for value in compare_numbers]
+    if bool(self_spu) != bool(competitor_spu):
+        raise ValueError("--self-spu 和 --competitor-spu 必须同时提供")
+    if self_spu and competitor_spu:
+        pairs = [ProductPair(self_spu, competitor_spu)]
     else:
         pairs = [ProductPair(item.self_spu, item.competitor_spu) for item in mapping_client.list_product_pairs()]
-    unique_pairs = {pair.compare_number: pair for pair in pairs}
+    unique_pairs = {(pair.self_spu, pair.competitor_spu): pair for pair in pairs}
     return list(unique_pairs.values())
 
 
@@ -302,20 +495,240 @@ def _selected_report_date(args: Any) -> str:
     """
 
     if getattr(args, "yesterday", False):
-        return (date.today() - timedelta(days=1)).isoformat()
+        return (datetime.now(BEIJING_TIMEZONE).date() - timedelta(days=1)).isoformat()
     return parse_report_date(args.date).isoformat()
 
 
-def run_warehouse_daily_analysis(args: Any) -> None:
-    """执行一天的正式数仓分析入库命令。
+def _selected_report_dates(args: Any, selected_date: str) -> list[str]:
+    """生成当前任务需要检查的日报日期。
 
-    功能说明：持有进程锁后创建只读外部连接、DeepSeek 分析器和统一数据库，顺序处理商品对并输出摘要。
-    参数 args：包含 env_file、date 或 yesterday、compare_number 和 title 的命令行参数。
-    返回值：无；处理摘要写入标准输出，存在失败商品对时抛出异常使命令返回非零状态。
+    功能说明：显式日期只处理当天；服务器 `--yesterday` 任务处理昨天，并按由近到远
+    的顺序检查此前六天报告缺口。
+    参数 args：包含 yesterday 标记的命令行参数。
+    参数 selected_date：当前主业务日期，格式为 YYYY-MM-DD。
+    返回值：主日期在首位、最多七天的业务日期列表。
+    """
+
+    if not getattr(args, "yesterday", False):
+        return [selected_date]
+    primary_date = date.fromisoformat(selected_date)
+    return [
+        (primary_date - timedelta(days=offset)).isoformat()
+        for offset in range(DAILY_REPAIR_WINDOW_DAYS)
+    ]
+
+
+def _existing_report_result(
+    report_date: str,
+    product_pair: ProductPair,
+    report: dict[str, Any],
+) -> dict[str, Any]:
+    """生成已有完整日报的跳过摘要。"""
+
+    return {
+        "date": report_date,
+        "self_spu": product_pair.self_spu,
+        "competitor_spu": product_pair.competitor_spu,
+        "status": "existing",
+        "quality_status": None,
+        "dataset_id": report.get("dataset_id"),
+        "report_id": report.get("report_id"),
+        "analysis_id": None,
+        "attempt": 0,
+    }
+
+
+def _repair_strategy(report_state: dict[str, Any] | None) -> str:
+    """判断最近七天日报的修复方式。
+
+    功能说明：完整报告直接跳过；基础数据完整且 AI 失败时只重试 AI；其他状态执行
+    数仓读取、确定性分析和 AI 分析的完整流程。
+    参数 report_state：报告仓库返回的日报状态摘要，不存在报告时为空。
+    返回值：`existing`、`ai_only` 或 `full`。
+    """
+
+    if report_state is None:
+        return "full"
+    if report_state.get("status") == "ready":
+        return "existing"
+    if (
+        report_state.get("status") == "ai_failed"
+        and report_state.get("quality_status") == "ready"
+        and report_state.get("dataset_id")
+    ):
+        return "ai_only"
+    return "full"
+
+
+def _retry_ai_failed_report(
+    report_date: str,
+    product_pair: ProductPair,
+    report_state: dict[str, Any],
+    report_repository: ReportRepository,
+    task_repository: TaskRepository,
+    ai_analyzer: AIAnalyzer,
+    progress_callback: PairProgressCallback | None = None,
+) -> dict[str, Any] | None:
+    """只重新执行基础数据完整日报的 AI 分析。
+
+    功能说明：从失败任务读取后端已经处理好的 AI 输入，保留现有数据集和确定性报告，
+    仅调用 DeepSeek 并合并 AI 字段；没有可复用输入时返回空值，由调用方执行完整流程。
+    参数 report_date：业务日期，格式为 YYYY-MM-DD。
+    参数 product_pair：当前本品与竞品 SPU。
+    参数 report_state：报告仓库返回的日报状态摘要。
+    参数 report_repository：看板报告仓库。
+    参数 task_repository：内部 AI 执行记录仓库。
+    参数 ai_analyzer：根据确定性事实生成 AI 字段的分析器。
+    参数 progress_callback：可选商品对阶段进度回调。
+    返回值：AI 重试结果；无法复用失败任务时返回空值。
+    """
+
+    report_id = str(report_state["report_id"])
+    dataset_id = str(report_state["dataset_id"])
+    task_payload = task_repository.get_failed_payload(report_id)
+    if task_payload is None:
+        LOGGER.warning(
+            "AI 失败日报缺少可复用输入，将执行完整流程：date=%s，self_spu=%s，competitor_spu=%s",
+            report_date,
+            product_pair.self_spu,
+            product_pair.competitor_spu,
+        )
+        return None
+
+    started_at = perf_counter()
+    start_result = start_ai_analysis(
+        task_repository,
+        report_id,
+        task_payload,
+        ai_analyzer.model,
+        ai_analyzer.analysis_version,
+        ai_analyzer.prompt_hash,
+    )
+    analysis_id = start_result.analysis_id
+    if not start_result.should_execute:
+        LOGGER.warning(
+            "AI 失败日报的执行记录已经完成，将按完整流程重新校正报告：report_id=%s",
+            report_id,
+        )
+        return None
+
+    if progress_callback is not None:
+        progress_callback("pair_started", product_pair)
+        progress_callback("ai_prepare", product_pair)
+    report_repository.mark_ai_pending(report_id)
+    try:
+        if progress_callback is not None:
+            progress_callback("deepseek_analysis", product_pair)
+        ai_result = ai_analyzer.analyze(
+            task_payload,
+            {
+                "analysis_id": analysis_id,
+                "report_id": report_id,
+                "granularity": "day",
+                "start_date": report_date,
+                "end_date": report_date,
+                "self_spu": product_pair.self_spu,
+                "competitor_spu": product_pair.competitor_spu,
+            },
+        )
+        if progress_callback is not None:
+            progress_callback("report_finalize", product_pair)
+        task_repository.complete(analysis_id, ai_result)
+    except Exception as error:
+        message, _ = _processing_error_message(error)
+        task_repository.fail(analysis_id, message)
+        LOGGER.error(
+            "日报 AI 补生成失败：date=%s，self_spu=%s，competitor_spu=%s，原因=%s，耗时=%.1fs",
+            report_date,
+            product_pair.self_spu,
+            product_pair.competitor_spu,
+            message,
+            perf_counter() - started_at,
+        )
+        result = {
+            "date": report_date,
+            "self_spu": product_pair.self_spu,
+            "competitor_spu": product_pair.competitor_spu,
+            "status": "ai_failed",
+            "quality_status": "ready",
+            "dataset_id": dataset_id,
+            "report_id": report_id,
+            "analysis_id": analysis_id,
+            "message": message,
+            "attempt": 1,
+            "ai_retry_only": True,
+        }
+    else:
+        LOGGER.info(
+            "日报 AI 补生成完成：date=%s，self_spu=%s，competitor_spu=%s，report_id=%s，耗时=%.1fs",
+            report_date,
+            product_pair.self_spu,
+            product_pair.competitor_spu,
+            report_id,
+            perf_counter() - started_at,
+        )
+        result = {
+            "date": report_date,
+            "self_spu": product_pair.self_spu,
+            "competitor_spu": product_pair.competitor_spu,
+            "status": "ready",
+            "quality_status": "ready",
+            "dataset_id": dataset_id,
+            "report_id": report_id,
+            "analysis_id": analysis_id,
+            "attempt": 1,
+            "ai_retry_only": True,
+        }
+    if progress_callback is not None:
+        progress_callback("pair_completed", product_pair)
+    return result
+
+
+def _date_data_status(
+    report_date: str,
+    results: list[dict[str, Any]],
+    total_pairs: int,
+    covers_all_pairs: bool = True,
+) -> dict[str, Any]:
+    """汇总一个业务日期的商品对数据状态。
+
+    功能说明：只有覆盖全部配置商品对且均被数仓确认无记录时才标记整日数据缺失；
+    手动指定范围全空只标记选定范围无数据，单个商品对或任意模块缺失不构成整日异常。
+    参数 report_date：当前业务日期。
+    参数 results：当前日期全部商品对的处理摘要。
+    参数 total_pairs：当前日期配置的商品对总数。
+    参数 covers_all_pairs：当前结果是否覆盖飞书配置的全部商品对。
+    返回值：包含日期、数据状态、无数据商品对数量和总商品对数量的摘要。
+    """
+
+    no_data_pairs = sum(item["status"] == "no_data" for item in results)
+    all_pairs_no_data = bool(results) and len(results) == total_pairs and no_data_pairs == total_pairs
+    if all_pairs_no_data:
+        status = "data_missing" if covers_all_pairs else "selection_no_data"
+    else:
+        status = "available"
+    return {
+        "date": report_date,
+        "status": status,
+        "no_data_pairs": no_data_pairs,
+        "total_pairs": total_pairs,
+    }
+
+
+def run_warehouse_daily_analysis(args: Any) -> None:
+    """执行正式数仓日报分析和最近七天缺口修复。
+
+    功能说明：持有进程锁后处理主业务日期；`--yesterday` 模式同时检查最近七天，
+    跳过已有完整日报，基础数据完整的 AI 失败报告只重试 AI，其余缺口执行完整流程。
+    参数 args：包含 env_file、date 或 yesterday、self_spu、competitor_spu 和 title 的命令行参数。
+    返回值：无；普通失败抛出异常，数仓并发、整日无数据、AI 部分失败和进程锁冲突使用专用退出码。
     """
 
     settings = get_settings()
+    run_started_at = perf_counter()
     selected_date = _selected_report_date(args)
+    selected_dates = _selected_report_dates(args, selected_date)
+    status_writer = DailyAnalysisStatusWriter(settings.analysis_status_path)
     with acquire_job_lock(settings.analysis_lock_path) as acquired:
         if not acquired:
             summary = {
@@ -325,61 +738,277 @@ def run_warehouse_daily_analysis(args: Any) -> None:
                 "counts": {},
                 "results": [],
             }
-            sys.stdout.write(json.dumps(summary, ensure_ascii=False, indent=2) + "\n")
-            return
-        if not settings.deepseek_api_key:
-            raise ValueError("DEEPSEEK_API_KEY 尚未配置")
-        warehouse_config = load_warehouse_config(args.env_file)
-        lark_config = load_lark_base_config(args.env_file)
-        ai_analyzer = DeepSeekAnalyzer(
-            DeepSeekAnalysisConfig(
-                api_key=settings.deepseek_api_key,
-                base_url=settings.deepseek_base_url,
-                model=settings.deepseek_model,
-                timeout_seconds=settings.deepseek_timeout_seconds,
-                max_attempts=settings.deepseek_max_attempts,
-            )
-        )
-        database = Database(settings.database_path)
-        database.initialize()
-        product_images = load_product_images(settings.product_images_path)
-        product_images_sync = ReportRepository(database).sync_product_images(product_images)
-        engine = create_warehouse_engine(warehouse_config)
-        mapping_client = LarkBaseMappingClient(lark_config)
-        try:
-            product_pairs = _selected_pairs(mapping_client, list(args.compare_number or []))
-            if not product_pairs:
-                raise ValueError("没有可处理的飞书商品对")
-            results = process_daily_pairs(
-                engine,
-                mapping_client,
-                product_pairs,
-                selected_date,
-                database,
-                ai_analyzer,
-                title=args.title,
-                product_images=product_images,
-            )
-        finally:
-            engine.dispose()
+            output_summary = {
+                key: value for key, value in summary.items() if key != "results"
+            }
+            sys.stdout.write(json.dumps(output_summary, ensure_ascii=False, indent=2) + "\n")
+            LOGGER.warning("日报任务未启动：已有任务正在运行")
+            raise SystemExit(ALREADY_RUNNING_EXIT_CODE)
 
-    summary = {
-        "date": selected_date,
-        "database_path": str(Path(settings.database_path)),
-        "product_images_path": str(settings.product_images_path),
-        "product_images_sync": product_images_sync,
-        "counts": {
-            status: sum(item["status"] == status for item in results)
-            for status in ("ready", "ai_failed", "invalid", "skipped", "failed")
-        },
-        "results": results,
-    }
-    sys.stdout.write(json.dumps(summary, ensure_ascii=False, indent=2) + "\n")
-    failed_count = summary["counts"]["failed"] + summary["counts"]["ai_failed"]
-    if failed_count:
-        failed_messages = "；".join(
-            f"{item['compare_number']}：{item.get('message') or '未知错误'}"
-            for item in results
-            if item["status"] in {"failed", "ai_failed"}
-        )
-        raise RuntimeError(f"有 {failed_count} 个商品对处理失败：{failed_messages}")
+        status_writer.start(selected_date, selected_dates)
+        try:
+            status_writer.progress("loading_configuration")
+            if not settings.deepseek_api_key:
+                raise ValueError("DEEPSEEK_API_KEY 尚未配置")
+            warehouse_config = load_warehouse_config(args.env_file)
+            lark_config = load_lark_base_config(args.env_file)
+            ai_analyzer = DeepSeekAnalyzer(
+                DeepSeekAnalysisConfig(
+                    api_key=settings.deepseek_api_key,
+                    base_url=settings.deepseek_base_url,
+                    model=settings.deepseek_model,
+                    timeout_seconds=settings.deepseek_timeout_seconds,
+                    max_attempts=settings.deepseek_max_attempts,
+                    pricing_path=settings.deepseek_pricing_path,
+                    usage_log_dir=settings.deepseek_usage_log_dir,
+                )
+            )
+            database = Database(settings.database_path)
+            database.initialize()
+            product_images = load_product_images(settings.product_images_path)
+            report_repository = ReportRepository(database)
+            task_repository = TaskRepository(database)
+            product_images_sync = report_repository.sync_product_images(product_images)
+            engine = create_warehouse_engine(warehouse_config)
+            mapping_client = LarkBaseMappingClient(lark_config)
+            try:
+                status_writer.progress("loading_product_pairs")
+                product_pairs = _selected_pairs(
+                    mapping_client,
+                    args.self_spu,
+                    args.competitor_spu,
+                )
+                if not product_pairs:
+                    raise ValueError("没有可处理的飞书商品对")
+                total_items = len(selected_dates) * len(product_pairs)
+                completed_items = 0
+                results = []
+                status_writer.progress(
+                    "checking_reports",
+                    completed_items=completed_items,
+                    total_items=total_items,
+                )
+                skip_ready_reports = bool(getattr(args, "yesterday", False))
+                covers_all_pairs = not getattr(args, "self_spu", None) and not getattr(
+                    args,
+                    "competitor_spu",
+                    None,
+                )
+                LOGGER.info(
+                    "日报任务开始：dates=%s..%s，pairs=%s",
+                    selected_dates[0],
+                    selected_dates[-1],
+                    len(product_pairs),
+                )
+                for pair_index, product_pair in enumerate(product_pairs, start=1):
+                    pair_started_at = perf_counter()
+                    pair_results = []
+                    LOGGER.info(
+                        "[%s/%s] 商品对开始：self=%s，competitor=%s",
+                        pair_index,
+                        len(product_pairs),
+                        product_pair.self_spu,
+                        product_pair.competitor_spu,
+                    )
+                    for report_date in selected_dates:
+                        def record_pair_progress(
+                            stage: str,
+                            current_pair: ProductPair,
+                        ) -> None:
+                            """把商品对阶段转换为当前批次的持久化进度。"""
+
+                            nonlocal completed_items
+                            if stage == "pair_completed":
+                                completed_items += 1
+                            status_writer.progress(
+                                stage,
+                                current_date=report_date,
+                                self_spu=current_pair.self_spu,
+                                competitor_spu=current_pair.competitor_spu,
+                                completed_items=completed_items,
+                                total_items=total_items,
+                            )
+
+                        status_writer.progress(
+                            "checking_reports",
+                            current_date=report_date,
+                            self_spu=product_pair.self_spu,
+                            competitor_spu=product_pair.competitor_spu,
+                            completed_items=completed_items,
+                            total_items=total_items,
+                        )
+                        report_state = (
+                            report_repository.find_day_report_for_repair(
+                                report_date,
+                                product_pair.self_spu,
+                                product_pair.competitor_spu,
+                            )
+                            if skip_ready_reports
+                            else None
+                        )
+                        repair_strategy = _repair_strategy(report_state)
+                        if repair_strategy == "existing":
+                            item_result = _existing_report_result(
+                                report_date,
+                                product_pair,
+                                report_state,
+                            )
+                            completed_items += 1
+                            status_writer.progress(
+                                "report_existing",
+                                current_date=report_date,
+                                self_spu=product_pair.self_spu,
+                                competitor_spu=product_pair.competitor_spu,
+                                completed_items=completed_items,
+                                total_items=total_items,
+                            )
+                        else:
+                            date_started_at = perf_counter()
+                            item_result = None
+                            if repair_strategy == "ai_only":
+                                item_result = _retry_ai_failed_report(
+                                    report_date,
+                                    product_pair,
+                                    report_state,
+                                    report_repository,
+                                    task_repository,
+                                    ai_analyzer,
+                                    progress_callback=record_pair_progress,
+                                )
+                            if item_result is None:
+                                item_result = process_daily_pairs(
+                                    engine,
+                                    mapping_client,
+                                    [product_pair],
+                                    report_date,
+                                    database,
+                                    ai_analyzer,
+                                    title=getattr(args, "title", None),
+                                    product_images=product_images,
+                                    progress_callback=record_pair_progress,
+                                )[0]
+                            if item_result["status"] == "ready":
+                                LOGGER.info(
+                                    "[%s/%s][%s] 报告%s完成：quality=%s，report_id=%s，耗时=%.1fs",
+                                    pair_index,
+                                    len(product_pairs),
+                                    report_date,
+                                    " AI 补生成" if item_result.get("ai_retry_only") else "生成",
+                                    item_result.get("quality_status"),
+                                    item_result.get("report_id"),
+                                    perf_counter() - date_started_at,
+                                )
+                            elif item_result["status"] == "no_data":
+                                LOGGER.info(
+                                    "[%s/%s][%s] 商品对无数据，跳过报告",
+                                    pair_index,
+                                    len(product_pairs),
+                                    report_date,
+                                )
+                        results.append(item_result)
+                        pair_results.append(item_result)
+                    pair_counts = {
+                        status: sum(item["status"] == status for item in pair_results)
+                        for status in ("ready", "existing", "no_data", "ai_failed", "failed")
+                    }
+                    LOGGER.info(
+                        "[%s/%s] 商品对完成：generated=%s，existing=%s，no_data=%s，failed=%s，耗时=%.1fs",
+                        pair_index,
+                        len(product_pairs),
+                        pair_counts["ready"],
+                        pair_counts["existing"],
+                        pair_counts["no_data"],
+                        pair_counts["ai_failed"] + pair_counts["failed"],
+                        perf_counter() - pair_started_at,
+                    )
+
+                date_data_statuses = []
+                for report_date in selected_dates:
+                    current_date_results = [
+                        item for item in results if item["date"] == report_date
+                    ]
+                    date_data_status = _date_data_status(
+                        report_date,
+                        current_date_results,
+                        len(product_pairs),
+                        covers_all_pairs=covers_all_pairs,
+                    )
+                    date_data_statuses.append(date_data_status)
+                    if date_data_status["status"] == "data_missing":
+                        LOGGER.warning(
+                            "业务日期所有商品对均没有数仓记录：date=%s，pairs=%s",
+                            report_date,
+                            len(product_pairs),
+                        )
+            finally:
+                engine.dispose()
+
+            data_missing_dates = [
+                item["date"]
+                for item in date_data_statuses
+                if item["status"] == "data_missing"
+            ]
+            summary = {
+                "date": selected_date,
+                "dates": selected_dates,
+                "date_data_statuses": date_data_statuses,
+                "data_missing_dates": data_missing_dates,
+                "database_path": str(Path(settings.database_path)),
+                "product_images_path": str(settings.product_images_path),
+                "product_images_sync": product_images_sync,
+                "counts": {
+                    status: sum(item["status"] == status for item in results)
+                    for status in (
+                        "ready",
+                        "existing",
+                        "no_data",
+                        "ai_failed",
+                        "invalid",
+                        "failed",
+                        "concurrency_exhausted",
+                    )
+                },
+                "results": results,
+            }
+            output_summary = {
+                key: value for key, value in summary.items() if key != "results"
+            }
+            sys.stdout.write(json.dumps(output_summary, ensure_ascii=False, indent=2) + "\n")
+            failed_count = summary["counts"]["failed"]
+            if failed_count:
+                failed_messages = "；".join(
+                    f"本品 {item['self_spu']} / 竞品 {item['competitor_spu']}："
+                    f"{item.get('message') or '未知错误'}"
+                    for item in results
+                    if item["status"] == "failed"
+                )
+                raise RuntimeError(f"有 {failed_count} 个商品对处理失败：{failed_messages}")
+            concurrency_count = summary["counts"]["concurrency_exhausted"]
+            if concurrency_count:
+                LOGGER.error(
+                    "有 %s 个商品对在数仓并发定向重试后仍然失败",
+                    concurrency_count,
+                )
+                raise SystemExit(CONCURRENCY_EXHAUSTED_EXIT_CODE)
+            if selected_date in data_missing_dates:
+                raise DailyWarehouseDataMissingError(selected_date)
+            ai_failed_count = summary["counts"]["ai_failed"]
+            if ai_failed_count:
+                LOGGER.error(
+                    "有 %s 个商品对 AI 分析失败，本批次不执行整体重试",
+                    ai_failed_count,
+                )
+                raise SystemExit(AI_PARTIAL_FAILURE_EXIT_CODE)
+            LOGGER.info(
+                "日报任务完成：generated=%s，existing=%s，no_data=%s，failed=%s，耗时=%.1fs",
+                summary["counts"]["ready"],
+                summary["counts"]["existing"],
+                summary["counts"]["no_data"],
+                summary["counts"]["failed"] + summary["counts"]["ai_failed"],
+                perf_counter() - run_started_at,
+            )
+        except BaseException as error:
+            status_writer.fail(error)
+            raise
+        else:
+            status_writer.complete(summary["counts"])

@@ -5,6 +5,45 @@ function reportsFor(index, granularity) {
   return index?.reports?.[granularity] || [];
 }
 
+function entryStatus(entry, granularity) {
+  if (!entry) return null;
+  if (entry.status === "ai_failed") {
+    return { code: "ai-failed", symbol: "!", label: "AI 失败" };
+  }
+  if (entry.status === "pending_ai") {
+    return { code: "pending", symbol: "…", label: "AI 生成中" };
+  }
+  if (granularity !== "day" && Array.isArray(entry.missing_days) && entry.missing_days.length) {
+    return { code: "partial", symbol: "▲", label: "数据不完整" };
+  }
+  return { code: "ready", symbol: "●", label: "报告可用" };
+}
+
+function statusMarker(entry, granularity) {
+  const status = entryStatus(entry, granularity);
+  return status
+    ? `<span class="period-status-marker is-${status.code}" aria-hidden="true">${status.symbol}</span>`
+    : "";
+}
+
+function coverageLabel(entry) {
+  const periodDays = Number(entry?.period_days || 0);
+  const availableDays = Number(entry?.available_days);
+  return periodDays > 0 && Number.isFinite(availableDays)
+    ? `${availableDays}/${periodDays} 天可用`
+    : "";
+}
+
+function statusLegend() {
+  return `
+    <div class="period-status-legend" aria-label="报告状态图例">
+      <span><b class="is-ready">●</b>可用</span>
+      <span><b class="is-partial">▲</b>不完整</span>
+      <span><b class="is-ai-failed">!</b>AI 失败</span>
+      <span><b class="is-pending">…</b>生成中</span>
+    </div>`;
+}
+
 function dateParts(value) {
   const [year, month, day] = String(value).split("-").map(Number);
   return { year, month, day };
@@ -88,6 +127,10 @@ function contextForEntry(granularity, entry) {
 }
 
 function availableContexts(options, granularity) {
+  const configured = options.periodContexts?.[granularity] || [];
+  if (configured.length) {
+    return [...configured].sort();
+  }
   return [...new Set(reportsFor(options.index, granularity).map((entry) => contextForEntry(granularity, entry)))].filter(Boolean).sort();
 }
 
@@ -131,6 +174,10 @@ function bindContextNavigation(root, options, granularity) {
       options.pickerState.contexts[granularity] = contexts[Number(button.dataset.contextIndex)];
       options.pickerState.animateOpen = false;
       renderPeriodPicker(options);
+      options.onContextChange?.(
+        granularity,
+        options.pickerState.contexts[granularity]
+      );
     });
   });
 }
@@ -140,7 +187,10 @@ function createDayPanel(options) {
   const [year, month] = context.split("-").map(Number);
   const root = document.createElement("div");
   root.className = "period-calendar-panel";
-  const selected = selectedEntry(options, "day");
+  const selectedCandidate = selectedEntry(options, "day");
+  const selected = contextForEntry("day", selectedCandidate) === context
+    ? selectedCandidate
+    : null;
   const available = new Map(reportsFor(options.index, "day").map((entry) => [entry.start_date, entry]));
   root.innerHTML = `
     ${calendarHeader(options, "day", `${year} 年 ${month} 月`, "选择单日报告")}
@@ -150,9 +200,12 @@ function createDayPanel(options) {
         const parts = dateParts(date);
         const entry = available.get(date);
         const outside = parts.month !== month;
-        return `<button type="button" data-report-id="${entry?.report_id || ""}" class="period-day-cell${outside ? " is-outside" : ""}${entry ? " has-report" : ""}${entry?.report_id === selected?.report_id ? " is-selected" : ""}" ${entry ? "" : "disabled"} aria-pressed="${entry?.report_id === selected?.report_id}"><span>${outside ? `${parts.month}/${parts.day}` : parts.day}</span></button>`;
+        const status = entryStatus(entry, "day");
+        const label = entry ? `，${status.label}` : "，暂无报告";
+        return `<button type="button" data-report-id="${entry?.report_id || ""}" class="period-day-cell${outside ? " is-outside" : ""}${entry ? " has-report" : ""}${entry?.report_id === selected?.report_id ? " is-selected" : ""}" ${entry ? "" : "disabled"} aria-label="${formatDayLabel(date)}${label}" aria-pressed="${entry?.report_id === selected?.report_id}"><span>${outside ? `${parts.month}/${parts.day}` : parts.day}</span>${statusMarker(entry, "day")}</button>`;
       }).join("")}
     </div>
+    ${statusLegend()}
     ${selected ? `<footer class="period-selection-summary period-day-summary"><span>已选日期</span><strong>${formatDayLabel(selected.start_date)}</strong></footer>` : ""}
   `;
   bindContextNavigation(root, options, "day");
@@ -165,7 +218,10 @@ function createWeekPanel(options) {
   const [year, month] = context.split("-").map(Number);
   const root = document.createElement("div");
   root.className = "period-calendar-panel period-week-panel";
-  const selected = selectedEntry(options, "week");
+  const selectedCandidate = selectedEntry(options, "week");
+  const selected = contextForEntry("week", selectedCandidate) === context
+    ? selectedCandidate
+    : null;
   const available = new Map(reportsFor(options.index, "week").map((entry) => [entry.start_date, entry]));
   root.innerHTML = `
     ${calendarHeader(options, "week", `${year} 年 ${month} 月`, "选择完整自然周")}
@@ -174,18 +230,24 @@ function createWeekPanel(options) {
       ${calendarWeeks(year, month).map((dates) => {
         const entry = available.get(dates[0]);
         const isSelected = entry?.report_id === selected?.report_id;
+        const missingDays = new Set(entry?.missing_days || []);
+        const status = entryStatus(entry, "week");
+        const coverage = coverageLabel(entry);
         return `
-        <button type="button" class="period-week-row${isSelected ? " is-selected" : ""}" data-report-id="${entry?.report_id || ""}" ${entry ? "" : "disabled"} aria-pressed="${isSelected}" ${entry ? `aria-label="第 ${isoWeekNumber(entry.start_date)} 周，${formatWeekRange(entry.start_date, entry.end_date)}"` : ""}>
+        <button type="button" class="period-week-row${isSelected ? " is-selected" : ""}" data-report-id="${entry?.report_id || ""}" ${entry ? "" : "disabled"} aria-pressed="${isSelected}" ${entry ? `aria-label="第 ${isoWeekNumber(entry.start_date)} 周，${formatWeekRange(entry.start_date, entry.end_date)}，${status.label}${coverage ? `，${coverage}` : ""}"` : ""}>
           ${dates.map((date) => {
             const parts = dateParts(date);
             const outside = parts.month !== month;
-            return `<span class="period-week-day${outside ? " is-outside" : ""}"><b>${outside ? `${parts.month}/${parts.day}` : parts.day}</b></span>`;
+            const missing = missingDays.has(date);
+            return `<span class="period-week-day${outside ? " is-outside" : ""}${missing ? " is-missing" : ""}"><b>${outside ? `${parts.month}/${parts.day}` : parts.day}</b>${missing ? '<i aria-hidden="true">—</i>' : ""}</span>`;
           }).join("")}
+          ${entry ? statusMarker(entry, "week") : ""}
         </button>
       `;
       }).join("")}
     </div>
-    ${selected ? `<footer class="period-selection-summary period-week-summary"><span>第 ${isoWeekNumber(selected.start_date)} 周${isCrossMonth(selected) ? " · 跨月" : ""}</span><strong>${formatWeekRange(selected.start_date, selected.end_date)}</strong></footer>` : ""}
+    ${statusLegend()}
+    ${selected ? `<footer class="period-selection-summary period-week-summary"><span>第 ${isoWeekNumber(selected.start_date)} 周${isCrossMonth(selected) ? " · 跨月" : ""}${coverageLabel(selected) ? ` · ${coverageLabel(selected)}` : ""}</span><strong>${formatWeekRange(selected.start_date, selected.end_date)}</strong></footer>` : ""}
   `;
   bindContextNavigation(root, options, "week");
   bindPeriodSelection(root, options, "week");
@@ -197,7 +259,10 @@ function createMonthPanel(options) {
   const year = Number(context);
   const root = document.createElement("div");
   root.className = "period-calendar-panel period-month-panel";
-  const selected = selectedEntry(options, "month");
+  const selectedCandidate = selectedEntry(options, "month");
+  const selected = contextForEntry("month", selectedCandidate) === context
+    ? selectedCandidate
+    : null;
   const entries = reportsFor(options.index, "month").filter((entry) => entry.start_date.startsWith(`${context}-`));
   root.innerHTML = `
     ${calendarHeader(options, "month", `${year} 年`, "选择整月报告")}
@@ -205,7 +270,9 @@ function createMonthPanel(options) {
       ${Array.from({ length: 12 }, (_, index) => {
         const month = index + 1;
         const entry = entries.find((item) => Number(item.start_date.slice(5, 7)) === month);
-        return `<button type="button" data-report-id="${entry?.report_id || ""}" ${entry ? "" : "disabled"} class="period-month-cell${entry?.report_id === selected?.report_id ? " is-selected" : ""}" aria-pressed="${entry?.report_id === selected?.report_id}"><strong>${String(month).padStart(2, "0")}</strong><span>${entry ? "报告可用" : "暂无报告"}</span></button>`;
+        const status = entryStatus(entry, "month");
+        const coverage = coverageLabel(entry);
+        return `<button type="button" data-report-id="${entry?.report_id || ""}" ${entry ? "" : "disabled"} class="period-month-cell${entry?.report_id === selected?.report_id ? " is-selected" : ""}" aria-pressed="${entry?.report_id === selected?.report_id}" ${entry ? `aria-label="${month}月，${status.label}${coverage ? `，${coverage}` : ""}"` : ""}><strong>${String(month).padStart(2, "0")}</strong>${entry ? statusMarker(entry, "month") : ""}<span>${entry ? coverage || status.label : "暂无报告"}</span></button>`;
       }).join("")}
     </div>
     ${selected ? `<footer class="period-selection-summary period-month-summary"><span>已选月份</span><strong>${formatPeriodLabel("month", selected)}</strong></footer>` : ""}
@@ -298,7 +365,7 @@ export function renderPeriodPicker(options) {
     <div class="period-popover${options.pickerState.open ? " is-open" : ""}${options.pickerState.closing ? " is-closing" : ""}${options.pickerState.animateOpen ? " is-entering" : ""}" id="period-popover">
       <nav class="period-granularity-rail" aria-label="分析粒度">
         ${Object.entries(granularityLabels).map(([key, label]) => {
-          const count = reportsFor(options.index, key).length;
+          const count = Number(options.reportCounts?.[key] || 0);
           return `<button type="button" data-granularity="${key}" class="${key === pickerGranularity ? "is-selected" : ""}" aria-pressed="${key === pickerGranularity}" ${count ? "" : "disabled"}><strong>${label}</strong><span>${count}</span></button>`;
         }).join("")}
       </nav>
@@ -316,6 +383,10 @@ export function renderPeriodPicker(options) {
     options.pickerState.draftGranularity = options.activeGranularity;
     options.pickerState.contexts[options.activeGranularity] = contextForEntry(options.activeGranularity, activeEntry);
     renderPeriodPicker(options);
+    options.onContextChange?.(
+      options.activeGranularity,
+      options.pickerState.contexts[options.activeGranularity]
+    );
   });
   options.container.querySelectorAll("[data-granularity]:not(:disabled)").forEach((button) => {
     button.addEventListener("click", () => {
@@ -327,6 +398,7 @@ export function renderPeriodPicker(options) {
       options.pickerState.closing = false;
       options.pickerState.animateOpen = false;
       renderPeriodPicker(options);
+      options.onContextChange?.(granularity, context);
     });
   });
   const popover = options.container.querySelector("#period-popover");

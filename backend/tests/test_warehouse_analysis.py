@@ -76,7 +76,6 @@ def daily_dataset() -> dict[str, Any]:
         "schema_version": "2.0",
         "report_date": "2026-08-18",
         "pair": {
-            "compare_number": "10001+20001",
             "self_spu": "10001",
             "competitor_spu": "20001",
         },
@@ -257,6 +256,20 @@ class WarehouseAnalysisTest(unittest.TestCase):
 
         self.assertEqual(report["keywords"]["summary"]["self_only_count"], 1)
         self.assertNotIn("缺少关键词数据，关键词 Tab 不完整", report["risks"])
+
+    def test_missing_core_module_still_generates_partial_report(self) -> None:
+        """核心指标整块缺失时应保留本品真实值并生成部分报告。"""
+
+        dataset = daily_dataset()
+        dataset["sources"]["core_metrics"] = source([], "unavailable")
+        dataset["quality"]["status"] = "partial"
+
+        report = analyze_daily_dataset(dataset, product_images={})
+        gmv = next(item for item in report["comparison"] if item["metric_id"] == "gmv")
+
+        self.assertEqual(gmv["self_value"], 1000)
+        self.assertIsNone(gmv["competitor_value"])
+        self.assertEqual(gmv["judgement"], "数据不足")
 
     def test_invalid_dataset_is_rejected(self) -> None:
         """核心事实无效时不得生成正式报告。"""

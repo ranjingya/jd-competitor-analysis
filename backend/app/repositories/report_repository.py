@@ -12,8 +12,9 @@ from time import perf_counter
 from typing import Any
 
 from jd_competitor_analysis.report import build_tabs, gap_text, relative_gap_pct
+from jd_competitor_analysis.time_utils import beijing_now_text
 
-from ..database import Database, utc_now_text
+from ..database import Database
 
 
 LOGGER = logging.getLogger(__name__)
@@ -155,6 +156,61 @@ def _build_core_metrics(row: sqlite3.Row) -> list[dict[str, Any]]:
     return cards
 
 
+def _report_entry(row: sqlite3.Row) -> dict[str, Any]:
+    """把报告数据库行转换为前端导航使用的轻量条目。"""
+
+    granularity = str(row["granularity"])
+    start_date = str(row["start_date"])
+    end_date = str(row["end_date"])
+    audit = _json_value(row, "audit_json", {}) if "audit_json" in row.keys() else {}
+    meta_extra = audit.get("meta_extra") if isinstance(audit, dict) else {}
+    if not isinstance(meta_extra, dict):
+        meta_extra = {}
+    missing_days = meta_extra.get("missing_days")
+    if not isinstance(missing_days, list):
+        missing_days = []
+    period_key = (
+        f"day:{start_date}"
+        if granularity == "day"
+        else f"{granularity}:{start_date}:{end_date}"
+    )
+    return {
+        "report_id": row["report_id"],
+        "dataset_id": row["dataset_id"],
+        "period": start_date,
+        "period_key": period_key,
+        "start_date": start_date,
+        "end_date": end_date,
+        "self_spu": row["self_spu"],
+        "competitor_spu": row["competitor_spu"],
+        "self_name": row["self_name"],
+        "self_image_url": row["self_image_url"],
+        "competitor_name": row["competitor_name"],
+        "competitor_image_url": row["competitor_image_url"],
+        "quality_status": row["quality_status"],
+        "status": row["status"],
+        "period_days": meta_extra.get("period_days"),
+        "available_days": meta_extra.get("available_days"),
+        "missing_days": missing_days,
+        "title": "竞品准真实值看板",
+        "summary": row["advantage_summary"],
+        "path": f"/api/reports/{row['report_id']}",
+        "updated_at": row["updated_at"],
+    }
+
+
+def _validate_period_context(granularity: str, context: str) -> None:
+    """校验周期选择器上下文是否符合当前粒度。"""
+
+    expected_length = 4 if granularity == "month" else 7
+    if len(context) != expected_length:
+        raise ValueError("月报上下文必须为 YYYY，日报和周报上下文必须为 YYYY-MM")
+    try:
+        date.fromisoformat(f"{context}-01" if expected_length == 7 else f"{context}-01-01")
+    except ValueError as error:
+        raise ValueError("周期上下文格式无效") from error
+
+
 class ReportRepository:
     """保存分字段报告并提供按 ID 与周期的数据库查询。"""
 
@@ -217,7 +273,7 @@ class ReportRepository:
             "competitor_reports": competitor_updated,
             "updated_fields": self_updated + competitor_updated,
         }
-        LOGGER.info(
+        LOGGER.debug(
             "商品主图同步完成：products=%s，self_reports=%s，competitor_reports=%s，耗时=%.3fs",
             summary["products"],
             summary["self_reports"],
@@ -246,7 +302,7 @@ class ReportRepository:
         if status not in REPORT_STATUSES:
             raise ValueError(f"报告状态无效：{status}")
         selected_report_id = report_id or str(uuid.uuid4())
-        now = utc_now_text()
+        now = beijing_now_text()
         with self.database.connection() as connection:
             scope = self._resolve_scope(connection, dataset_id, report)
             content = self._report_content(connection, dataset_id, report)
@@ -261,11 +317,12 @@ class ReportRepository:
             ).fetchone()
             if existing is not None:
                 if (
-                    existing["dataset_id"] == dataset_id
+                    dataset_id is not None
+                    and existing["dataset_id"] == dataset_id
                     and status == "pending_ai"
                     and existing["status"] in {"ready", "ai_failed"}
                 ):
-                    LOGGER.info(
+                    LOGGER.debug(
                         "相同数据集报告已处于 AI 终态，保留现有内容：report_id=%s，status=%s",
                         existing["report_id"], existing["status"],
                     )
@@ -273,7 +330,7 @@ class ReportRepository:
                 self._update_report(
                     connection, str(existing["report_id"]), dataset_id, status, content, now
                 )
-                LOGGER.info("报告已更新：report_id=%s，status=%s", existing["report_id"], status)
+                LOGGER.debug("报告已更新：report_id=%s，status=%s", existing["report_id"], status)
                 return str(existing["report_id"])
             columns = (
                 "report_id", "dataset_id", "granularity", "start_date", "end_date",
@@ -292,7 +349,7 @@ class ReportRepository:
             except sqlite3.IntegrityError:
                 LOGGER.exception("报告写入失败：dataset_id=%s", dataset_id)
                 raise
-        LOGGER.info("报告已创建：report_id=%s，status=%s", selected_report_id, status)
+        LOGGER.debug("报告已创建：report_id=%s，status=%s", selected_report_id, status)
         return selected_report_id
 
     @staticmethod
@@ -444,7 +501,7 @@ class ReportRepository:
         返回值：无。
         """
 
-        now = utc_now_text()
+        now = beijing_now_text()
         with self.database.connection() as connection:
             content = self._report_content(connection, dataset_id, report)
             exists = connection.execute(
@@ -453,7 +510,25 @@ class ReportRepository:
             if exists is None:
                 raise FileNotFoundError(report_id)
             self._update_report(connection, report_id, dataset_id, "pending_ai", content, now)
-        LOGGER.info("报告已进入 AI 待处理状态：report_id=%s，dataset_id=%s", report_id, dataset_id)
+        LOGGER.debug("报告已进入 AI 待处理状态：report_id=%s，dataset_id=%s", report_id, dataset_id)
+
+    def mark_ai_pending(self, report_id: str) -> None:
+        """将已有基础报告标记为等待 AI 分析。
+
+        功能说明：仅更新报告状态和更新时间，保留已持久化的数据集关联、确定性指标和明细模块。
+        参数 report_id：需要重新执行 AI 分析的报告 ID。
+        返回值：无。
+        """
+
+        now = beijing_now_text()
+        with self.database.connection() as connection:
+            updated = connection.execute(
+                "UPDATE reports SET status = 'pending_ai', updated_at = ? WHERE report_id = ?",
+                (now, report_id),
+            )
+            if updated.rowcount != 1:
+                raise FileNotFoundError(report_id)
+        LOGGER.debug("已有基础报告已进入 AI 待处理状态：report_id=%s", report_id)
 
     def get(self, report_id: str) -> dict[str, Any]:
         """按报告 ID 读取兼容前端的完整报告。
@@ -490,6 +565,160 @@ class ReportRepository:
             "created_at": row["created_at"], "updated_at": row["updated_at"],
             "report": self._row_to_report(row),
         }
+
+    def find_ready_day_report(
+        self,
+        report_date: str,
+        self_spu: str,
+        competitor_spu: str,
+    ) -> dict[str, Any] | None:
+        """查找指定日期和商品对的完整日报。
+
+        功能说明：供日任务跳过已有最终报告并定位最近七天缺口，只把 `ready`
+        状态视为已经完成。
+        参数 report_date：业务日期，格式为 YYYY-MM-DD。
+        参数 self_spu：本品 SPU ID。
+        参数 competitor_spu：竞品 SPU ID。
+        返回值：已有完整日报的 ID 摘要；不存在时返回空值。
+        """
+
+        with self.database.connection() as connection:
+            row = connection.execute(
+                """
+                SELECT report_id, dataset_id
+                FROM reports
+                WHERE granularity = 'day' AND start_date = ? AND end_date = ?
+                  AND self_spu = ? AND competitor_spu = ? AND status = 'ready'
+                LIMIT 1
+                """,
+                (report_date, report_date, self_spu, competitor_spu),
+            ).fetchone()
+        return dict(row) if row is not None else None
+
+    def find_day_report_for_repair(
+        self,
+        report_date: str,
+        self_spu: str,
+        competitor_spu: str,
+    ) -> dict[str, Any] | None:
+        """读取最近七天修复流程需要的日报状态。
+
+        功能说明：按日期和商品对读取唯一日报的报告、数据集、报告状态和基础数据质量，
+        用于判断直接跳过、仅重试 AI 或重新执行完整分析。
+        参数 report_date：业务日期，格式为 YYYY-MM-DD。
+        参数 self_spu：本品 SPU ID。
+        参数 competitor_spu：竞品 SPU ID。
+        返回值：日报状态摘要；不存在时返回空值。
+        """
+
+        with self.database.connection() as connection:
+            row = connection.execute(
+                """
+                SELECT report_id, dataset_id, status, quality_status
+                FROM reports
+                WHERE granularity = 'day' AND start_date = ? AND end_date = ?
+                  AND self_spu = ? AND competitor_spu = ?
+                LIMIT 1
+                """,
+                (report_date, report_date, self_spu, competitor_spu),
+            ).fetchone()
+        return dict(row) if row is not None else None
+
+    def find_ready_period_report(
+        self,
+        granularity: str,
+        start_date: str,
+        end_date: str,
+        self_spu: str,
+        competitor_spu: str,
+    ) -> dict[str, Any] | None:
+        """查找来源日报未变化的周期报告候选。
+
+        功能说明：按周期业务键读取已完成报告及来源日报 ID，供周期任务判断是否可跳过。
+        参数 granularity：周期粒度，只允许 week 或 month。
+        参数 start_date：周期开始日期。
+        参数 end_date：周期结束日期。
+        参数 self_spu：本品 SPU ID。
+        参数 competitor_spu：竞品 SPU ID。
+        返回值：报告 ID 与来源日报 ID；不存在时返回空值。
+        """
+
+        if granularity not in {"week", "month"}:
+            raise ValueError("周期报告粒度必须为 week 或 month")
+        with self.database.connection() as connection:
+            row = connection.execute(
+                """
+                SELECT report_id, source_report_ids_json
+                FROM reports
+                WHERE granularity = ? AND start_date = ? AND end_date = ?
+                  AND self_spu = ? AND competitor_spu = ? AND status = 'ready'
+                LIMIT 1
+                """,
+                (granularity, start_date, end_date, self_spu, competitor_spu),
+            ).fetchone()
+        if row is None:
+            return None
+        return {
+            "report_id": str(row["report_id"]),
+            "source_report_ids": json.loads(row["source_report_ids_json"] or "[]"),
+        }
+
+    def list_ready_day_reports(
+        self,
+        start_date: str,
+        end_date: str,
+        self_spu: str | None = None,
+        competitor_spu: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """读取日期范围内已完成的日报。
+
+        功能说明：按商品对和日期顺序返回周期聚合需要的日报固定指标与完整模块，
+        只读取 `ready` 状态，不访问数仓。
+        参数 start_date：周期开始日期，格式为 YYYY-MM-DD。
+        参数 end_date：周期结束日期，格式为 YYYY-MM-DD。
+        参数 self_spu：可选本品 SPU 过滤条件。
+        参数 competitor_spu：可选竞品 SPU 过滤条件。
+        返回值：包含数据库数值字段和完整报告对象的日报列表。
+        """
+
+        if bool(self_spu) != bool(competitor_spu):
+            raise ValueError("self_spu 和 competitor_spu 必须同时提供")
+        filters = [
+            "granularity = 'day'",
+            "start_date >= ?",
+            "end_date <= ?",
+            "status = 'ready'",
+        ]
+        parameters: list[Any] = [start_date, end_date]
+        if self_spu and competitor_spu:
+            filters.extend(["self_spu = ?", "competitor_spu = ?"])
+            parameters.extend([self_spu, competitor_spu])
+        with self.database.connection() as connection:
+            rows = connection.execute(
+                f"""
+                SELECT * FROM reports
+                WHERE {' AND '.join(filters)}
+                ORDER BY self_spu, competitor_spu, start_date, report_id
+                """,
+                parameters,
+            ).fetchall()
+        numeric_columns = (
+            "self_gmv", "competitor_gmv", "self_visitors", "competitor_visitors",
+            "self_buyers", "competitor_buyers", "self_conversion_rate",
+            "competitor_conversion_rate", "self_aov", "competitor_aov",
+        )
+        return [
+            {
+                "report_id": str(row["report_id"]),
+                "report_date": str(row["start_date"]),
+                "self_spu": str(row["self_spu"]),
+                "competitor_spu": str(row["competitor_spu"]),
+                "quality_status": str(row["quality_status"]),
+                **{column: _number(row[column]) for column in numeric_columns},
+                "report": self._row_to_report(row),
+            }
+            for row in rows
+        ]
 
     @staticmethod
     def _row_to_report(row: sqlite3.Row) -> dict[str, Any]:
@@ -550,6 +779,8 @@ class ReportRepository:
         report.update(
             {
                 "schema_version": row["schema_version"], "meta": meta,
+                "quality_status": row["quality_status"],
+                "report_status": row["status"],
                 "source_files": audit.get("source_files", []),
                 "self_validation": audit.get("self_validation", []),
                 "competitor_core_conversions": audit.get("competitor_core_conversions", []),
@@ -624,49 +855,196 @@ class ReportRepository:
             "spu_id": str(report_row["self_spu"]), "sku_count": len(items), "items": items,
         }
 
-    def read_index(self) -> dict[str, Any]:
-        """生成 Web 使用的轻量报告索引。
+    def list_product_pairs(self) -> dict[str, Any]:
+        """返回商品对及各粒度最新报告。
 
-        功能说明：只读取商品、周期、状态和摘要字段，并按日、周、月分组。
-        返回值：包含 day、week 和 month 数组的报告索引。
+        功能说明：每个商品对只返回日、周、月各一条最新报告及报告数量，供页面首次导航使用。
+        返回值：包含商品对列表和最近更新时间的轻量对象。
         """
 
         with self.database.connection() as connection:
+            updated_at = connection.execute(
+                "SELECT MAX(updated_at) FROM reports"
+            ).fetchone()[0]
             rows = connection.execute(
                 """
+                WITH ranked_reports AS (
+                    SELECT report_id, dataset_id, granularity, start_date, end_date,
+                           self_spu, competitor_spu, self_name, self_image_url,
+                           competitor_name, competitor_image_url, advantage_summary,
+                           quality_status, status, audit_json, updated_at,
+                           COUNT(*) OVER (
+                               PARTITION BY self_spu, competitor_spu, granularity
+                           ) AS report_count,
+                           ROW_NUMBER() OVER (
+                               PARTITION BY self_spu, competitor_spu, granularity
+                               ORDER BY start_date DESC, end_date DESC,
+                                        updated_at DESC, report_id DESC
+                           ) AS report_rank
+                    FROM reports
+                )
+                SELECT * FROM ranked_reports
+                WHERE report_rank = 1
+                ORDER BY updated_at DESC, self_spu, competitor_spu, granularity
+                """
+            ).fetchall()
+        pairs: dict[tuple[str, str], dict[str, Any]] = {}
+        for row in rows:
+            pair_key = (str(row["self_spu"]), str(row["competitor_spu"]))
+            pair = pairs.setdefault(
+                pair_key,
+                {
+                    "self_spu": pair_key[0],
+                    "competitor_spu": pair_key[1],
+                    "self_name": row["self_name"],
+                    "self_image_url": row["self_image_url"],
+                    "competitor_name": row["competitor_name"],
+                    "competitor_image_url": row["competitor_image_url"],
+                    "latest_reports": {"day": None, "week": None, "month": None},
+                    "report_counts": {"day": 0, "week": 0, "month": 0},
+                },
+            )
+            granularity = str(row["granularity"])
+            pair["latest_reports"][granularity] = _report_entry(row)
+            pair["report_counts"][granularity] = int(row["report_count"])
+        items = list(pairs.values())
+        items.sort(key=lambda item: (str(item["self_spu"]), str(item["competitor_spu"])))
+        return {
+            "updated_at": str(updated_at) if updated_at is not None else None,
+            "items": items,
+        }
+
+    def list_periods(
+        self,
+        self_spu: str,
+        competitor_spu: str,
+        granularity: str,
+        context: str,
+    ) -> dict[str, Any]:
+        """返回指定商品对和日历上下文中的可用报告。
+
+        功能说明：日报和周报按 YYYY-MM 查询，月报按 YYYY 查询，同时返回可导航上下文。
+        参数 self_spu：本品 SPU。
+        参数 competitor_spu：竞品 SPU。
+        参数 granularity：day、week 或 month。
+        参数 context：日报/周报月份 YYYY-MM，或月报年份 YYYY。
+        返回值：当前上下文的轻量报告条目、全部可用上下文及报告总数。
+        """
+
+        if granularity not in GRANULARITIES:
+            raise ValueError(f"不支持的报告粒度：{granularity}")
+        _validate_period_context(granularity, context)
+        context_length = 4 if granularity == "month" else 7
+        with self.database.connection() as connection:
+            contexts = [
+                str(row["period_context"])
+                for row in connection.execute(
+                    f"""
+                    SELECT DISTINCT substr(start_date, 1, {context_length}) AS period_context
+                    FROM reports
+                    WHERE self_spu = ? AND competitor_spu = ? AND granularity = ?
+                    ORDER BY period_context
+                    """,
+                    (self_spu, competitor_spu, granularity),
+                ).fetchall()
+            ]
+            report_count = int(
+                connection.execute(
+                    """
+                    SELECT COUNT(*)
+                    FROM reports
+                    WHERE self_spu = ? AND competitor_spu = ? AND granularity = ?
+                    """,
+                    (self_spu, competitor_spu, granularity),
+                ).fetchone()[0]
+            )
+            rows = connection.execute(
+                f"""
                 SELECT report_id, dataset_id, granularity, start_date, end_date,
                        self_spu, competitor_spu, self_name, self_image_url,
                        competitor_name, competitor_image_url, advantage_summary,
-                       quality_status, status, updated_at
+                       quality_status, status, audit_json, updated_at
                 FROM reports
-                ORDER BY updated_at DESC, report_id
-                """
+                WHERE self_spu = ? AND competitor_spu = ? AND granularity = ?
+                  AND substr(start_date, 1, {context_length}) = ?
+                ORDER BY start_date, end_date, updated_at, report_id
+                """,
+                (self_spu, competitor_spu, granularity, context),
             ).fetchall()
-        grouped_entries: dict[str, list[dict[str, Any]]] = {"day": [], "week": [], "month": []}
-        for row in rows:
-            granularity = str(row["granularity"])
-            period_key = (
-                f"day:{row['start_date']}" if granularity == "day"
-                else f"{granularity}:{row['start_date']}:{row['end_date']}"
-            )
-            grouped_entries[granularity].append(
-                {
-                    "report_id": row["report_id"], "dataset_id": row["dataset_id"],
-                    "period": row["start_date"], "period_key": period_key,
-                    "start_date": row["start_date"], "end_date": row["end_date"],
-                    "self_spu": row["self_spu"], "competitor_spu": row["competitor_spu"],
-                    "self_name": row["self_name"], "self_image_url": row["self_image_url"],
-                    "competitor_name": row["competitor_name"],
-                    "competitor_image_url": row["competitor_image_url"],
-                    "quality_status": row["quality_status"], "status": row["status"],
-                    "title": "竞品准真实值看板", "summary": row["advantage_summary"],
-                    "path": f"/api/reports/{row['report_id']}", "updated_at": row["updated_at"],
-                }
-            )
-        updated_at = max((str(row["updated_at"]) for row in rows), default=None)
         return {
-            "schema_version": "2.0", "updated_at": updated_at, "meta": {},
-            "reports": grouped_entries,
+            "self_spu": self_spu,
+            "competitor_spu": competitor_spu,
+            "granularity": granularity,
+            "context": context,
+            "contexts": contexts,
+            "report_count": report_count,
+            "items": [_report_entry(row) for row in rows],
+        }
+
+    def read_trends(
+        self,
+        self_spu: str,
+        competitor_spu: str,
+        granularity: str,
+        start_date: str,
+        end_date: str,
+    ) -> dict[str, Any]:
+        """读取指定范围的轻量核心指标趋势。
+
+        功能说明：只查询趋势图需要的四组固定指标，不读取五张分析表和 AI 内容。
+        参数 self_spu：本品 SPU。
+        参数 competitor_spu：竞品 SPU。
+        参数 granularity：day、week 或 month。
+        参数 start_date：报告开始日期下界。
+        参数 end_date：报告开始日期上界。
+        返回值：包含轻量报告数组的趋势对象。
+        """
+
+        if granularity not in GRANULARITIES:
+            raise ValueError(f"不支持的报告粒度：{granularity}")
+        try:
+            parsed_start = date.fromisoformat(start_date)
+            parsed_end = date.fromisoformat(end_date)
+        except ValueError as error:
+            raise ValueError("趋势日期格式必须为 YYYY-MM-DD") from error
+        if parsed_start > parsed_end:
+            raise ValueError("趋势开始日期不能晚于结束日期")
+        with self.database.connection() as connection:
+            rows = connection.execute(
+                """
+                SELECT report_id, granularity, start_date, end_date,
+                       self_gmv, competitor_gmv, self_visitors, competitor_visitors,
+                       self_conversion_rate, competitor_conversion_rate,
+                       self_aov, competitor_aov, quality_status, status
+                FROM reports
+                WHERE self_spu = ? AND competitor_spu = ? AND granularity = ?
+                  AND start_date BETWEEN ? AND ?
+                ORDER BY start_date, end_date, report_id
+                """,
+                (self_spu, competitor_spu, granularity, start_date, end_date),
+            ).fetchall()
+        items = [
+            {
+                "report_id": row["report_id"],
+                "meta": {
+                    "period": row["start_date"],
+                    "period_start": row["start_date"],
+                    "period_end": row["end_date"],
+                    "granularity": row["granularity"],
+                },
+                "quality_status": row["quality_status"],
+                "report_status": row["status"],
+                "core_metrics": _build_core_metrics(row),
+            }
+            for row in rows
+        ]
+        return {
+            "self_spu": self_spu,
+            "competitor_spu": competitor_spu,
+            "granularity": granularity,
+            "start_date": start_date,
+            "end_date": end_date,
+            "items": items,
         }
 
     def read_report(self, granularity: str, start_date: str, end_date: str) -> dict[str, Any]:

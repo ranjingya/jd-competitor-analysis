@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from app.database import Database
+from app.database import Database, _normalize_database_timestamps
 
 
 class DatabaseTest(unittest.TestCase):
@@ -80,6 +80,57 @@ class DatabaseTest(unittest.TestCase):
                 ).fetchone()["count"]
 
         self.assertEqual(table_count, 3)
+
+    def test_existing_timestamps_are_normalized_to_beijing_time(self) -> None:
+        """UTC 和无偏移历史时间应统一转换为带 `+08:00` 的文本。"""
+
+        connection = sqlite3.connect(":memory:")
+        connection.row_factory = sqlite3.Row
+        try:
+            connection.executescript(
+                """
+                CREATE TABLE analysis_datasets (created_at TEXT);
+                CREATE TABLE reports (
+                    generated_at TEXT, created_at TEXT, updated_at TEXT
+                );
+                CREATE TABLE analysis_tasks (
+                    created_at TEXT, updated_at TEXT, completed_at TEXT
+                );
+                INSERT INTO analysis_datasets VALUES ('2026-08-27T07:25:24+00:00');
+                INSERT INTO reports VALUES (
+                    '2026-08-27T15:25:24',
+                    '2026-08-27T07:25:24+00:00',
+                    '2026-08-27T07:27:11+00:00'
+                );
+                INSERT INTO analysis_tasks VALUES (
+                    '2026-08-27T07:25:24+00:00',
+                    '2026-08-27T07:27:11+00:00',
+                    '2026-08-27T07:27:11+00:00'
+                );
+                """
+            )
+
+            updated_fields = _normalize_database_timestamps(connection)
+            dataset = connection.execute(
+                "SELECT created_at FROM analysis_datasets"
+            ).fetchone()
+            report = connection.execute(
+                "SELECT generated_at, created_at, updated_at FROM reports"
+            ).fetchone()
+            task = connection.execute(
+                "SELECT created_at, updated_at, completed_at FROM analysis_tasks"
+            ).fetchone()
+        finally:
+            connection.close()
+
+        self.assertEqual(updated_fields, 7)
+        self.assertEqual(dataset["created_at"], "2026-08-27T15:25:24+08:00")
+        self.assertEqual(report["generated_at"], "2026-08-27T15:25:24+08:00")
+        self.assertEqual(report["created_at"], "2026-08-27T15:25:24+08:00")
+        self.assertEqual(report["updated_at"], "2026-08-27T15:27:11+08:00")
+        self.assertEqual(task["created_at"], "2026-08-27T15:25:24+08:00")
+        self.assertEqual(task["updated_at"], "2026-08-27T15:27:11+08:00")
+        self.assertEqual(task["completed_at"], "2026-08-27T15:27:11+08:00")
 
     def test_legacy_database_is_rejected(self) -> None:
         """旧结构数据库应被拒绝，避免在原文件上静默改表。"""

@@ -16,7 +16,6 @@ def dataset_payload(gmv: int = 1000) -> dict[str, object]:
         "schema_version": "2.0",
         "report_date": "2026-08-11",
         "pair": {
-            "compare_number": "10001+20001",
             "self_spu": "10001",
             "competitor_spu": "20001",
         },
@@ -70,8 +69,8 @@ class DatasetRepositoryTest(unittest.TestCase):
         payload = dataset_payload()
         pair = payload["pair"]
         assert isinstance(pair, dict)
-        pair["compare_number"] = "wrong"
-        with self.assertRaisesRegex(ValueError, "商品对字段不一致"):
+        pair["competitor_spu"] = "10001"
+        with self.assertRaisesRegex(ValueError, "商品对字段无效"):
             self.repository.store(payload)
 
 

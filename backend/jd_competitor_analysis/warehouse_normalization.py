@@ -121,12 +121,57 @@ def normalize_metric(value: Any, unit: str) -> dict[str, Any]:
     return {"raw": raw, "status": status, "low": low, "high": high, "unit": unit}
 
 
-def _normalize_side(data: dict[str, Any], prefix: str, definitions: Iterable[tuple[str, str, str]]) -> dict[str, Any]:
-    """按字段定义转换本品或竞品的一组指标。"""
+def _normalize_metrics(data: dict[str, Any], definitions: Iterable[tuple[str, str, str]]) -> dict[str, Any]:
+    """按字段定义转换一个商品的一组指标。"""
 
     return {
-        metric_id: normalize_metric(data.get(f"{prefix}{source_label}"), unit)
+        metric_id: normalize_metric(data.get(source_label), unit)
         for metric_id, source_label, unit in definitions
+    }
+
+
+def _json_field_issues(rows: list[dict[str, Any]]) -> list[dict[str, str]]:
+    """把读取层发现的 JSON 字段变化转换为质量问题。"""
+
+    changed_rows = [
+        row
+        for row in rows
+        if (row.get("json_fields") or {}).get("missing")
+        or (row.get("json_fields") or {}).get("extra")
+    ]
+    if not changed_rows:
+        return []
+    missing = sorted(
+        {
+            field
+            for row in changed_rows
+            for field in (row.get("json_fields") or {}).get("missing", [])
+        }
+    )
+    extra = sorted(
+        {
+            field
+            for row in changed_rows
+            for field in (row.get("json_fields") or {}).get("extra", [])
+        }
+    )
+    return [
+        {
+            "code": "json_fields_changed",
+            "message": (
+                f"有 {len(changed_rows)} 条数仓记录的 JSON 字段发生变化："
+                f"缺失={','.join(missing) or '无'}；新增={','.join(extra) or '无'}"
+            ),
+        }
+    ]
+
+
+def _rows_by_role(rows: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    """按本品和竞品角色分组数仓记录。"""
+
+    return {
+        role: [row for row in rows if row.get("product_role") == role]
+        for role in ("self", "competitor")
     }
 
 
@@ -210,21 +255,35 @@ def normalize_core_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
     """
 
     started_at = perf_counter()
-    LOGGER.info("开始标准化核心指标：rows=%s", len(rows))
-    records = []
-    for row in rows:
-        data = row.get("data") or {}
-        records.append(
-            {
-                "self": _normalize_side(data, "本品", CORE_METRICS),
-                "competitor": _normalize_side(data, "竞品1", CORE_METRICS),
-            }
-        )
-    issues = []
-    if len(records) > 1:
-        issues.append({"code": "multiple_core_records", "message": "核心指标应只有一条记录"})
+    LOGGER.debug("开始标准化核心指标：rows=%s", len(rows))
+    grouped = _rows_by_role(rows)
+    records = [
+        {
+            "self": _normalize_metrics(
+                (grouped["self"][0].get("data") or {}) if grouped["self"] else {},
+                CORE_METRICS,
+            ),
+            "competitor": _normalize_metrics(
+                (grouped["competitor"][0].get("data") or {}) if grouped["competitor"] else {},
+                CORE_METRICS,
+            ),
+        }
+    ]
+    issues = _json_field_issues(rows)
+    if not rows:
+        issues.append({"code": "no_records", "message": "当天没有核心指标记录"})
+    for role, role_rows in grouped.items():
+        if len(role_rows) > 1:
+            issues.append(
+                {
+                    "code": "multiple_core_records",
+                    "message": f"核心指标的 {role} 侧存在 {len(role_rows)} 条记录",
+                }
+            )
+        if rows and not role_rows:
+            issues.append({"code": "missing_core_side", "message": f"核心指标缺少 {role} 侧记录"})
     result = _wrap_source("core_metrics", rows, records, issues)
-    LOGGER.info(
+    LOGGER.debug(
         "核心指标标准化完成：records=%s，status=%s，耗时=%.3fs",
         len(records),
         result["quality"]["status"],
@@ -249,23 +308,39 @@ def normalize_traffic_sources(rows: list[dict[str, Any]]) -> dict[str, Any]:
     """
 
     started_at = perf_counter()
-    LOGGER.info("开始标准化流量来源：rows=%s", len(rows))
-    records = []
+    LOGGER.debug("开始标准化流量来源：rows=%s", len(rows))
+    records_by_channel: dict[tuple[str | None, str | None, str | None], dict[str, Any]] = {}
+    issues = _json_field_issues(rows)
     for row in rows:
         data = row.get("data") or {}
         levels = [_channel_name(data.get(key)) for key in ("一级渠道", "二级渠道", "三级渠道")]
-        records.append(
+        channel_key = (levels[0], levels[1], levels[2])
+        record = records_by_channel.setdefault(
+            channel_key,
             {
                 "channel_level_1": levels[0],
                 "channel_level_2": levels[1],
                 "channel_level_3": levels[2],
                 "channel_path": " > ".join(level for level in levels if level),
-                "self": _normalize_side(data, "本品", TRAFFIC_METRICS),
-                "competitor": _normalize_side(data, "竞品1", TRAFFIC_METRICS),
-            }
+                "self": _normalize_metrics({}, TRAFFIC_METRICS),
+                "competitor": _normalize_metrics({}, TRAFFIC_METRICS),
+            },
         )
-    result = _wrap_source("traffic_sources", rows, records)
-    LOGGER.info(
+        role = row.get("product_role")
+        if role not in {"self", "competitor"}:
+            issues.append({"code": "unknown_product_role", "message": f"流量来源记录角色无效：{role}"})
+            continue
+        if any(metric["status"] != "masked" for metric in record[role].values()):
+            issues.append(
+                {
+                    "code": "duplicate_traffic_channel",
+                    "message": f"流量来源渠道 {record['channel_path'] or '空'} 的 {role} 侧存在重复记录",
+                }
+            )
+        record[role] = _normalize_metrics(data, TRAFFIC_METRICS)
+    records = list(records_by_channel.values())
+    result = _wrap_source("traffic_sources", rows, records, issues)
+    LOGGER.debug(
         "流量来源标准化完成：records=%s，status=%s，耗时=%.3fs",
         len(records),
         result["quality"]["status"],
@@ -284,19 +359,16 @@ def normalize_traffic_keywords(rows: list[dict[str, Any]], product_pair: Product
     """
 
     started_at = perf_counter()
-    LOGGER.info("开始标准化引流关键词：rows=%s", len(rows))
+    LOGGER.debug("开始标准化引流关键词：rows=%s", len(rows))
     records = []
     issues: list[dict[str, str]] = []
     for row in rows:
         data = row.get("data") or {}
-        spu_id = clean_identifier(data.get("SPUID"))
-        if spu_id == product_pair.self_spu:
-            product_role = "self"
-        elif spu_id == product_pair.competitor_spu:
-            product_role = "competitor"
-        else:
-            issues.append({"code": "unexpected_keyword_spu", "message": f"关键词记录包含商品对之外的 SPU：{spu_id or '空'}"})
+        product_role = row.get("product_role")
+        if product_role not in {"self", "competitor"}:
+            issues.append({"code": "unexpected_keyword_role", "message": f"关键词记录角色无效：{product_role}"})
             continue
+        spu_id = product_pair.self_spu if product_role == "self" else product_pair.competitor_spu
         records.append(
             {
                 "product_role": product_role,
@@ -307,8 +379,9 @@ def normalize_traffic_keywords(rows: list[dict[str, Any]], product_pair: Product
                 "gmv": normalize_metric(data.get("成交金额"), "currency"),
             }
         )
+    issues.extend(_json_field_issues(rows))
     result = _wrap_source("traffic_keywords", rows, records, issues)
-    LOGGER.info(
+    LOGGER.debug(
         "引流关键词标准化完成：records=%s，status=%s，耗时=%.3fs",
         len(records),
         result["quality"]["status"],
@@ -340,9 +413,9 @@ def normalize_customer_profiles(rows: list[dict[str, Any]]) -> dict[str, Any]:
     """
 
     started_at = perf_counter()
-    LOGGER.info("开始标准化客户画像：rows=%s", len(rows))
-    records = []
-    issues: list[dict[str, str]] = []
+    LOGGER.debug("开始标准化客户画像：rows=%s", len(rows))
+    records_by_segment: dict[tuple[str, str], dict[str, Any]] = {}
+    issues: list[dict[str, str]] = _json_field_issues(rows)
     current_dimension: str | None = None
     for row in rows:
         data = row.get("data") or {}
@@ -357,16 +430,32 @@ def normalize_customer_profiles(rows: list[dict[str, Any]]) -> dict[str, Any]:
         if dimension is None:
             dimension = "unknown"
             issues.append({"code": "unknown_profile_dimension", "message": f"无法识别画像项所属维度：{segment}"})
-        records.append(
+        key = (dimension, segment)
+        record = records_by_segment.setdefault(
+            key,
             {
                 "dimension": dimension,
                 "segment": segment,
-                "self_share": normalize_metric(data.get("本品成交客户数占比"), "ratio"),
-                "competitor_share": normalize_metric(data.get("竞品1成交客户数占比"), "ratio"),
-            }
+                "self_share": normalize_metric(None, "ratio"),
+                "competitor_share": normalize_metric(None, "ratio"),
+            },
         )
+        role = row.get("product_role")
+        target_field = {"self": "self_share", "competitor": "competitor_share"}.get(role)
+        if target_field is None:
+            issues.append({"code": "unknown_product_role", "message": f"画像记录角色无效：{role}"})
+            continue
+        if record[target_field]["status"] != "masked":
+            issues.append(
+                {
+                    "code": "duplicate_profile_segment",
+                    "message": f"画像项 {segment} 的 {role} 侧存在重复记录",
+                }
+            )
+        record[target_field] = normalize_metric(data.get("成交客户数占比"), "ratio")
+    records = list(records_by_segment.values())
     result = _wrap_source("customer_profiles", rows, records, issues)
-    LOGGER.info(
+    LOGGER.debug(
         "客户画像标准化完成：records=%s，status=%s，耗时=%.3fs",
         len(records),
         result["quality"]["status"],
@@ -375,17 +464,17 @@ def normalize_customer_profiles(rows: list[dict[str, Any]]) -> dict[str, Any]:
     return result
 
 
-def _promotion_side(data: dict[str, Any], prefix: str) -> dict[str, Any]:
+def _promotion_side(data: dict[str, Any]) -> dict[str, Any]:
     """转换推广数据的一侧指标。"""
 
     return {
         "full_site": {
-            "gmv": normalize_metric(data.get(f"全站-{prefix}全站交易额"), "currency"),
-            "core_position_clicks": normalize_metric(data.get(f"全站-{prefix}核心位置点击数"), "count"),
+            "gmv": normalize_metric(data.get("全站-全站交易额"), "currency"),
+            "core_position_clicks": normalize_metric(data.get("全站-核心位置点击数"), "count"),
         },
         "non_full_site": {
-            "ad_clicks": normalize_metric(data.get(f"非全站-{prefix}广告点击数"), "count"),
-            "ad_order_gmv": normalize_metric(data.get(f"非全站-{prefix}广告总订单金额"), "currency"),
+            "ad_clicks": normalize_metric(data.get("非全站-广告点击数"), "count"),
+            "ad_order_gmv": normalize_metric(data.get("非全站-广告总订单金额"), "currency"),
         },
     }
 
@@ -399,18 +488,29 @@ def normalize_promotion(rows: list[dict[str, Any]]) -> dict[str, Any]:
     """
 
     started_at = perf_counter()
-    LOGGER.info("开始标准化推广数据：rows=%s", len(rows))
-    records = []
-    for row in rows:
-        data = row.get("data") or {}
-        records.append(
-            {
-                "self": _promotion_side(data, "本店商品"),
-                "competitor": _promotion_side(data, "竞品1"),
-            }
-        )
-    result = _wrap_source("promotion", rows, records)
-    LOGGER.info(
+    LOGGER.debug("开始标准化推广数据：rows=%s", len(rows))
+    grouped = _rows_by_role(rows)
+    records = [
+        {
+            "self": _promotion_side((grouped["self"][0].get("data") or {}) if grouped["self"] else {}),
+            "competitor": _promotion_side(
+                (grouped["competitor"][0].get("data") or {}) if grouped["competitor"] else {}
+            ),
+        }
+    ] if rows else []
+    issues = _json_field_issues(rows)
+    for role, role_rows in grouped.items():
+        if len(role_rows) > 1:
+            issues.append(
+                {
+                    "code": "multiple_promotion_records",
+                    "message": f"推广数据的 {role} 侧存在 {len(role_rows)} 条记录",
+                }
+            )
+        if rows and not role_rows:
+            issues.append({"code": "missing_promotion_side", "message": f"推广数据缺少 {role} 侧记录"})
+    result = _wrap_source("promotion", rows, records, issues)
+    LOGGER.debug(
         "推广数据标准化完成：records=%s，status=%s，耗时=%.3fs",
         len(records),
         result["quality"]["status"],
@@ -435,7 +535,12 @@ def normalize_competitor_sources(
 
     started_at = perf_counter()
     selected_date = parse_report_date(report_date).isoformat()
-    LOGGER.info("开始标准化五张竞品表：date=%s，compare_number=%s", selected_date, product_pair.compare_number)
+    LOGGER.debug(
+        "开始标准化五张竞品表：date=%s，self_spu=%s，competitor_spu=%s",
+        selected_date,
+        product_pair.self_spu,
+        product_pair.competitor_spu,
+    )
     normalizers: dict[str, Normalizer] = {
         "core_metrics": normalize_core_metrics,
         "traffic_sources": normalize_traffic_sources,
@@ -451,10 +556,7 @@ def normalize_competitor_sources(
         for source_id in SOURCE_TABLES
     }
     source_statuses = [source["quality"]["status"] for source in sources.values()]
-    core_status = sources["core_metrics"]["quality"]["status"]
-    if core_status == "unavailable":
-        overall_status = "invalid"
-    elif all(status == "ready" for status in source_statuses):
+    if all(status == "ready" for status in source_statuses):
         overall_status = "ready"
     else:
         overall_status = "partial"
@@ -467,14 +569,13 @@ def normalize_competitor_sources(
         "schema_version": "2.0",
         "report_date": selected_date,
         "pair": {
-            "compare_number": product_pair.compare_number,
             "self_spu": product_pair.self_spu,
             "competitor_spu": product_pair.competitor_spu,
         },
         "sources": sources,
         "quality": {"status": overall_status, "issues": issues},
     }
-    LOGGER.info(
+    LOGGER.debug(
         "五张竞品表标准化完成：date=%s，status=%s，耗时=%.3fs",
         selected_date,
         overall_status,
@@ -565,7 +666,7 @@ def normalize_self_product(
 
     started_at = perf_counter()
     selected_date = parse_report_date(report_date).isoformat()
-    LOGGER.info(
+    LOGGER.debug(
         "开始标准化本品 SKU：date=%s，spu=%s，mapped=%s，rows=%s",
         selected_date,
         product_pair.self_spu,
@@ -666,7 +767,7 @@ def normalize_self_product(
             "issues": issues,
         },
     }
-    LOGGER.info(
+    LOGGER.debug(
         "本品 SKU 标准化完成：spu=%s，status=%s，耗时=%.3fs",
         product_pair.self_spu,
         status,
@@ -697,9 +798,7 @@ def normalize_daily_dataset(
     competitor_data = normalize_competitor_sources(raw_sources, product_pair, report_date)
     self_product = normalize_self_product(product_pair, report_date, mappings, sku_rows)
     statuses = [competitor_data["quality"]["status"], self_product["quality"]["status"]]
-    if "invalid" in statuses or self_product["quality"]["status"] == "unavailable":
-        overall_status = "invalid"
-    elif all(status == "ready" for status in statuses):
+    if all(status == "ready" for status in statuses):
         overall_status = "ready"
     else:
         overall_status = "partial"
@@ -715,10 +814,11 @@ def normalize_daily_dataset(
         "sources": competitor_data["sources"],
         "quality": {"status": overall_status, "issues": issues},
     }
-    LOGGER.info(
-        "完整日数据组装完成：date=%s，compare_number=%s，status=%s，耗时=%.3fs",
+    LOGGER.debug(
+        "完整日数据组装完成：date=%s，self_spu=%s，competitor_spu=%s，status=%s，耗时=%.3fs",
         result["report_date"],
-        product_pair.compare_number,
+        product_pair.self_spu,
+        product_pair.competitor_spu,
         overall_status,
         perf_counter() - started_at,
     )

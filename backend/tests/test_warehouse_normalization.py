@@ -19,19 +19,22 @@ from jd_competitor_analysis.warehouse_normalization import (
 from jd_competitor_analysis.warehouse_sources import ProductPair
 
 
-PAIR = ProductPair.parse("100174558585+100112260075")
+PAIR = ProductPair("100174558585", "100112260075")
 
 
-def source_row(row_id: int, data: dict[str, object]) -> dict[str, object]:
+def source_row(row_id: int, data: dict[str, object], product_role: str = "self") -> dict[str, object]:
     """生成标准数仓来源测试行。"""
 
     return {
         "id": row_id,
         "dt": "2026-08-11",
-        "compare_number": PAIR.compare_number,
+        "start_dt": "2026-08-11",
         "self_spu": PAIR.self_spu,
         "competitor_spu": PAIR.competitor_spu,
+        "product_role": product_role,
+        "time_granularity": "day",
         "updated_at": "2026-08-12 03:00:00",
+        "json_fields": {"missing": [], "extra": []},
         "data": data,
     }
 
@@ -84,13 +87,20 @@ class SourceNormalizationTest(unittest.TestCase):
                 source_row(
                     1,
                     {
-                        "本品浏览量": "50 ~ 100",
-                        "本品访客数": "10 ~ 50",
-                        "竞品1浏览量": "400 ~ 600",
-                        "竞品1访客数": "200 ~ 400",
-                        "竞品1成交金额": "￥1,000 ~ ￥2,000",
+                        "浏览量": "50 ~ 100",
+                        "访客数": "10 ~ 50",
                     },
-                )
+                    "self",
+                ),
+                source_row(
+                    2,
+                    {
+                        "浏览量": "400 ~ 600",
+                        "访客数": "200 ~ 400",
+                        "成交金额": "￥1,000 ~ ￥2,000",
+                    },
+                    "competitor",
+                ),
             ]
         )
 
@@ -109,6 +119,16 @@ class SourceNormalizationTest(unittest.TestCase):
         self.assertEqual(set(result["records"][0]["competitor"]), expected_fields)
         self.assertEqual(result["records"][0]["self"]["gmv"]["status"], "masked")
         self.assertEqual(result["quality"]["status"], "partial")
+
+    def test_empty_core_metrics_keep_fixed_masked_record(self) -> None:
+        """核心指标整块没有记录时仍应输出可继续分析的固定空结构。"""
+
+        result = normalize_core_metrics([])
+
+        self.assertEqual(len(result["records"]), 1)
+        self.assertEqual(result["records"][0]["self"]["gmv"]["status"], "masked")
+        self.assertEqual(result["records"][0]["competitor"]["visitors"]["status"], "masked")
+        self.assertEqual(result["quality"]["status"], "unavailable")
 
 
 class SelfProductNormalizationTest(unittest.TestCase):
@@ -231,7 +251,10 @@ class SelfProductNormalizationTest(unittest.TestCase):
         """完整日数据入口应同时输出本品 SPU 和五张竞品来源。"""
 
         raw_sources = {
-            "core_metrics": [source_row(1, {"本品访客数": "10 ~ 50", "竞品1访客数": "50 ~ 100"})],
+            "core_metrics": [
+                source_row(1, {"访客数": "10 ~ 50"}, "self"),
+                source_row(2, {"访客数": "50 ~ 100"}, "competitor"),
+            ],
             "traffic_sources": [],
             "traffic_keywords": [],
             "customer_profiles": [],
@@ -256,6 +279,28 @@ class SelfProductNormalizationTest(unittest.TestCase):
         self.assertEqual(len(result["sources"]), 5)
         self.assertEqual(result["quality"]["status"], "partial")
 
+    def test_available_source_with_missing_self_product_is_partial(self) -> None:
+        """来源表存在任意事实时，本品 SKU 无记录只应降低质量状态。"""
+
+        result = normalize_daily_dataset(
+            {
+                "core_metrics": [],
+                "traffic_sources": [
+                    source_row(1, {"一级渠道": "站内场域", "访客数": "10 ~ 50"}, "competitor")
+                ],
+                "traffic_keywords": [],
+                "customer_profiles": [],
+                "promotion": [],
+            },
+            PAIR,
+            "2026-08-11",
+            [],
+            [],
+        )
+
+        self.assertEqual(result["self_product"]["quality"]["status"], "unavailable")
+        self.assertEqual(result["quality"]["status"], "partial")
+
 
 class SourceDetailNormalizationTest(unittest.TestCase):
     """验证流量、关键词、画像和推广来源明细。"""
@@ -271,12 +316,22 @@ class SourceDetailNormalizationTest(unittest.TestCase):
                         "一级渠道": "站内场域",
                         "二级渠道": "搜索",
                         "三级渠道": "-",
-                        "本品访客数": "400 ~ 600",
-                        "本品访客数占比": "70% ~ 75%",
-                        "竞品1访客数": "200 ~ 400",
-                        "竞品1成交转化率": "10% ~ 15%",
+                        "访客数": "400 ~ 600",
+                        "访客数占比": "70% ~ 75%",
                     },
-                )
+                    "self",
+                ),
+                source_row(
+                    3,
+                    {
+                        "一级渠道": "站内场域",
+                        "二级渠道": "搜索",
+                        "三级渠道": "-",
+                        "访客数": "200 ~ 400",
+                        "成交转化率": "10% ~ 15%",
+                    },
+                    "competitor",
+                ),
             ]
         )
 
@@ -297,22 +352,22 @@ class SourceDetailNormalizationTest(unittest.TestCase):
                 source_row(
                     3,
                     {
-                        "SPUID": PAIR.self_spu,
                         "关键词": "雨衣",
                         "商品名称": "本品雨衣",
                         "访客数": "10 ~ 50",
                         "成交金额": "￥200 ~ ￥400",
                     },
+                    "self",
                 ),
                 source_row(
                     4,
                     {
-                        "SPUID": PAIR.competitor_spu,
                         "关键词": "儿童雨衣",
                         "商品名称": "竞品雨衣",
                         "访客数": "50 ~ 100",
                         "成交金额": "￥400 ~ ￥600",
                     },
+                    "competitor",
                 ),
             ],
             PAIR,
@@ -331,8 +386,9 @@ class SourceDetailNormalizationTest(unittest.TestCase):
                     11,
                     {
                         "画像类型": "16-25岁",
-                        "本品成交客户数占比": "1.32%",
+                        "成交客户数占比": "1.32%",
                     },
+                    "self",
                 ),
             ]
         )
@@ -349,7 +405,7 @@ class SourceDetailNormalizationTest(unittest.TestCase):
         """批次缺少标题行时可从明确的年龄项推断维度。"""
 
         result = normalize_customer_profiles(
-            [source_row(12, {"画像类型": "16-25岁", "本品成交客户数占比": "1.32%"})]
+            [source_row(12, {"画像类型": "16-25岁", "成交客户数占比": "1.32%"})]
         )
 
         self.assertEqual(result["records"][0]["dimension"], "age")
@@ -362,12 +418,19 @@ class SourceDetailNormalizationTest(unittest.TestCase):
                 source_row(
                     20,
                     {
-                        "非全站-本店商品广告点击数": "0",
-                        "非全站-本店商品广告总订单金额": "0",
-                        "非全站-竞品1广告点击数": "200 ~ 400",
-                        "非全站-竞品1广告总订单金额": "￥800 ~ ￥1,000",
+                        "非全站-广告点击数": "0",
+                        "非全站-广告总订单金额": "0",
                     },
-                )
+                    "self",
+                ),
+                source_row(
+                    21,
+                    {
+                        "非全站-广告点击数": "200 ~ 400",
+                        "非全站-广告总订单金额": "￥800 ~ ￥1,000",
+                    },
+                    "competitor",
+                ),
             ]
         )
 
@@ -380,7 +443,10 @@ class SourceDetailNormalizationTest(unittest.TestCase):
         """总转换结果应始终包含五个来源及统一外层。"""
 
         raw_sources = {
-            "core_metrics": [source_row(1, {"本品访客数": "10 ~ 50", "竞品1访客数": "50 ~ 100"})],
+            "core_metrics": [
+                source_row(1, {"访客数": "10 ~ 50"}, "self"),
+                source_row(2, {"访客数": "50 ~ 100"}, "competitor"),
+            ],
             "traffic_sources": [],
             "traffic_keywords": [],
             "customer_profiles": [],
@@ -390,7 +456,10 @@ class SourceDetailNormalizationTest(unittest.TestCase):
         result = normalize_competitor_sources(raw_sources, PAIR, "2026-08-11")
 
         self.assertEqual(result["schema_version"], "2.0")
-        self.assertEqual(result["pair"]["compare_number"], PAIR.compare_number)
+        self.assertEqual(
+            result["pair"],
+            {"self_spu": PAIR.self_spu, "competitor_spu": PAIR.competitor_spu},
+        )
         self.assertEqual(
             set(result["sources"]),
             {"core_metrics", "traffic_sources", "traffic_keywords", "customer_profiles", "promotion"},

@@ -13,6 +13,8 @@ Backend 使用一个 SQLite 数据库保存标准化日数据、日周月报告�
 
 数据库结构版本写入 SQLite `PRAGMA user_version`，当前版本为 `2`。应用启动和 CLI 运行时都会初始化当前结构。
 
+数据库时间字段统一使用带 `+08:00` 偏移的 ISO 8601 文本，例如 `2026-08-28T10:30:00+08:00`。初始化过程会将已有 UTC 时间和无偏移北京时间转换为该格式；`report_date`、`start_date`、`end_date` 等业务日期继续使用 `YYYY-MM-DD`。
+
 ```text
 analysis_datasets  1 ─── 0..1  reports（日）
                               │
@@ -40,7 +42,7 @@ reports（日/周/月） 1 ─── N  analysis_tasks
 | `source_hash` | TEXT NOT NULL | 完整标准化事实的 SHA-256。 |
 | `created_at` | TEXT NOT NULL | 数据集创建时间。 |
 
-数据集按内容版本保存。相同 `source_hash` 复用已有 `dataset_id`；同一日期和商品对的内容发生变化时创建新版本。`compare_number` 由 `self_spu + '+' + competitor_spu` 在代码中生成。
+数据集按内容版本保存。相同 `source_hash` 复用已有 `dataset_id`；同一日期和商品对的内容发生变化时创建新版本。商品对始终使用独立的 `self_spu` 和 `competitor_spu` 字段。
 
 ## `reports`
 

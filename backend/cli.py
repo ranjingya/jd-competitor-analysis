@@ -8,7 +8,9 @@ from pathlib import Path
 from time import perf_counter
 
 from app.jobs.daily_analysis import run_warehouse_daily_analysis
+from app.jobs.period_analysis import run_period_analysis
 from app.jobs.product_images import run_product_image_sync
+from app.logging_config import configure_backend_logging
 from jd_competitor_analysis.lark_mapping import run_lark_mapping_check
 from jd_competitor_analysis.warehouse import run_warehouse_probe
 from jd_competitor_analysis.warehouse_daily import run_warehouse_daily_check
@@ -41,11 +43,8 @@ def parse_args() -> argparse.Namespace:
     daily_check_parser = subparsers.add_parser("warehouse-daily-check", help="检查指定商品对的正式日数据来源。")
     daily_check_parser.add_argument("--env-file", type=Path, help="环境变量文件，默认读取项目根目录的 .env。")
     daily_check_parser.add_argument("--date", required=True, help="业务日期，格式为 YYYY-MM-DD。")
-    daily_check_parser.add_argument(
-        "--compare-number",
-        required=True,
-        help="商品对编号，格式为 <本品SPU>+<竞品SPU>。",
-    )
+    daily_check_parser.add_argument("--self-spu", required=True, help="本品 SPU ID。")
+    daily_check_parser.add_argument("--competitor-spu", required=True, help="竞品 SPU ID。")
     daily_check_parser.add_argument(
         "--sku-id",
         action="append",
@@ -60,15 +59,43 @@ def parse_args() -> argparse.Namespace:
     date_group = daily_run_parser.add_mutually_exclusive_group(required=True)
     date_group.add_argument("--date", help="业务日期，格式为 YYYY-MM-DD。")
     date_group.add_argument("--yesterday", action="store_true", help="使用服务器本地日期的昨天。")
-    daily_run_parser.add_argument(
-        "--compare-number",
-        action="append",
-        default=[],
-        help="可重复指定商品对；未提供时读取飞书商品对表。",
-    )
+    daily_run_parser.add_argument("--self-spu", help="手动指定本品 SPU；需要和 --competitor-spu 一起使用。")
+    daily_run_parser.add_argument("--competitor-spu", help="手动指定竞品 SPU；需要和 --self-spu 一起使用。")
     daily_run_parser.add_argument("--title", help="可选看板标题。")
     daily_run_parser.add_argument("--log-level", default="INFO", help="日志级别。")
     daily_run_parser.set_defaults(handler=run_warehouse_daily_analysis)
+
+    weekly_parser = subparsers.add_parser(
+        "weekly-report-run",
+        help="聚合已完成日报并生成自然周报告。",
+    )
+    weekly_period_group = weekly_parser.add_mutually_exclusive_group(required=True)
+    weekly_period_group.add_argument("--start-date", help="自然周周一，格式为 YYYY-MM-DD。")
+    weekly_period_group.add_argument(
+        "--previous-week",
+        action="store_true",
+        help="使用北京时间的上一个完整自然周。",
+    )
+    weekly_parser.add_argument("--self-spu", help="可选本品 SPU；需与 --competitor-spu 同时提供。")
+    weekly_parser.add_argument("--competitor-spu", help="可选竞品 SPU；需与 --self-spu 同时提供。")
+    weekly_parser.add_argument("--log-level", default="INFO", help="日志级别。")
+    weekly_parser.set_defaults(handler=run_period_analysis, granularity="week")
+
+    monthly_parser = subparsers.add_parser(
+        "monthly-report-run",
+        help="聚合已完成日报并生成自然月报告。",
+    )
+    monthly_period_group = monthly_parser.add_mutually_exclusive_group(required=True)
+    monthly_period_group.add_argument("--month", help="自然月，格式为 YYYY-MM。")
+    monthly_period_group.add_argument(
+        "--previous-month",
+        action="store_true",
+        help="使用北京时间的上一个完整自然月。",
+    )
+    monthly_parser.add_argument("--self-spu", help="可选本品 SPU；需与 --competitor-spu 同时提供。")
+    monthly_parser.add_argument("--competitor-spu", help="可选竞品 SPU；需与 --self-spu 同时提供。")
+    monthly_parser.add_argument("--log-level", default="INFO", help="日志级别。")
+    monthly_parser.set_defaults(handler=run_period_analysis, granularity="month")
 
     image_sync_parser = subparsers.add_parser(
         "sync-product-images",
@@ -89,11 +116,7 @@ def main() -> None:
 
     started_at = perf_counter()
     args = parse_args()
-    logging.basicConfig(
-        level=getattr(logging, args.log_level.upper(), logging.INFO),
-        format="%(asctime)s.%(msecs)03d %(levelname)s %(name)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
+    configure_backend_logging(getattr(logging, args.log_level.upper(), logging.INFO))
     logging.getLogger(__name__).info("开始执行命令：%s", args.command)
     args.handler(args)
     logging.getLogger(__name__).info(

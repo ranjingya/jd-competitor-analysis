@@ -2,11 +2,19 @@
 
 from __future__ import annotations
 
+import os
+import tempfile
 import unittest
+from pathlib import Path
 from typing import Any
+from unittest.mock import Mock, patch
 from urllib.parse import parse_qs, urlparse
 
-from jd_competitor_analysis.lark_mapping import LarkBaseConfig, LarkBaseMappingClient
+from jd_competitor_analysis.lark_mapping import (
+    LarkBaseConfig,
+    LarkBaseMappingClient,
+    load_lark_base_config,
+)
 
 
 class FakeRequester:
@@ -117,6 +125,30 @@ class LarkBaseMappingClientTest(unittest.TestCase):
         token_calls = [call for call in requester.calls if call[0] == "POST"]
         self.assertEqual(len(token_calls), 1)
 
+    def test_same_spu_mapping_is_reused_without_second_request(self) -> None:
+        """同一本品跨多个日期处理时应直接复用 SKU 映射。"""
+
+        requester = FakeRequester(
+            [
+                {
+                    "code": 0,
+                    "data": {
+                        "items": [_record("10001", "10002", "69002", "商品 A", "蓝色 M")],
+                        "has_more": False,
+                    },
+                }
+            ]
+        )
+        client = LarkBaseMappingClient(self.config, requester=requester)
+
+        first = client.list_spu_sku_mappings("10001")
+        second = client.list_spu_sku_mappings("10001")
+
+        self.assertEqual(first, second)
+        self.assertIsNot(first, second)
+        get_calls = [call for call in requester.calls if call[0] == "GET"]
+        self.assertEqual(len(get_calls), 1)
+
     def test_conflicting_duplicate_mapping_is_rejected(self) -> None:
         """相同 SPU/SKU 对出现不同展示数据时应停止读取。"""
 
@@ -170,10 +202,45 @@ class LarkBaseMappingClientTest(unittest.TestCase):
 
         pairs = LarkBaseMappingClient(self.config, requester=requester).list_product_pairs()
 
-        self.assertEqual([pair.compare_number for pair in pairs], ["10001+20001", "10002+20002"])
+        self.assertEqual(
+            [(pair.self_spu, pair.competitor_spu) for pair in pairs],
+            [("10001", "20001"), ("10002", "20002")],
+        )
         request_url = requester.calls[-1][1]
         self.assertIn("/tables/tblPair123/records", request_url)
         self.assertNotIn("filter", parse_qs(urlparse(request_url).query))
+
+
+class LarkBaseConfigLoadingTest(unittest.TestCase):
+    """验证容器进程环境可以直接提供飞书配置。"""
+
+    def test_default_missing_env_file_uses_process_environment_silently(self) -> None:
+        """默认环境文件不存在时不应产生无意义的容器警告。"""
+
+        logger = Mock()
+        environment = {
+            "LARK_APP_ID": "test-app",
+            "LARK_APP_SECRET": "test-secret",
+            "LARK_BASE_TOKEN": "baseToken123",
+            "LARK_TABLE_ID": "tblMapping123",
+            "LARK_PAIR_TABLE_ID": "tblPair123",
+        }
+        with tempfile.TemporaryDirectory() as temp_dir, patch.dict(
+            os.environ,
+            environment,
+            clear=False,
+        ), patch(
+            "jd_competitor_analysis.lark_mapping.PROJECT_ROOT",
+            Path(temp_dir),
+        ), patch(
+            "jd_competitor_analysis.lark_mapping.LOGGER",
+            logger,
+        ):
+            config = load_lark_base_config()
+
+        self.assertEqual(config.app_id, "test-app")
+        self.assertEqual(config.pair_table_id, "tblPair123")
+        logger.warning.assert_not_called()
 
 
 if __name__ == "__main__":

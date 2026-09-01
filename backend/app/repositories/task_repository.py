@@ -7,9 +7,10 @@ import logging
 import sqlite3
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+from jd_competitor_analysis.time_utils import beijing_now_text
 
 from ..database import Database
 from ..report_merge import validate_ai_result
@@ -28,12 +29,6 @@ class TaskStartResult:
 
     analysis_id: str
     should_execute: bool
-
-
-def _utc_now_text() -> str:
-    """返回带时区的当前 UTC 时间。"""
-
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
 class TaskRepository:
@@ -75,7 +70,7 @@ class TaskRepository:
         """
 
         task_id = analysis_id or str(uuid.uuid4())
-        now = _utc_now_text()
+        now = beijing_now_text()
         connection = self._connect()
         try:
             connection.execute("BEGIN IMMEDIATE")
@@ -97,7 +92,7 @@ class TaskRepository:
                 existing_id = str(existing["analysis_id"])
                 if existing["status"] == "completed":
                     connection.commit()
-                    LOGGER.info(
+                    LOGGER.debug(
                         "相同 AI 输入已完成，复用结果：analysis_id=%s，report_id=%s",
                         existing_id,
                         report_id,
@@ -122,14 +117,14 @@ class TaskRepository:
                     ),
                 )
                 connection.commit()
-                LOGGER.info("AI 分析重新执行：analysis_id=%s，model=%s", existing_id, model)
+                LOGGER.debug("AI 分析重新执行：analysis_id=%s，model=%s", existing_id, model)
                 return TaskStartResult(existing_id, True)
             if existing is not None:
                 connection.execute(
                     "UPDATE analysis_tasks SET status = 'expired', updated_at = ? WHERE analysis_id = ?",
                     (now, existing["analysis_id"]),
                 )
-                LOGGER.info(
+                LOGGER.debug(
                     "旧 AI 执行记录已标记过期：analysis_id=%s，report_id=%s",
                     existing["analysis_id"],
                     report_id,
@@ -159,7 +154,7 @@ class TaskRepository:
             raise
         finally:
             connection.close()
-        LOGGER.info(
+        LOGGER.debug(
             "AI 分析执行已创建：analysis_id=%s，report_id=%s，model=%s",
             task_id,
             report_id,
@@ -178,7 +173,7 @@ class TaskRepository:
 
         validated_result = validate_ai_result(result)
         result_json = json.dumps(validated_result, ensure_ascii=False, sort_keys=True)
-        now = _utc_now_text()
+        now = beijing_now_text()
         connection = self._connect()
         try:
             connection.execute("BEGIN IMMEDIATE")
@@ -206,7 +201,7 @@ class TaskRepository:
                 (result_json, now, now, analysis_id),
             )
             connection.commit()
-            LOGGER.info("AI 分析执行已完成：analysis_id=%s", analysis_id)
+            LOGGER.debug("AI 分析执行已完成：analysis_id=%s", analysis_id)
         except Exception:
             connection.rollback()
             raise
@@ -222,7 +217,7 @@ class TaskRepository:
         返回值：无。
         """
 
-        now = _utc_now_text()
+        now = beijing_now_text()
         connection = self._connect()
         try:
             connection.execute("BEGIN IMMEDIATE")
@@ -260,6 +255,46 @@ class TaskRepository:
         finally:
             connection.close()
 
+    def get_failed_payload(self, report_id: str) -> dict[str, Any] | None:
+        """读取报告当前失败任务的 AI 输入。
+
+        功能说明：返回最近七天修复流程可直接复用的结构化 AI 输入；只读取未过期的
+        `failed` 任务，不读取已完成、执行中或历史过期版本。
+        参数 report_id：失败任务所属报告 ID。
+        返回值：可重新发送给模型的字典；没有可复用任务或内容无效时返回空值。
+        """
+
+        with self.database.connection() as connection:
+            row = connection.execute(
+                """
+                SELECT analysis_id, payload_json
+                FROM analysis_tasks
+                WHERE report_id = ? AND status = 'failed'
+                ORDER BY updated_at DESC, analysis_id DESC
+                LIMIT 1
+                """,
+                (report_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        try:
+            payload = json.loads(row["payload_json"])
+        except (TypeError, json.JSONDecodeError):
+            LOGGER.warning(
+                "失败任务的 AI 输入无法解析：report_id=%s，analysis_id=%s",
+                report_id,
+                row["analysis_id"],
+            )
+            return None
+        if not isinstance(payload, dict):
+            LOGGER.warning(
+                "失败任务的 AI 输入不是对象：report_id=%s，analysis_id=%s",
+                report_id,
+                row["analysis_id"],
+            )
+            return None
+        return payload
+
     def list_recent(self, status: str | None = None, limit: int = 20) -> list[dict[str, Any]]:
         """读取最近的内部 AI 执行摘要。
 
@@ -278,7 +313,6 @@ class TaskRepository:
                     task.analysis_id, task.report_id,
                     report.granularity, report.start_date, report.end_date,
                     report.start_date AS report_date,
-                    report.self_spu || '+' || report.competitor_spu AS compare_number,
                     report.self_spu, report.competitor_spu,
                     task.model, task.analysis_version, task.prompt_hash,
                     task.status, task.attempt_count,

@@ -20,14 +20,13 @@ Vite 把 `/api` 转发到本地 Backend。生产环境中，同一路径由 Ngin
 
 ```text
 打开网页
-  → GET /api/reports
-  → 默认选择最新日报对应的商品对
-  → 商品对确定后只展示该组合可用的日、周、月报告
-  → GET 当前索引条目的 path
-  → 渲染完整报告
+  → GET /api/product-pairs
+  → 默认选择最新日报对应的商品对和 report_id
+  → GET /api/reports/{report_id} 渲染当前完整报告
+  → GET /api/reports/trends 加载最近七天四项核心指标
 ```
 
-报告索引包含 `day`、`week` 和 `month` 三个数组。每个条目的 `path` 由 Backend 生成，例如：
+商品对接口返回日、周、月各粒度的最新报告和报告数量。最新报告条目的 `path` 由 Backend 生成，例如：
 
 ```json
 {
@@ -36,7 +35,15 @@ Vite 把 `/api` 转发到本地 Backend。生产环境中，同一路径由 Ngin
 }
 ```
 
-索引条目使用 `start_date` 和 `end_date` 表示周期范围，并包含本品、竞品的 SPU 与商品名。Web 先按商品对过滤报告，再按日期由旧到新排序并默认打开最新一份；报告选择和页面会话缓存均使用唯一的 `report_id`。
+条目使用 `start_date` 和 `end_date` 表示周期范围，并包含本品、竞品的 SPU 与商品名。Web 默认打开最新日报，报告选择和页面会话缓存均使用唯一的 `report_id`。
+
+日期选择器展开、切换月份或年份时调用：
+
+```text
+GET /api/reports/periods?self_spu=...&competitor_spu=...&granularity=day&context=2026-08
+```
+
+接口只返回当前日历上下文的轻量报告条目和可导航上下文。选择具体日、周或月后，Web 再按 `report_id` 加载对应完整报告。趋势图调用 `/api/reports/trends`，响应仅包含周期元数据和成交金额、访客数、成交转化率、成交客单价，不读取五张分析表及 AI 内容。
 
 报告也可按周期范围读取：
 
@@ -54,3 +61,4 @@ GET /api/reports/{granularity}/{start_date}/{end_date}
 4. 缺失模块保持空状态，并展示对应风险说明。
 5. 已加载报告可以在当前页面会话中按 `report_id` 缓存。
 6. 商品对切换后，周期选择与趋势数据均限定在当前本品和竞品组合内。
+7. 其他周期的完整报告只在用户选择对应周期后加载。

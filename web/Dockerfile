@@ -11,6 +11,10 @@ RUN npm run build
 
 FROM nginx:1.28-alpine
 
+RUN apk add --no-cache tzdata
+
+ENV TZ=Asia/Shanghai
+
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=web-builder /app/web/dist/ /usr/share/nginx/html/
 

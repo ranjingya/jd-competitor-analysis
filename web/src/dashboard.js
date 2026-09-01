@@ -1,11 +1,12 @@
 import * as echarts from "echarts/core";
-import { LineChart } from "echarts/charts";
+import { CustomChart, LineChart } from "echarts/charts";
 import { GridComponent, LegendComponent, TooltipComponent } from "echarts/components";
 import { SVGRenderer } from "echarts/renderers";
 import { mountAnalysisVxeTable, unmountAnalysisVxeTable } from "./analysis-vxe-table.js";
 import { compactHeroSummary, hasDetailPoints } from "./hero-summary.js";
+import { buildMissingTrendSeries, buildTrendPoints } from "./trend-data.js";
 
-echarts.use([LineChart, GridComponent, LegendComponent, TooltipComponent, SVGRenderer]);
+echarts.use([CustomChart, LineChart, GridComponent, LegendComponent, TooltipComponent, SVGRenderer]);
 
 const granularityLabels = {
   day: "日",
@@ -311,6 +312,15 @@ function renderTabs() {
 
 function renderAiRecommendations() {
   const target = document.querySelector("#ai-recommendations");
+  const reportStatus = dashboardState.data?.report_status;
+  if (reportStatus === "ai_failed" || reportStatus === "pending_ai") {
+    const failed = reportStatus === "ai_failed";
+    target.innerHTML = `
+      <div class="ai-report-state ${failed ? "is-error" : "is-pending"}">
+        <strong>${failed ? "AI 劣势建议生成失败" : "AI 劣势建议生成中"}</strong>
+      </div>`;
+    return;
+  }
   const suggestions = (dashboardState.data?.ai_recommendations || [])
     .filter((item) => item.status === "warning")
     .slice(0, 5);
@@ -346,18 +356,6 @@ function compactNumber(value) {
   return value.toFixed(2);
 }
 
-function trendPeriodLabel(meta, granularity) {
-  const start = String(meta.period_start || "");
-  const end = String(meta.period_end || "");
-  if (granularity === "month") {
-    return start.slice(0, 7) || meta.period || "-";
-  }
-  if (granularity === "week" && end && end !== start) {
-    return `${start.slice(5)}~${end.slice(5)}`;
-  }
-  return start.slice(5) || meta.period || "-";
-}
-
 function disposeTrendChart() {
   trendResizeObserver?.disconnect();
   trendResizeObserver = null;
@@ -385,39 +383,33 @@ export function showTrendState(message, isError = false) {
  * 参数 metricId：当前选择的核心指标 ID。
  * 参数 granularity：当前报告粒度。
  * 参数 selectedPeriodStart：当前选中报告的开始日期，用于标记趋势中的当前点。
+ * 参数 range：趋势查询的自然日期范围。
  * 返回值：无；直接更新趋势标题、范围说明和 ECharts 图表。
  */
-export function renderTrendChart(reports, metricId, granularity, selectedPeriodStart = "") {
-  const series = reports.map((report) => {
-    const metric = (report.core_metrics || []).find((item) => item.id === metricId);
-    if (!metric || typeof metric.self_value !== "number" || typeof metric.competitor_value !== "number") {
-      return null;
-    }
-    return {
-      period: report.meta?.period || "-",
-      periodStart: String(report.meta?.period_start || ""),
-      label: trendPeriodLabel(report.meta || {}, granularity),
-      selfValue: metric.self_value,
-      competitorValue: metric.competitor_value,
-      metric
-    };
-  }).filter(Boolean);
-  if (!series.length) {
+export function renderTrendChart(reports, metricId, granularity, selectedPeriodStart = "", range = {}) {
+  const points = buildTrendPoints(reports, metricId, granularity, range);
+  const missingSeries = buildMissingTrendSeries(points);
+  const availablePoints = points.filter((item) => item.metric && item.selfValue != null && item.competitorValue != null);
+  if (!availablePoints.length) {
     showTrendState("当前范围暂无可用趋势数据");
     return;
   }
 
-  const metric = series[0].metric;
+  const metric = availablePoints[0].metric;
   document.querySelector("#trend-title").textContent = `${metric.label || "指标"}趋势`;
-  if (series.length < 2) {
+  if (availablePoints.length < 2) {
     showTrendState("当前只有 1 个周期的数据，至少需要 2 个周期才能形成趋势");
     return;
   }
-  const selectedItem = series.find((item) => item.periodStart === selectedPeriodStart);
+  const selectedItem = points.find((item) => item.periodStart === selectedPeriodStart);
   const target = document.querySelector("#trend-chart");
   disposeTrendChart();
   target.innerHTML = "";
-  target.setAttribute("aria-label", `${metric.label || "指标"}本品与竞品趋势图${selectedItem ? `，当前选中 ${selectedItem.label}` : ""}`);
+  const missingLabels = points.filter((item) => item.missing).map((item) => item.label);
+  target.setAttribute(
+    "aria-label",
+    `${metric.label || "指标"}本品与竞品趋势图${selectedItem ? `，当前选中 ${selectedItem.label}` : ""}${missingLabels.length ? `，无数据日期 ${missingLabels.join("、")}` : ""}`
+  );
   trendChartInstance = echarts.init(target, null, { renderer: "svg" });
   const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
   trendChartInstance.setOption({
@@ -433,7 +425,7 @@ export function renderTrendChart(reports, metricId, granularity, selectedPeriodS
       formatter(params) {
         const rows = Array.isArray(params) ? params : [params];
         const index = rows[0]?.dataIndex ?? 0;
-        const item = series[index];
+        const item = points[index];
         return `
           <strong>${escapeHtml(item.period)}</strong><br>
           ${rows.map((row) => `${row.marker}${escapeHtml(row.seriesName)}　<b>${escapeHtml(formatValue(row.value, metric.unit))}</b>`).join("<br>")}
@@ -451,8 +443,13 @@ export function renderTrendChart(reports, metricId, granularity, selectedPeriodS
     grid: { top: 36, right: 18, bottom: 8, left: 8, containLabel: true },
     xAxis: {
       type: "category",
-      boundaryGap: series.length === 1,
-      data: series.map((item) => item.label),
+      boundaryGap: points.length === 1,
+      data: points.map((item) => {
+        if (item.missing) return `${item.label}\n—`;
+        if (item.reportStatus === "ai_failed") return `${item.label}\n!`;
+        if (granularity !== "day" && item.qualityStatus === "partial") return `${item.label}\n▲`;
+        return item.label;
+      }),
       axisLine: { lineStyle: { color: "#ded6c8" } },
       axisTick: { show: false },
       axisLabel: { color: "#667085", fontSize: 11, margin: 12 }
@@ -467,6 +464,7 @@ export function renderTrendChart(reports, metricId, granularity, selectedPeriodS
       splitLine: { lineStyle: { color: "#ded6c8", type: "dashed" } }
     },
     series: [
+      ...(missingSeries ? [missingSeries] : []),
       {
         name: "本品",
         type: "line",
@@ -474,8 +472,9 @@ export function renderTrendChart(reports, metricId, granularity, selectedPeriodS
         symbol: "circle",
         symbolSize: 7,
         showSymbol: true,
+        connectNulls: false,
         lineStyle: { width: 3 },
-        data: series.map((item) => item.periodStart === selectedPeriodStart ? {
+        data: points.map((item) => item.selfValue == null ? null : item.periodStart === selectedPeriodStart ? {
           value: item.selfValue,
           symbolSize: 11,
           itemStyle: { borderColor: "#fffdf8", borderWidth: 3, shadowBlur: 6, shadowColor: "rgba(15, 123, 115, 0.28)" }
@@ -488,8 +487,9 @@ export function renderTrendChart(reports, metricId, granularity, selectedPeriodS
         symbol: "circle",
         symbolSize: 7,
         showSymbol: true,
+        connectNulls: false,
         lineStyle: { width: 3 },
-        data: series.map((item) => item.periodStart === selectedPeriodStart ? {
+        data: points.map((item) => item.competitorValue == null ? null : item.periodStart === selectedPeriodStart ? {
           value: item.competitorValue,
           symbolSize: 11,
           itemStyle: { borderColor: "#fffdf8", borderWidth: 3, shadowBlur: 6, shadowColor: "rgba(185, 105, 5, 0.25)" }

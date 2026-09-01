@@ -64,7 +64,15 @@ def build_core_views(core: dict[str, Any]) -> tuple[list[dict[str, Any]], list[d
     for metric in CORE_METRICS:
         self_value = core["self_values"].get(metric.id)
         competitor_value = core["final_values"].get(metric.id)
-        status = "advantage" if self_value is not None and competitor_value is not None and self_value >= competitor_value else "warning"
+        if self_value is None or competitor_value is None:
+            status = "neutral"
+            judgement = "数据不足"
+        elif self_value >= competitor_value:
+            status = "advantage"
+            judgement = "本品领先"
+        else:
+            status = "warning"
+            judgement = "本品落后"
         comparison.append(
             {
                 "metric_id": metric.id,
@@ -79,7 +87,7 @@ def build_core_views(core: dict[str, Any]) -> tuple[list[dict[str, Any]], list[d
                     else relative_gap_pct(self_value, competitor_value)
                 ),
                 "gap_mode": "percentage_point" if metric.unit == "%" else "relative",
-                "judgement": "本品领先" if status == "advantage" else "本品落后",
+                "judgement": judgement,
             }
         )
         if metric.id not in CORE_CARD_IDS:
@@ -106,7 +114,9 @@ def build_core_views(core: dict[str, Any]) -> tuple[list[dict[str, Any]], list[d
                 "gap_mode": "percentage_point" if metric.unit == "%" else "relative",
                 "gap_text": gap_text(metric.label, self_value, competitor_value),
                 "status": status,
-                "priority": "高" if status == "warning" else "低",
+                "priority": (
+                    "高" if status == "warning" else "低" if status == "advantage" else None
+                ),
             }
         )
     return comparison, cards

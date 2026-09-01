@@ -27,7 +27,6 @@ class TaskRepositoryTest(unittest.TestCase):
             {
                 "report_date": "2026-08-11",
                 "pair": {
-                    "compare_number": "10001+20001",
                     "self_spu": "10001",
                     "competitor_spu": "20001",
                 },
@@ -138,6 +137,7 @@ class TaskRepositoryTest(unittest.TestCase):
         self.repository.fail(started.analysis_id, "分析证据不足")
 
         self.assertEqual(self.reports.get_record(self.report_id)["status"], "ai_failed")
+        self.assertEqual(self.repository.get_failed_payload(self.report_id), {"metric": 3})
 
     def test_week_report_task_does_not_require_dataset(self) -> None:
         """周报 AI 执行应仅通过报告关联，并允许数据集 ID 为空。"""

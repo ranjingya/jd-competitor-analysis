@@ -50,5 +50,5 @@ def validate_recommendations(items: Any) -> list[dict[str, Any]]:
     represented_sources = {item["source_id"] for item in items}
     if len(represented_sources) < 2:
         raise ValueError("AI 劣势建议必须覆盖至少两个不同来源")
-    LOGGER.info("AI 劣势建议结构校验通过：%s 项", len(items))
+    LOGGER.debug("AI 劣势建议结构校验通过：%s 项", len(items))
     return items

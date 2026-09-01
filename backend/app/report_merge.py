@@ -81,15 +81,18 @@ def validate_ai_result(result: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("AI 结果只能包含 summary、findings 和 recommendations")
     summary = validate_summary(result.get("summary"))
     findings = validate_findings(result.get("findings"))
-    recommendations = result.get("recommendations")
+    recommendations = copy.deepcopy(result.get("recommendations"))
     if recommendations:
+        for item in recommendations:
+            if isinstance(item, dict):
+                item["status"] = "warning"
         validate_recommendations(recommendations)
     elif recommendations != []:
         raise ValueError("AI recommendations 必须是数组")
     return {
         "summary": summary,
         "findings": copy.deepcopy(findings),
-        "recommendations": copy.deepcopy(recommendations),
+        "recommendations": recommendations,
     }
 
 
@@ -117,7 +120,7 @@ def merge_ai_result(report: dict[str, Any], result: dict[str, Any]) -> dict[str,
     merged["ai_findings"] = validated_result["findings"]
     merged["ai_recommendations"] = validated_result["recommendations"]
     validate_contract(merged)
-    LOGGER.info(
+    LOGGER.debug(
         "AI 结果已合并到完整报告：findings=%s，recommendations=%s",
         len(validated_result["findings"]),
         len(validated_result["recommendations"]),
