@@ -10,6 +10,8 @@ PROJECT_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 ENV_FILE="$PROJECT_DIR/.env"
 LOG_DIR="$PROJECT_DIR/data/logs"
 RUN_LOG="$LOG_DIR/daily-analysis-$(date '+%Y-%m-%d').log"
+TASK_STARTED_EPOCH="$(date '+%s')"
+EXECUTED_REPORT_TYPES="日报"
 GENERAL_RETRY_DELAY_SECONDS=30
 CONCURRENCY_EXHAUSTED_EXIT_CODE=11
 ALREADY_RUNNING_EXIT_CODE=12
@@ -54,10 +56,12 @@ read_env_value() {
 
 PING_URL="$(read_env_value HEALTHCHECKS_PING_URL)"
 PING_URL="${PING_URL%/}"
+LARK_COMPLETION_WEBHOOK_URL="$(read_env_value LARK_COMPLETION_WEBHOOK_URL)"
 LARK_APP_ID="$(read_env_value LARK_APP_ID)"
 LARK_APP_SECRET="$(read_env_value LARK_APP_SECRET)"
 LARK_ALERT_OPEN_ID="$(read_env_value LARK_ALERT_OPEN_ID)"
 LARK_ALERT_READY=1
+LARK_COMPLETION_WEBHOOK_READY=1
 
 if [[ -n "$PING_URL" && ! "$PING_URL" =~ ^https?:// ]]; then
   log_message WARNING "HEALTHCHECKS_PING_URL 格式无效，本次任务继续执行但不上报监控状态"
@@ -67,6 +71,19 @@ elif [[ -z "$PING_URL" ]]; then
 elif ! command -v curl >/dev/null 2>&1; then
   log_message WARNING "宿主机未安装 curl，本次任务继续执行但不上报监控状态"
   PING_URL=""
+fi
+
+if [[ -z "$LARK_COMPLETION_WEBHOOK_URL" ]]; then
+  LARK_COMPLETION_WEBHOOK_READY=0
+elif [[ ! "$LARK_COMPLETION_WEBHOOK_URL" =~ ^https://open\.feishu\.cn/open-apis/bot/v2/hook/ ]]; then
+  log_message WARNING "飞书完成通知 Webhook 地址格式无效，本次任务成功时不发送机器人消息"
+  LARK_COMPLETION_WEBHOOK_READY=0
+elif ! command -v curl >/dev/null 2>&1; then
+  log_message WARNING "宿主机未安装 curl，本次任务成功时不发送飞书机器人消息"
+  LARK_COMPLETION_WEBHOOK_READY=0
+elif ! command -v jq >/dev/null 2>&1; then
+  log_message WARNING "宿主机未安装 jq，本次任务成功时不发送飞书机器人消息"
+  LARK_COMPLETION_WEBHOOK_READY=0
 fi
 
 if [[ -z "$LARK_APP_ID" || -z "$LARK_APP_SECRET" || -z "$LARK_ALERT_OPEN_ID" ]]; then
@@ -107,6 +124,97 @@ ping_failure_with_log() {
     --data-binary @- "$PING_URL/fail" >/dev/null 2>&1; then
     log_message WARNING "Healthchecks 失败状态上报失败"
   fi
+}
+
+format_duration() {
+  # 功能说明：将总秒数转换为简洁的中文耗时文本。
+  # 参数 total_seconds：需要格式化的非负秒数。
+  # 返回值：通过标准输出返回小时、分钟和秒组成的文本。
+  local total_seconds="$1"
+  local hours=$((total_seconds / 3600))
+  local minutes=$(((total_seconds % 3600) / 60))
+  local seconds=$((total_seconds % 60))
+
+  if [[ "$hours" -gt 0 ]]; then
+    printf '%s小时%s分%s秒' "$hours" "$minutes" "$seconds"
+  elif [[ "$minutes" -gt 0 ]]; then
+    printf '%s分%s秒' "$minutes" "$seconds"
+  else
+    printf '%s秒' "$seconds"
+  fi
+}
+
+send_lark_completion_webhook() {
+  # 功能说明：整个日周月批次成功后，通过飞书群机器人 Webhook 发送一次完成卡片。
+  # 参数：无，使用脚本当前批次的执行内容、开始时间和 Webhook 配置。
+  # 返回值：始终返回成功；通知异常仅写入运行日志，不改变分析任务退出码。
+  local completed_at=""
+  local duration_text=""
+  local elapsed_seconds=0
+  local payload=""
+  local api_response=""
+  local api_code=""
+  local api_message=""
+
+  if [[ "$LARK_COMPLETION_WEBHOOK_READY" -ne 1 ]]; then
+    return 0
+  fi
+
+  completed_at="$(date '+%Y-%m-%d %H:%M:%S')"
+  elapsed_seconds=$(($(date '+%s') - TASK_STARTED_EPOCH))
+  duration_text="$(format_duration "$elapsed_seconds")"
+  payload="$(
+    jq -cn \
+      --arg report_types "$EXECUTED_REPORT_TYPES" \
+      --arg completed_at "$completed_at" \
+      --arg duration "$duration_text" \
+      '{
+        msg_type: "interactive",
+        card: {
+          config: {wide_screen_mode: true},
+          header: {
+            template: "green",
+            title: {tag: "plain_text", content: "京东竞品分析任务完成"}
+          },
+          elements: [
+            {
+              tag: "div",
+              fields: [
+                {is_short: false, text: {tag: "lark_md", content: ("**执行内容：** " + $report_types)}},
+                {is_short: false, text: {tag: "lark_md", content: ("**完成时间：** " + $completed_at)}},
+                {is_short: false, text: {tag: "lark_md", content: ("**总耗时：** " + $duration)}}
+              ]
+            }
+          ]
+        }
+      }'
+  )"
+
+  if ! api_response="$(
+    printf '%s' "$payload" | curl -fsS --max-time 10 --retry 3 \
+      -H 'Content-Type: application/json; charset=utf-8' \
+      --data-binary @- \
+      "$LARK_COMPLETION_WEBHOOK_URL"
+  )"; then
+    log_message WARNING "飞书完成通知发送失败"
+    return 0
+  fi
+
+  if ! api_code="$(
+    jq -r \
+      'if has("code") then .code elif has("StatusCode") then .StatusCode else "unknown" end' \
+      <<<"$api_response" 2>/dev/null
+  )"; then
+    log_message WARNING "飞书完成通知返回内容无法解析"
+    return 0
+  fi
+  if [[ "$api_code" != "0" ]]; then
+    api_message="$(jq -r '.msg // .StatusMessage // "未知错误"' <<<"$api_response")"
+    log_message WARNING "飞书完成通知发送失败：code=$api_code，message=${api_message:0:200}"
+    return 0
+  fi
+
+  log_message INFO "飞书完成通知发送成功：reports=$EXECUTED_REPORT_TYPES"
 }
 
 failure_reason() {
@@ -324,17 +432,24 @@ if [[ "$status" -eq 0 ]]; then
   if [[ "$(date '+%u')" == "1" ]]; then
     run_period_with_retry "周报" weekly-report-run --previous-week
     status="$?"
+    if [[ "$status" -eq 0 ]]; then
+      EXECUTED_REPORT_TYPES="${EXECUTED_REPORT_TYPES}、周报"
+    fi
   fi
 fi
 
 if [[ "$status" -eq 0 && "$(date '+%d')" == "01" ]]; then
   run_period_with_retry "月报" monthly-report-run --previous-month
   status="$?"
+  if [[ "$status" -eq 0 ]]; then
+    EXECUTED_REPORT_TYPES="${EXECUTED_REPORT_TYPES}、月报"
+  fi
 fi
 
 if [[ "$status" -eq 0 ]]; then
   log_message INFO "京东竞品日周月报告任务执行成功"
   ping_healthchecks ""
+  send_lark_completion_webhook
 else
   log_message ERROR "京东竞品日周月报告任务执行失败：exit_code=$status"
   ping_failure_with_log

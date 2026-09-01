@@ -87,6 +87,7 @@ ods_rpa_jdzy_promotion_data_compare_f
 ```dotenv
 LARK_APP_ID=<飞书自建应用 App ID>
 LARK_APP_SECRET=<飞书自建应用 App Secret>
+LARK_COMPLETION_WEBHOOK_URL=<飞书群机器人 Webhook 地址>
 LARK_ALERT_OPEN_ID=<当前飞书应用下的通知接收人 open_id>
 LARK_BASE_TOKEN=<多维表格 Base Token>
 LARK_TABLE_ID=<映射数据表 ID>
@@ -95,7 +96,7 @@ LARK_REQUEST_TIMEOUT=30
 LARK_PAGE_SIZE=500
 ```
 
-应用需要获得目标多维表格的只读文档权限，并在开发者后台开通读取多维表格记录和 `im:message:send_as_bot` 权限。通知接收人需要位于应用可用范围内，并已与机器人建立可发送消息的关系。`LARK_ALERT_OPEN_ID` 必须由当前 `LARK_APP_ID` 查询得到。映射流程只调用获取应用凭证和列出记录接口，不调用多维表写入、更新或删除接口；宿主机脚本仅在定时分析最终失败时向该用户发送一张单聊告警卡片。
+应用需要获得目标多维表格的只读文档权限，并在开发者后台开通读取多维表格记录和 `im:message:send_as_bot` 权限。通知接收人需要位于应用可用范围内，并已与机器人建立可发送消息的关系。`LARK_ALERT_OPEN_ID` 必须由当前 `LARK_APP_ID` 查询得到。映射流程只调用获取应用凭证和列出记录接口，不调用多维表写入、更新或删除接口；宿主机脚本在整个日周月批次成功后通过群机器人 Webhook 发送一张绿色完成卡片，在最终失败时通过自建应用向指定用户发送一张单聊告警卡片。
 
 映射读取固定保留五个业务字段：
 
