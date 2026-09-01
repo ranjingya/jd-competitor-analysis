@@ -155,6 +155,10 @@ send_lark_completion_webhook() {
   local api_response=""
   local api_code=""
   local api_message=""
+  local attempt=1
+  local retry_delay=0
+  local rate_limit_retry_delays=(30 60)
+  local max_attempts=$((${#rate_limit_retry_delays[@]} + 1))
 
   if [[ "$LARK_COMPLETION_WEBHOOK_READY" -ne 1 ]]; then
     return 0
@@ -190,31 +194,45 @@ send_lark_completion_webhook() {
       }'
   )"
 
-  if ! api_response="$(
-    printf '%s' "$payload" | curl -fsS --max-time 10 --retry 3 \
-      -H 'Content-Type: application/json; charset=utf-8' \
-      --data-binary @- \
-      "$LARK_COMPLETION_WEBHOOK_URL"
-  )"; then
-    log_message WARNING "飞书完成通知发送失败"
-    return 0
-  fi
+  while true; do
+    if ! api_response="$(
+      printf '%s' "$payload" | curl -fsS --max-time 10 --retry 3 \
+        -H 'Content-Type: application/json; charset=utf-8' \
+        --data-binary @- \
+        "$LARK_COMPLETION_WEBHOOK_URL"
+    )"; then
+      log_message WARNING "飞书完成通知发送失败：attempt=$attempt/$max_attempts"
+      return 0
+    fi
 
-  if ! api_code="$(
-    jq -r \
-      'if has("code") then .code elif has("StatusCode") then .StatusCode else "unknown" end' \
-      <<<"$api_response" 2>/dev/null
-  )"; then
-    log_message WARNING "飞书完成通知返回内容无法解析"
-    return 0
-  fi
-  if [[ "$api_code" != "0" ]]; then
+    if ! api_code="$(
+      jq -r \
+        'if has("code") then .code elif has("StatusCode") then .StatusCode else "unknown" end' \
+        <<<"$api_response" 2>/dev/null
+    )"; then
+      log_message WARNING "飞书完成通知返回内容无法解析：attempt=$attempt/$max_attempts"
+      return 0
+    fi
+    if [[ "$api_code" == "0" ]]; then
+      log_message INFO "飞书完成通知发送成功：reports=${EXECUTED_REPORT_TYPES}，attempt=$attempt/$max_attempts"
+      return 0
+    fi
+
     api_message="$(jq -r '.msg // .StatusMessage // "未知错误"' <<<"$api_response")"
-    log_message WARNING "飞书完成通知发送失败：code=$api_code，message=${api_message:0:200}"
-    return 0
-  fi
+    if [[ "$api_code" != "11232" ]]; then
+      log_message WARNING "飞书完成通知发送失败：code=${api_code}，message=${api_message:0:200}"
+      return 0
+    fi
+    if [[ "$attempt" -ge "$max_attempts" ]]; then
+      log_message WARNING "飞书完成通知限流重试耗尽：code=${api_code}，attempt=$attempt/$max_attempts"
+      return 0
+    fi
 
-  log_message INFO "飞书完成通知发送成功：reports=$EXECUTED_REPORT_TYPES"
+    retry_delay="${rate_limit_retry_delays[$((attempt - 1))]}"
+    log_message WARNING "飞书完成通知触发限流：code=${api_code}，attempt=${attempt}/${max_attempts}，${retry_delay} 秒后重试"
+    sleep "$retry_delay"
+    attempt=$((attempt + 1))
+  done
 }
 
 failure_reason() {
