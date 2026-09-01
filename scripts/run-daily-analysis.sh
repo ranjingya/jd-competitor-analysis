@@ -457,6 +457,23 @@ run_period_with_retry() {
   return "$period_status"
 }
 
+if [[ "${1:-}" == "--test-notification" ]]; then
+  # 仅发送一张完成通知测试卡片，不启动任何数据或分析流程。
+  if [[ "$LARK_COMPLETION_WEBHOOK_READY" -ne 1 ]]; then
+    log_message ERROR "飞书完成通知配置不可用，无法发送测试卡片"
+    exit 1
+  fi
+  EXECUTED_REPORT_TYPES="通知样式测试"
+  log_message INFO "开始发送飞书完成通知测试卡片"
+  send_lark_completion_webhook
+  exit 0
+fi
+
+if [[ "$#" -gt 0 ]]; then
+  log_message ERROR "不支持的脚本参数：$1"
+  exit 2
+fi
+
 log_message INFO "开始执行京东竞品日报：project_dir=$PROJECT_DIR"
 ping_healthchecks "/start"
 
