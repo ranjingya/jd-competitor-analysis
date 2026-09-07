@@ -1,0 +1,59 @@
+{
+  "dates": ["2026-09-03", "2026-09-02"],
+  "metrics": [
+    {"key": "amount", "label": "成交金额", "unit": "元", "decimals": 2},
+    {"key": "visitors", "label": "访客数", "unit": "人", "decimals": 0},
+    {"key": "conversion", "label": "成交转化率", "unit": "%", "decimals": 2},
+    {"key": "price", "label": "成交客单价", "unit": "元", "decimals": 2}
+  ],
+  "products": [
+    {
+      "id": "100174558585", "name": "小彩绘奇遇雨衣",
+      "image": "https://img10.360buyimg.com/pcpubliccms/s1440x1440_jfs/t1/395267/36/3454/188468/6986d6b1F58ad5ae5/00832ee3e8d3f891.jpg.avif",
+      "metrics": {"amount": 6216, "visitors": 1371, "conversion": 5.91, "price": 76.74},
+      "trend": [0.8, 0.94, 0.62, 0.76, 0.69, 0.89, 1],
+      "competitors": [
+        {
+          "id": "100112260075", "name": "牧萌风衣式雨衣", "shortName": "牧萌风衣式",
+          "image": "https://img13.360buyimg.com/pcpubliccms/jfs/t1/97738/30/50016/125497/66e29b1cFdd33a363/04e2a5510cdb7377.jpg.avif",
+          "metrics": {"amount": 2000, "visitors": 500, "conversion": 10, "price": 40},
+          "trend": [1.1, 1.34, 0.72, 1.2, 0.85, 1.12, 1], "missingDates": [],
+          "strength": "流量规模与客单价领先", "weakness": "成交转化率落后",
+          "advice": [{"title": "先改善进店后的转化", "detail": "本品访客更多，但成交转化率低于该竞品。优先检查商品详情中的尺码、书包位和防水说明。"}, {"title": "让价差对应到明确卖点", "detail": "围绕面料、细节与穿着场景解释客单价差异，在主图和详情首屏保持一致。"}]
+        },
+        {
+          "id": "100250333721", "name": "牧萌全身防水雨披", "shortName": "牧萌防水雨披",
+          "image": "https://img10.360buyimg.com/pcpubliccms/s1440x1440_jfs/t1/432350/32/9136/143332/6a017779F7e745a30/00833203203fb071.jpg.avif",
+          "metrics": {"amount": 8450, "visitors": 2200, "conversion": 5.5, "price": 69.83},
+          "trend": [0.73, 0.81, 0.86, 0.7, 0.92, 0.95, 1], "missingDates": ["2026-09-02"],
+          "strength": "转化率与客单价略有优势", "weakness": "访客规模不足，成交金额落后",
+          "advice": [{"title": "优先补充有效流量", "detail": "对比该竞品，本品转化率并不落后，差距主要在访客规模。先核查搜索曝光与关键词覆盖。"}, {"title": "保持转化优势再扩大投放", "detail": "围绕已有成交的人群和场景测试素材，逐步扩量，并持续观察新增流量的转化表现。"}]
+        }
+      ]
+    },
+    {
+      "id": "100291432863", "name": "小萌包婴儿胎帽",
+      "image": "https://img10.360buyimg.com/pcpubliccms/s1440x1440_jfs/t1/493221/38/14788/53879/6a7e9fffF5014294d/00832ee3e8e57746.jpg.avif",
+      "metrics": {"amount": 1380, "visitors": 620, "conversion": 6.45, "price": 34.5},
+      "trend": [0.6, 0.75, 0.9, 0.68, 0.89, 0.83, 1],
+      "competitors": [
+        {
+          "id": "100241462853", "name": "十月结晶四季胎帽", "shortName": "十月结晶四季款",
+          "image": "https://img10.360buyimg.com/pcpubliccms/s1440x1440_jfs/t1/412715/8/11749/163472/69cf63a5Fb186122f/00832ee3e8e77158.jpg.avif",
+          "metrics": {"amount": 2200, "visitors": 750, "conversion": 8, "price": 36.67},
+          "trend": [0.82, 0.77, 0.9, 0.86, 0.96, 0.89, 1], "missingDates": [],
+          "strength": "暂无明显指标优势", "weakness": "访客与转化率均落后",
+          "advice": [{"title": "补充适龄与佩戴说明", "detail": "清晰呈现适用月龄、头围和面料信息，减少用户在选择尺码时的犹豫。"}, {"title": "核查搜索入口", "detail": "检查商品标题与属性词覆盖，并观察主要关键词的有效访客变化。"}]
+        },
+        {
+          "id": "100199911391", "name": "十月结晶夏季胎帽", "shortName": "十月结晶夏季款",
+          "image": "https://img10.360buyimg.com/pcpubliccms/s1440x1440_jfs/t20280621/462491/37/4357/121144/6a388dadF888babe5/0a022ee3e83abc39.jpg.avif",
+          "metrics": {"amount": 950, "visitors": 400, "conversion": 7.5, "price": 31.67},
+          "trend": [0.8, 1.1, 0.94, 0.79, 0.83, 0.92, 1], "missingDates": ["2026-09-02"],
+          "strength": "成交金额与访客规模领先", "weakness": "成交转化率有提升空间",
+          "advice": [{"title": "优化夏季场景表达", "detail": "结合透气、轻薄等需求补充佩戴场景，让商品特性更容易被理解。"}, {"title": "关注高访客低转化入口", "detail": "核查来源渠道与商品受众是否匹配，再决定调整素材还是流量结构。"}]
+        }
+      ]
+    }
+  ]
+}

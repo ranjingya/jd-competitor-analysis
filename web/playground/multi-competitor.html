@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>本品与多竞品 · Playground</title>
+  <link rel="stylesheet" href="./multi-competitor.css">
+</head>
+<body>
+  <main class="page">
+    <div class="preview-note"><span>交互预览 · 示例数据</span><span>不会读取或修改正式报告</span></div>
+    <header class="page-heading"><h1>竞品准真实值看板</h1><span class="muted">一个本品，分别对比多个竞品</span></header>
+    <section class="toolbar panel" aria-label="商品与分析周期">
+      <div class="products">
+        <div class="self-area">
+          <div class="section-label"><span>本品</span><span class="muted">切换本品查看关联竞品</span></div>
+          <div class="self-picker">
+            <button id="self-trigger" aria-haspopup="listbox" aria-expanded="false" aria-controls="self-menu" aria-label="切换本品"></button>
+            <div id="self-menu" role="listbox" aria-label="选择本品" hidden></div>
+          </div>
+          <a id="self-link" class="jd-link" target="_blank" rel="noopener noreferrer">京东商品 ↗</a>
+        </div>
+        <div class="versus" aria-hidden="true">VS</div>
+        <div class="competitor-area">
+          <div class="section-label"><span>对比竞品 <span id="competitor-count" class="count"></span></span><span class="muted">选择一个查看详细分析</span></div>
+          <div id="competitors" class="competitors" aria-label="选择竞品"></div>
+        </div>
+      </div>
+      <div class="filters">
+        <div class="date-control"><label for="report-date">分析周期</label><select id="report-date"></select><span class="day-badge">日报</span></div>
+        <div id="current-pair" class="muted"></div>
+      </div>
+    </section>
+    <div id="announcement" class="sr-only" aria-live="polite"></div>
+    <section id="empty" class="empty panel" hidden>
+      <span class="empty-icon" aria-hidden="true">—</span><h2>该竞品在所选日期暂无报告</h2>
+      <p id="empty-context"></p><p class="muted">日期保持不变，可切换其他竞品或选择另一天。</p>
+    </section>
+    <div id="report-content">
+      <section class="summary panel" aria-label="当前商品对优缺点"><div><span class="tag weakness">弱点</span><strong id="weakness"></strong></div><div><span class="tag strength">优点</span><strong id="strength"></strong></div></section>
+      <section id="metrics" class="metrics" aria-label="核心指标选择"></section>
+      <div class="detail-grid">
+        <section class="panel trend-panel"><div class="chart-heading"><div><p class="eyebrow">指标趋势</p><h2 id="chart-title"></h2></div><div class="legend"><span><i class="self-dot"></i>本品</span><span><i class="comp-dot"></i><span id="chart-competitor"></span></span></div></div><div id="chart"></div><p class="chart-note">本品真实值 · 竞品准真实估算值</p></section>
+        <aside class="panel insight"><p class="eyebrow">当前竞品专属</p><h2>AI 劣势建议</h2><p id="insight-scope" class="muted"></p><ol id="advice"></ol></aside>
+      </div>
+    </div>
+    <footer class="footnote">预览说明：商品关系、数值与分析均为演示。试试切换竞品，再切到 9 月 2 日查看空状态。</footer>
+  </main>
+  <script type="module" src="./multi-competitor.js"></script>
+</body>
+</html>
