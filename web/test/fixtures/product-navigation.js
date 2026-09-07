@@ -69,20 +69,33 @@ const chooseComp = (id) => { $(`[data-pair-key="102::${id}"]`).click(); };
 async function run() {
   await import('/src/main.js');
   await until(settled);
-  $('#pair-trigger').click();
+  $('#pair-trigger .product-select-heading strong').click();
+  check($('#pair-trigger').getAttribute('aria-expanded') === 'true', '点击本品名称展开菜单');
   check(document.querySelectorAll('#pair-trigger-list button').length === 3, '本品去重为三项');
   option('测试本品101').click();
   await until(settled);
   check(document.querySelectorAll('[data-pair-key]').length === 2, '两个竞品展示卡片');
   check(document.querySelectorAll('.product-select-item').length === 3, '本品加双竞品共三个商品块');
   check(document.querySelectorAll('.product-select-link').length === 3 && !document.querySelector('.product-select-card a'), '商品主图链接与选择按钮独立');
+  check([...document.querySelectorAll('.product-select-link')].every((link) => link.children.length === 1 && link.firstElementChild.classList.contains('product-select-image') && !link.querySelector('.product-select-copy')), '京东链接只包裹主图，不含名称与 ID');
+  check([...document.querySelectorAll('.product-select-link')].every((link) => {
+    const bounds = link.getBoundingClientRect();
+    const imageBounds = link.firstElementChild.getBoundingClientRect();
+    return bounds.width === imageBounds.width && bounds.height === imageBounds.height && bounds.left === imageBounds.left && bounds.top === imageBounds.top;
+  }), '主图链接无 padding，边框紧贴图片');
+  const photoLink = card('202').parentElement.querySelector('.product-select-link');
+  let photoClicked = false;
+  photoLink.addEventListener('click', (event) => { event.preventDefault(); photoClicked = true; }, { once:true });
+  photoLink.querySelector('.product-select-image').click();
+  check(photoClicked && card('201').getAttribute('aria-pressed') === 'true', '点击竞品主图不切换分析');
   if (innerWidth > 1050) {
     const positions = [...document.querySelectorAll('.product-select-item')].map((node) => node.getBoundingClientRect().top);
     check(positions.every((top) => top === positions[0]), '宽屏三个商品保持一行');
   }
   const selectedDate = $('#period-trigger').textContent;
-  card('202').click();
+  card('202').querySelector('.product-select-heading strong').click();
   await until(() => !$('#page-state').hidden && $('#page-state').textContent.includes('暂无报告'));
+  check(card('202').getAttribute('aria-pressed') === 'true', '点击竞品名称切换分析');
   check($('#period-trigger').textContent === selectedDate, '缺失报告保留所选日期');
   check($('#dashboard').hidden && $('#sku-trigger').disabled, '缺失报告隐藏旧内容并禁用 SKU');
   $('#period-trigger').click();
@@ -90,8 +103,9 @@ async function run() {
   const bounds = $('#period-popover').getBoundingClientRect();
   check(bounds.left >= 0 && bounds.right <= innerWidth + 1, '日历不超出视口');
   document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-  card('201').click();
+  card('201').querySelector('small').click();
   await until(settled);
+  check(card('201').getAttribute('aria-pressed') === 'true', '点击竞品 ID 切换分析');
   card('202').click();
   card('201').click();
   await sleep(220);

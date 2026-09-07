@@ -8,8 +8,7 @@ function element(tag, className, text) {
   return node;
 }
 
-function productContent(product, role = "self") {
-  const wrapper = element("span", "product-select-content");
+function productImage(product) {
   const frame = element("span", "product-select-image");
   if (product.imageUrl) {
     const image = document.createElement("img");
@@ -19,23 +18,32 @@ function productContent(product, role = "self") {
     image.addEventListener("error", () => { image.remove(); frame.textContent = "暂无主图"; }, { once: true });
     frame.append(image);
   } else frame.textContent = "暂无主图";
+  return frame;
+}
+
+function productCopy(product, role = "self") {
   const copy = element("span", "product-select-copy");
   const heading = element("span", "product-select-heading");
   const name = element("strong", "", product.name || product.id);
   name.title = name.textContent;
   heading.append(element("span", `product-role product-role-${role}`, role === "self" ? "本品" : "竞品"), name);
   copy.append(heading, element("small", "", `商品 ID ${product.id}`));
-  wrapper.append(frame, copy);
+  return copy;
+}
+
+function productContent(product, role = "self") {
+  const wrapper = element("span", "product-select-content");
+  wrapper.append(productImage(product), productCopy(product, role));
   return wrapper;
 }
 
-function jdLink(product, role) {
+function jdLink(product) {
   const link = element("a", "product-select-link");
   link.href = `https://item.jd.com/${encodeURIComponent(product.id)}.html`;
   link.target = "_blank";
   link.rel = "noopener noreferrer";
-  link.setAttribute("aria-label", `在京东打开${product.name || product.id}`);
-  link.append(productContent(product, role));
+  link.setAttribute("aria-label", `点击主图在京东打开${product.name || product.id}`);
+  link.append(productImage(product));
   return link;
 }
 
@@ -75,7 +83,7 @@ function selfPicker(container, groups, selected, pickerState, onBeforeOpen, onPa
   trigger.setAttribute("aria-haspopup", "listbox");
   trigger.setAttribute("aria-expanded", "false");
   trigger.setAttribute("aria-controls", "pair-trigger-list");
-  trigger.append(element("span", "product-select-marker", "⌄"));
+  trigger.append(productCopy(selected), element("span", "product-select-marker", "⌄"));
   const menu = element("div", "product-select-menu");
   menu.hidden = true;
   const list = element("div", "product-select-list");
@@ -118,12 +126,12 @@ function selfPicker(container, groups, selected, pickerState, onBeforeOpen, onPa
       : Math.max(0, Math.min(options.length - 1, index + (event.key === "ArrowDown" ? 1 : -1)));
     options[next]?.focus();
   };
-  root.append(trigger, jdLink(selected, "self"), menu);
+  root.append(trigger, jdLink(selected), menu);
   return root;
 }
 
 /**
- * 功能说明：渲染紧凑本品与竞品商品块，商品链接与分析切换操作独立。
+ * 功能说明：渲染紧凑商品块；主图跳转京东，文字及其余区域切换分析。
  * 参数 options：包含 container 根节点、pairs 已有报告商品对、activePairKey 当前商品对、
  * pickerState 菜单状态、onBeforeOpen 打开前回调、onPairChange 商品对切换回调。
  * 返回值：无，更新选择区 DOM；相同数据不重建菜单。
@@ -150,13 +158,13 @@ export function renderPairPicker(options) {
     button.dataset.pairKey = pair.key;
     button.setAttribute("aria-label", `对比${product.name || product.id}`);
     button.setAttribute("aria-pressed", String(selected));
-    button.append(element("span", "product-select-marker", selected ? "✓" : "○"));
+    button.append(productCopy(product, "competitor"), element("span", "product-select-marker", selected ? "✓" : "○"));
     button.onclick = () => {
       closePairPicker(container, pickerState);
       onPairChange(pair.key);
       [...container.querySelectorAll("[data-pair-key]")].find((item) => item.dataset.pairKey === pair.key)?.focus();
     };
-    card.append(button, jdLink(product, "competitor"));
+    card.append(button, jdLink(product));
     children.push(card);
   }
   container.replaceChildren(...children);
