@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  groupProductPairs,
+  findReportForPeriod,
   defaultPairKey,
   indexFromProductPairs,
   indexForPair,
@@ -42,6 +44,32 @@ const index = {
     month: []
   }
 };
+
+test("本品分组支持任意竞品数，同一竞品可属于不同本品", () => {
+  const pairs = [
+    { key: "a::x", selfSpu: "a", competitorSpu: "x", selfName: "本品甲" },
+    { key: "a::y", selfSpu: "a", competitorSpu: "y", selfImageUrl: "https://example.com/a.jpg" },
+    { key: "a::z", selfSpu: "a", competitorSpu: "z" },
+    { key: "b::x", selfSpu: "b", competitorSpu: "x" },
+  ];
+  const groups = groupProductPairs([...pairs, pairs[0]]);
+  assert.equal(groups.length, 2);
+  assert.deepEqual(groups[0].competitors.map((pair) => pair.key), ["a::x", "a::y", "a::z"]);
+  assert.equal(groups[0].imageUrl, "https://example.com/a.jpg");
+  assert.equal(groups[1].competitors[0].key, "b::x");
+  assert.deepEqual(groupProductPairs([]), []);
+});
+
+test("日周月精确匹配商品对和范围，缺失周期不回退到其他报告", () => {
+  for (const granularity of ["day", "week", "month"]) {
+    const period = { start_date: "2026-08-01", end_date: "2026-08-01" };
+    const matching = { ...period, self_spu: "a", competitor_spu: "x", report_id: "match" };
+    const entries = { reports: { [granularity]: [matching, { ...matching, competitor_spu: "y", end_date: "2026-08-31", report_id: "other" }] } };
+    assert.equal(findReportForPeriod(entries, granularity, "a::x", period), matching);
+    assert.equal(findReportForPeriod(entries, granularity, "a::y", period), null);
+    assert.equal(findReportForPeriod(entries, granularity, "a::x", { ...period, start_date: "2026-09-01" }), null);
+  }
+});
 
 test("商品对从三个粒度去重，并默认选择最新日报所属商品对", () => {
   const pairs = reportPairs(index);

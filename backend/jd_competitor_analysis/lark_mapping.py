@@ -33,8 +33,8 @@ MAPPING_FIELDS = {
 }
 PAIR_FIELDS = {
     "self_spu": "本品spu",
-    "competitor_spu": "竞品spu",
 }
+COMPETITOR_FIELD_PATTERN = re.compile(r"^竞品spu([1-9][0-9]*)$")
 
 JsonRequester = Callable[[str, str, dict[str, str], dict[str, Any] | None, int], dict[str, Any]]
 
@@ -249,7 +249,7 @@ class LarkBaseMappingClient:
     def _list_records(
         self,
         table_id: str,
-        field_names: list[str],
+        field_names: list[str] | None,
         operation: str,
         filter_formula: str | None = None,
     ) -> list[dict[str, Any]]:
@@ -257,7 +257,7 @@ class LarkBaseMappingClient:
 
         功能说明：复用应用凭证，以只读 GET 请求读取完整分页，并校验飞书业务响应。
         参数 table_id：目标数据表 ID。
-        参数 field_names：需要读取的字段名称。
+        参数 field_names：需要读取的字段名称；None 表示读取完整记录以识别动态列。
         参数 operation：日志和异常使用的操作名称。
         参数 filter_formula：可选的飞书记录筛选公式。
         返回值：响应中的完整记录对象列表。
@@ -275,8 +275,9 @@ class LarkBaseMappingClient:
         while True:
             query = {
                 "page_size": str(self._config.page_size),
-                "field_names": json.dumps(field_names, ensure_ascii=False),
             }
+            if field_names is not None:
+                query["field_names"] = json.dumps(field_names, ensure_ascii=False)
             if filter_formula:
                 query["filter"] = filter_formula
             if page_token:
@@ -369,7 +370,7 @@ class LarkBaseMappingClient:
     def list_product_pairs(self) -> list[ProductPairMapping]:
         """读取全部本品与竞品 SPU 候选组合。
 
-        功能说明：从商品对多维表只读获取两个 SPU 字段，过滤空值、非法值和本竞品相同的记录，并按商品对去重。
+        功能说明：分页读取商品对表，识别竞品spu1、竞品spu2 等编号列，一行展开多组商品对；忽略图片和名称，独立过滤无效竞品并去重。
         返回值：按本品和竞品 SPU 排序后的候选商品对。
         """
 
@@ -377,7 +378,7 @@ class LarkBaseMappingClient:
         LOGGER.debug("开始只读查询飞书商品对")
         records = self._list_records(
             self._config.pair_table_id,
-            list(PAIR_FIELDS.values()),
+            None,
             "读取飞书商品对",
         )
         pairs: dict[tuple[str, str], ProductPairMapping] = {}
@@ -388,19 +389,27 @@ class LarkBaseMappingClient:
                 continue
             try:
                 self_spu = _required_product_id(PAIR_FIELDS["self_spu"], fields.get(PAIR_FIELDS["self_spu"]))
-                competitor_spu = _required_product_id(
-                    PAIR_FIELDS["competitor_spu"],
-                    fields.get(PAIR_FIELDS["competitor_spu"]),
-                )
             except ValueError as error:
                 LOGGER.warning("跳过无效商品对记录：record_id=%s，error=%s", record.get("record_id"), error)
                 continue
-            if self_spu == competitor_spu:
-                LOGGER.warning("跳过本品与竞品相同的记录：record_id=%s，spu=%s", record.get("record_id"), self_spu)
-                continue
-            pairs[(self_spu, competitor_spu)] = ProductPairMapping(self_spu, competitor_spu)
+            competitor_fields = sorted(
+                (name for name in fields if COMPETITOR_FIELD_PATTERN.fullmatch(name)),
+                key=lambda name: int(COMPETITOR_FIELD_PATTERN.fullmatch(name).group(1)),
+            )
+            for name in competitor_fields:
+                if not _optional_cell_text(fields.get(name)):
+                    continue
+                try:
+                    competitor_spu = _required_product_id(name, fields[name])
+                except ValueError as error:
+                    LOGGER.warning("跳过无效竞品：record_id=%s，field=%s，error=%s", record.get("record_id"), name, error)
+                    continue
+                if self_spu == competitor_spu:
+                    LOGGER.warning("跳过本品与竞品相同的记录：record_id=%s，field=%s，spu=%s", record.get("record_id"), name, self_spu)
+                    continue
+                pairs[(self_spu, competitor_spu)] = ProductPairMapping(self_spu, competitor_spu)
         result = sorted(pairs.values(), key=lambda item: (int(item.self_spu), int(item.competitor_spu)))
-        LOGGER.debug(
+        LOGGER.info(
             "飞书商品对读取完成：pair_count=%s，耗时=%.3fs",
             len(result),
             time.perf_counter() - started_at,

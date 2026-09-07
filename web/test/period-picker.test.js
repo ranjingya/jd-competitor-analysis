@@ -10,9 +10,10 @@ import { renderPeriodPicker } from "../src/period-picker.js";
  * 参数 selectedId：当前已选报告标识。
  * 参数 context：当前浏览月份或年份。
  * 参数 contexts：允许浏览的月份或年份。
+ * 参数 selectedPeriod：独立于报告存在性的已选日期范围。
  * 返回值：面板 HTML 和渲染配置。
  */
-function renderPanel(t, granularity, entries, selectedId, context, contexts) {
+function renderPanel(t, granularity, entries, selectedId, context, contexts, selectedPeriod = null) {
   const previous = Object.getOwnPropertyDescriptor(globalThis, "document");
   t.after(() => {
     if (previous) Object.defineProperty(globalThis, "document", previous);
@@ -31,6 +32,7 @@ function renderPanel(t, granularity, entries, selectedId, context, contexts) {
     index: { reports: { [granularity]: entries } },
     activeGranularity: granularity,
     selectedReportIds: { [granularity]: selectedId },
+    selectedPeriods: selectedPeriod ? { [granularity]: selectedPeriod } : {},
     reportCounts: { [granularity]: entries.length },
     periodContexts: { [granularity]: contexts },
     pickerState: { open: true, contexts: { [granularity]: context } }
@@ -96,4 +98,19 @@ test("失效浏览上下文回落到可用月份，不跳到范围外的已选�
   const { html, options } = renderPanel(t, "day", [report("sep", "2026-09-01")], "sep", "2026-07", ["2026-08"]);
   assert.equal(options.pickerState.contexts.day, "2026-08");
   assert.match(html, /2026 年 8 月/);
+});
+
+test("所选月份无报告时仍保留日期与导航，不能高亮该商品最新报告", (t) => {
+  const { html, options } = renderPanel(t, "day", [report("aug", "2026-08-19")], "aug", "2026-09", ["2026-08"], { start_date: "2026-09-03", end_date: "2026-09-03" });
+  assert.deepEqual(selectedIds(html), []);
+  assert.match(options.container.innerHTML, /2026年9月3日/);
+  assert.match(html, /2026 年 9 月/);
+  assert.match(html, /data-context-index="0" aria-label="上一个可用周期" >‹/);
+});
+
+test("该商品整个粒度无报告时也能打开所选周期日历", (t) => {
+  const { html, options } = renderPanel(t, "week", [], "", "2026-08", [], { start_date: "2026-08-24", end_date: "2026-08-30" });
+  assert.deepEqual(selectedIds(html), []);
+  assert.match(options.container.innerHTML, /2026年8月24日—30日/);
+  assert.doesNotMatch(options.container.innerHTML, /id="period-trigger"[^>]*disabled/);
 });

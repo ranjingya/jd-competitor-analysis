@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>商品导航回归测试</title></head>
+<body>
+  <h1>商品导航浏览器回归测试</h1>
+  <p>使用正式页面和模拟 API；不连接数仓、不写数据库。</p>
+  <label>视口宽度 <select id="width"><option>1280</option><option>900</option><option>320</option></select></label>
+  <pre id="result" role="status">运行中</pre>
+  <iframe id="app" title="商品导航测试页面" src="./fixtures/product-navigation.html" style="width:1280px;height:1000px;border:1px solid #ddd"></iframe>
+  <script type="module">
+    const frame = document.querySelector('#app');
+    document.querySelector('#width').onchange = (event) => {
+      frame.style.width = `${event.target.value}px`;
+      document.querySelector('#result').textContent = '运行中';
+      frame.src = './fixtures/product-navigation.html';
+    };
+    window.addEventListener('message', (event) => {
+      if (event.source === frame.contentWindow && event.data?.type === 'navigation-test') {
+        document.querySelector('#result').textContent = event.data.result;
+      }
+    });
+  </script>
+</body>
+</html>

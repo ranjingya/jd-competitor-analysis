@@ -1,5 +1,39 @@
 const granularities = ["day", "week", "month"];
 
+/**
+ * 功能说明：把已有报告的商品对按本品去重分组，保留各竞品完整导航信息。
+ * 参数 pairs：商品对接口转换后的数组。
+ * 返回值：本品数组，每项包含 competitors 商品对列表。
+ */
+export function groupProductPairs(pairs) {
+  const groups = new Map();
+  for (const pair of pairs) {
+    if (!groups.has(pair.selfSpu)) groups.set(pair.selfSpu, {
+      id: pair.selfSpu, name: pair.selfName, imageUrl: pair.selfImageUrl, competitors: []
+    });
+    const group = groups.get(pair.selfSpu);
+    group.name ||= pair.selfName;
+    group.imageUrl ||= pair.selfImageUrl;
+    if (!group.competitors.some((item) => item.key === pair.key)) group.competitors.push(pair);
+  }
+  return [...groups.values()];
+}
+
+/**
+ * 功能说明：在指定商品对内精确查找已选周期，缺失时不回退到最新报告。
+ * 参数 index：页面报告索引。
+ * 参数 granularity：日、周或月粒度。
+ * 参数 pairKey：当前商品对标识。
+ * 参数 period：用户选择的 start_date 和 end_date。
+ * 返回值：匹配的报告条目；没有匹配时返回 null。
+ */
+export function findReportForPeriod(index, granularity, pairKey, period) {
+  if (!period) return null;
+  return reportsForPair(index, granularity, pairKey).find((entry) =>
+    entry.start_date === period.start_date && entry.end_date === period.end_date
+  ) || null;
+}
+
 function compareReportEntries(left, right) {
   return String(left.start_date || "").localeCompare(String(right.start_date || ""))
     || String(left.end_date || "").localeCompare(String(right.end_date || ""))

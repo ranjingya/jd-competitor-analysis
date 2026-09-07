@@ -68,7 +68,7 @@ export async function loadReportPeriods(pair, granularity, context) {
   });
   const url = `/api/reports/periods?${params}`;
   if (!reportPeriodCache.has(url)) {
-    reportPeriodCache.set(url, readJson(url));
+    reportPeriodCache.set(url, readJson(url).catch((error) => { reportPeriodCache.delete(url); throw error; }));
   }
   return reportPeriodCache.get(url);
 }
@@ -91,7 +91,7 @@ export async function loadReportTrends(pair, granularity, startDate, endDate) {
   });
   const url = `/api/reports/trends?${params}`;
   if (!reportTrendCache.has(url)) {
-    reportTrendCache.set(url, readJson(url));
+    reportTrendCache.set(url, readJson(url).catch((error) => { reportTrendCache.delete(url); throw error; }));
   }
   return reportTrendCache.get(url);
 }

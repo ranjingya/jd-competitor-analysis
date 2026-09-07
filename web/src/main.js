@@ -9,6 +9,7 @@ import { closePairPicker, renderPairPicker } from "./pair-picker.js";
 import { closePeriodPicker, renderPeriodPicker } from "./period-picker.js";
 import {
   defaultPairKey,
+  findReportForPeriod,
   indexFromProductPairs,
   indexForPair,
   mergePeriodEntries,
@@ -33,6 +34,7 @@ const state = {
   activeMetricId: "gmv",
   currentEntry: null,
   selectedReportIds: {},
+  selectedPeriods: {},
   periodContexts: {},
   loadedPeriodContexts: new Set(),
   loadingPeriodContexts: new Map(),
@@ -80,7 +82,7 @@ async function ensurePeriodContext(granularity, context) {
   if (!pair || !context) return;
   const pairKey = pair.key;
   const requestKey = `${pairKey}:${granularity}:${context}`;
-  if (state.loadedPeriodContexts.has(requestKey)) return;
+  if (state.loadedPeriodContexts.has(requestKey)) return true;
   if (state.loadingPeriodContexts.has(requestKey)) {
     return state.loadingPeriodContexts.get(requestKey);
   }
@@ -93,9 +95,11 @@ async function ensurePeriodContext(granularity, context) {
       if (state.activePairKey === pairKey) {
         renderControls();
       }
+      return true;
     })
     .catch((error) => {
       console.error("可用报告周期加载失败", error);
+      return false;
     })
     .finally(() => {
       state.loadingPeriodContexts.delete(requestKey);
@@ -105,7 +109,7 @@ async function ensurePeriodContext(granularity, context) {
 }
 
 /**
- * 功能说明：渲染带商品图的商品对选择器，并在切换后选择该商品对的最新报告。
+ * 功能说明：渲染本品分组选择器，切换商品时保留已选粒度和日期范围。
  * 参数：无；读取当前报告索引和 activePairKey。
  * 返回值：无；直接更新商品对下拉框并绑定切换事件。
  */
@@ -125,7 +129,11 @@ function renderPairSelector() {
         return;
       }
       state.activePairKey = pairKey;
-      selectReportsForActivePair();
+      // 已选周期独立于报告存在性；仅为从未选择过的粒度补默认周期。
+      selectReportsForActivePair(true);
+      periodPickerState.open = false;
+      periodPickerState.closing = false;
+      periodPickerState.contexts = {};
       selectActiveReport();
     }
   });
@@ -133,19 +141,21 @@ function renderPairSelector() {
 
 /**
  * 功能说明：为当前商品对选择默认粒度和各粒度最新报告。
- * 参数：无；读取 activePairKey 并更新选中报告状态。
+ * 参数 preservePeriod：是否保留各粒度已选周期，切换商品时为 true。
  * 返回值：无。
  */
-function selectReportsForActivePair() {
+function selectReportsForActivePair(preservePeriod = false) {
   const availableGranularity = Object.keys(granularityLabels)
     .find((granularity) => reportsFor(granularity).length);
-  if (!reportsFor(state.activeGranularity).length) {
+  if (!preservePeriod && !reportsFor(state.activeGranularity).length) {
     state.activeGranularity = availableGranularity || "day";
   }
   for (const granularity of Object.keys(granularityLabels)) {
     const latest = reportsFor(granularity).at(-1);
+    if (preservePeriod && state.selectedPeriods[granularity]) continue;
     if (latest) {
       state.selectedReportIds[granularity] = latest.report_id;
+      state.selectedPeriods[granularity] = { start_date: latest.start_date, end_date: latest.end_date };
     } else {
       delete state.selectedReportIds[granularity];
     }
@@ -155,19 +165,12 @@ function selectReportsForActivePair() {
 function renderControls() {
   renderPairSelector();
   const pair = activePair();
-  const reports = reportsFor(state.activeGranularity);
-  const latest = reports.at(-1);
-  const selectedReportId = state.selectedReportIds[state.activeGranularity]
-    || latest?.report_id
-    || "";
   renderPeriodPicker({
     container: document.querySelector("#period-picker"),
     index: indexForPair(state.index, state.activePairKey),
     activeGranularity: state.activeGranularity,
-    selectedReportIds: {
-      ...state.selectedReportIds,
-      [state.activeGranularity]: selectedReportId
-    },
+    selectedReportIds: state.selectedReportIds,
+    selectedPeriods: state.selectedPeriods,
     pickerState: periodPickerState,
     periodContexts: state.periodContexts[state.activePairKey] || {},
     reportCounts: pair?.reportCounts || {},
@@ -177,6 +180,8 @@ function renderControls() {
     onReportChange(granularity, reportId) {
       state.activeGranularity = granularity;
       state.selectedReportIds[granularity] = reportId;
+      const entry = reportsFor(granularity).find((item) => item.report_id === reportId);
+      state.selectedPeriods[granularity] = { start_date: entry.start_date, end_date: entry.end_date };
       selectActiveReport();
     }
   });
@@ -280,29 +285,55 @@ async function renderActiveTrend(entry) {
   }
 }
 
+/**
+ * 功能说明：按当前商品对和所选周期加载报告，隔离过期响应并展示空缺或失败状态。
+ * 参数：无，从页面 state 读取商品对、粒度和起止日期。
+ * 返回值：Promise<void>，页面更新完成后结束。
+ */
 async function selectActiveReport() {
   const requestId = state.reportRequestId + 1;
   state.reportRequestId = requestId;
+  state.trendRequestId += 1;
+  state.currentEntry = null;
   closeSkuDialog(document.querySelector("#sku-dialog"));
   document.querySelector("#sku-trigger").disabled = true;
-  const reports = reportsFor(state.activeGranularity);
-  if (!reports.length) {
+  const granularity = state.activeGranularity;
+  const pairKey = state.activePairKey;
+  const period = state.selectedPeriods[granularity];
+  renderControls();
+  const periodLabel = period ? (period.start_date === period.end_date ? period.start_date : `${period.start_date}—${period.end_date}`) : "";
+  document.querySelector("#meta").textContent = `${periodLabel} · 分析粒度：${granularityLabels[granularity]}`;
+  document.querySelector("#updated-at").textContent = "正在读取所选报告";
+  showPageState("正在读取所选周期报告");
+  let entry = findReportForPeriod(state.index, granularity, pairKey, period);
+  if (!entry && period) {
+    const loaded = await ensurePeriodContext(granularity, contextForEntry(granularity, period));
+    if (requestId !== state.reportRequestId) return;
+    if (!loaded) {
+      document.querySelector("#updated-at").textContent = "报告读取失败";
+      showPageState("所选周期读取失败，请重新选择以重试", true);
+      return;
+    }
+    entry = findReportForPeriod(state.index, granularity, pairKey, period);
+  }
+  if (!entry) {
+    state.selectedReportIds[granularity] = "";
     renderControls();
-    showPageState("当前粒度暂无可用报告");
-    showTrendState("当前粒度暂无趋势数据");
+    document.querySelector("#updated-at").textContent = "所选周期暂无报告";
+    showPageState(`${periodLabel} 当前本品与竞品暂无报告，可切换竞品或选择其他周期`);
+    showTrendState("所选周期暂无趋势数据");
     return;
   }
-  const selectedReportId = state.selectedReportIds[state.activeGranularity]
-    || reports.at(-1).report_id;
-  const entry = reports.find((item) => item.report_id === selectedReportId) || reports.at(-1);
   state.currentEntry = entry;
   state.selectedReportIds[state.activeGranularity] = entry.report_id;
-  document.querySelector("#sku-trigger").disabled = false;
   renderControls();
   showPageState(`正在加载${entry.period}报告`);
   try {
     const report = await loadReport(entry);
     if (requestId !== state.reportRequestId) return;
+    document.querySelector("#sku-trigger").disabled = false;
+    const updatedAt = formatBeijingDateTime(entry.updated_at || state.index.updated_at);
+    document.querySelector("#updated-at").textContent = updatedAt ? `数据生成于 ${updatedAt}` : "报告已加载";
     if (!(report.core_metrics || []).some((item) => item.id === state.activeMetricId)) {
       state.activeMetricId = report.core_metrics?.[0]?.id || "";
     }
@@ -311,6 +342,8 @@ async function selectActiveReport() {
   } catch (error) {
     console.error("报告加载失败", error);
     if (requestId === state.reportRequestId) {
+      state.currentEntry = null;
+      document.querySelector("#updated-at").textContent = "报告读取失败";
       showPageState("报告加载失败，请检查分析结果是否完整", true);
     }
   }

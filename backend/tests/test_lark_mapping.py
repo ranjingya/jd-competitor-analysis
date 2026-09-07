@@ -188,11 +188,11 @@ class LarkBaseMappingClientTest(unittest.TestCase):
                     "code": 0,
                     "data": {
                         "items": [
-                            {"record_id": "rec-2", "fields": {"本品spu": "10002", "竞品spu": "20002"}},
-                            {"record_id": "rec-1", "fields": {"本品spu": "10001", "竞品spu": "20001"}},
-                            {"record_id": "rec-dup", "fields": {"本品spu": "10001", "竞品spu": "20001"}},
-                            {"record_id": "rec-empty", "fields": {"本品spu": "", "竞品spu": "20003"}},
-                            {"record_id": "rec-same", "fields": {"本品spu": "10004", "竞品spu": "10004"}},
+                            {"record_id": "rec-2", "fields": {"本品spu": "10002", "竞品spu1": "20002"}},
+                            {"record_id": "rec-1", "fields": {"本品spu": "10001", "竞品spu1": "20001"}},
+                            {"record_id": "rec-dup", "fields": {"本品spu": "10001", "竞品spu1": "20001"}},
+                            {"record_id": "rec-empty", "fields": {"本品spu": "", "竞品spu1": "20003"}},
+                            {"record_id": "rec-same", "fields": {"本品spu": "10004", "竞品spu1": "10004"}},
                         ],
                         "has_more": False,
                     },
@@ -209,6 +209,31 @@ class LarkBaseMappingClientTest(unittest.TestCase):
         request_url = requester.calls[-1][1]
         self.assertIn("/tables/tblPair123/records", request_url)
         self.assertNotIn("filter", parse_qs(urlparse(request_url).query))
+
+
+    def test_numbered_competitors_expand_independently_across_pages(self) -> None:
+        """编号列分页展开；空值、坏值及同品跳过，第三个竞品与有效兄弟列正常保留。"""
+
+        requester = FakeRequester([
+            {"code": 0, "data": {"items": [
+                {"record_id": "multi", "fields": {"本品spu": "10001", "竞品spu1": "20001", "竞品spu2": "bad", "竞品spu3": "20003", "竞品spu10": "20010", "本品图片": [], "竞品2图片": []}},
+                {"record_id": "blank", "fields": {"本品spu": "10002", "竞品spu1": None, "竞品spu2": "20002"}},
+            ], "has_more": True, "page_token": "next-page"}},
+            {"code": 0, "data": {"items": [
+                {"record_id": "duplicate", "fields": {"本品spu": "10001", "竞品spu1": "20001", "竞品spu2": "20003"}},
+                {"record_id": "same", "fields": {"本品spu": "10003", "竞品spu1": "10003", "竞品spu2": "20001", "竞品spu3": " "}},
+                {"record_id": "no-self", "fields": {"本品spu": "bad", "竞品spu1": "20004"}},
+            ], "has_more": False}},
+        ])
+        result = LarkBaseMappingClient(self.config, requester=requester).list_product_pairs()
+        self.assertEqual([(item.self_spu, item.competitor_spu) for item in result], [
+            ("10001", "20001"), ("10001", "20003"), ("10001", "20010"), ("10002", "20002"), ("10003", "20001"),
+        ])
+        records_calls = [call for call in requester.calls if "/records?" in call[1]]
+        self.assertEqual(len(records_calls), 2)
+        for call in records_calls:
+            self.assertEqual(call[0], "GET")
+            self.assertNotIn("field_names", parse_qs(urlparse(call[1]).query))
 
 
 class LarkBaseConfigLoadingTest(unittest.TestCase):

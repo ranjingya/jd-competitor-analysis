@@ -9,6 +9,30 @@ import {
   loadReportTrends
 } from "../src/data-client.js";
 
+test("周期与趋势请求失败后可以重新读取", async () => {
+  const originalFetch = globalThis.fetch;
+  const calls = new Map();
+  globalThis.fetch = async (url) => {
+    const count = (calls.get(url) || 0) + 1;
+    calls.set(url, count);
+    return { ok: count > 1, status: 503, async json() { return { items: [] }; } };
+  };
+  const pair = { selfSpu: "retry-self", competitorSpu: "retry-competitor" };
+  try {
+    for (const request of [
+      () => loadReportPeriods(pair, "day", "2026-09"),
+      () => loadReportTrends(pair, "day", "2026-09-01", "2026-09-07")
+    ]) {
+      await assert.rejects(request, /503/);
+      assert.deepEqual(await request(), { items: [] });
+      await request();
+    }
+    assert.deepEqual([...calls.values()], [2, 2]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 
 test("商品对列表使用独立轻量接口", async () => {
   const originalFetch = globalThis.fetch;

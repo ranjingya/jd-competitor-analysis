@@ -117,6 +117,8 @@ function calendarWeeks(year, month) {
 
 function selectedEntry(options, granularity = options.activeGranularity) {
   const reports = reportsFor(options.index, granularity);
+  const period = options.selectedPeriods?.[granularity];
+  if (period) return reports.find((entry) => entry.start_date === period.start_date && entry.end_date === period.end_date) || null;
   const selectedReportId = options.selectedReportIds[granularity];
   return reports.find((entry) => entry.report_id === selectedReportId) || reports.at(-1) || null;
 }
@@ -133,15 +135,16 @@ function contextForEntry(granularity, entry) {
 
 function availableContexts(options, granularity) {
   const configured = options.periodContexts?.[granularity] || [];
+  const desiredContext = contextForEntry(granularity, options.selectedPeriods?.[granularity]);
   if (configured.length) {
-    return [...configured].sort();
+    return [...new Set([...configured, desiredContext])].filter(Boolean).sort();
   }
-  return [...new Set(reportsFor(options.index, granularity).map((entry) => contextForEntry(granularity, entry)))].filter(Boolean).sort();
+  return [...new Set([...reportsFor(options.index, granularity).map((entry) => contextForEntry(granularity, entry)), desiredContext])].filter(Boolean).sort();
 }
 
 function activeContext(options, granularity) {
   const contexts = availableContexts(options, granularity);
-  const selectedContext = contextForEntry(granularity, selectedEntry(options, granularity));
+  const selectedContext = contextForEntry(granularity, options.selectedPeriods?.[granularity] || selectedEntry(options, granularity));
   const current = options.pickerState.contexts[granularity];
   if (!contexts.includes(current)) {
     options.pickerState.contexts[granularity] = contexts.includes(selectedContext)
@@ -364,11 +367,10 @@ export function closePeriodPicker(container, pickerState) {
  * 返回值：无。
  */
 export function renderPeriodPicker(options) {
-  const activeEntry = selectedEntry(options, options.activeGranularity);
+  const activeEntry = options.selectedPeriods?.[options.activeGranularity] || selectedEntry(options, options.activeGranularity);
   const pickerGranularity = options.pickerState.open
     ? options.pickerState.draftGranularity || options.activeGranularity
     : options.activeGranularity;
-  const pickerEntry = selectedEntry(options, pickerGranularity);
   options.container.innerHTML = `
     <label class="period-label" for="period-trigger">分析周期</label>
     <button class="period-trigger" id="period-trigger" type="button" aria-expanded="${options.pickerState.open}" aria-controls="period-popover" ${activeEntry ? "" : "disabled"}>
@@ -428,5 +430,5 @@ export function renderPeriodPicker(options) {
     }
   });
   const content = options.container.querySelector("[data-selector-content]");
-  if (content && pickerEntry) content.replaceChildren(createActivePanel(options, pickerGranularity));
+  if (content && activeContext(options, pickerGranularity)) content.replaceChildren(createActivePanel(options, pickerGranularity));
 }
