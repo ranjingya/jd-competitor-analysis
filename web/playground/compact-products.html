@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>A 方案 · 商品选择预览</title>
+  <link rel="stylesheet" href="./compact-products.css">
+</head>
+<body>
+  <main>
+    <div class="preview-settings"><span>PLAYGROUND · A 方案</span><div role="group" aria-label="预览竞品数量"><button data-count="1" aria-pressed="false">一个竞品</button><button data-count="2" aria-pressed="true">两个竞品</button></div></div>
+    <section class="toolbar" aria-label="商品与分析周期">
+      <header><h1>竞品准真实值看板</h1><span class="updated"><i></i>数据生成于 2026-09-05 12:05:07 · 示例</span></header>
+      <div class="toolbar-main">
+        <div id="products" class="products" aria-label="选择本品与竞品"></div>
+        <div class="controls">
+          <div class="period"><select id="granularity" aria-label="分析粒度"><option value="day">日</option><option value="week">周</option><option value="month">月</option></select><input id="date" type="date" aria-label="分析日期"></div>
+          <button id="sku" class="sku">查看 SKU</button>
+        </div>
+      </div>
+    </section>
+    <p class="hint" id="selection-status" aria-live="polite"></p>
+  </main>
+  <div id="self-menu" role="listbox" aria-label="切换本品" hidden></div>
+  <dialog id="sku-dialog"><header><h2>本品 SKU 构成</h2><button id="close-sku" aria-label="关闭 SKU 预览">×</button></header><p>这里是 SKU 弹窗入口预览，不读取正式报告数据。</p></dialog>
+  <script type="module" src="./compact-products.js"></script>
+</body>
+</html>

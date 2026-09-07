@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="UTF-8">
+<title>紧凑商品区回归</title>
+<h1>紧凑商品区回归</h1>
+<label>视口宽度 <select id="width"><option>1280</option><option>900</option><option selected>320</option></select></label>
+<pre id="result">测试中…</pre>
+<iframe id="frame" title="紧凑商品区" width="320" height="900" src="/playground/compact-products.html"></iframe>
+<script type="module">
+const frame = document.querySelector('#frame');
+const result = document.querySelector('#result');
+document.querySelector('#width').onchange = (event) => { frame.width = event.target.value; frame.src = '/playground/compact-products.html'; };
+/**
+ * 功能说明：验证单／双竞品布局、链接独立性和本品菜单键盘操作。
+ * 参数：无，从预览 iframe 读取 DOM。
+ * 返回值：Promise<void>，测试结果显示在页面上。
+ */
+async function run() {
+  const log = [];
+  const check = (value, label) => { if (!value) throw new Error(label); log.push(`通过：${label}`); };
+  try {
+    const doc = frame.contentDocument, win = frame.contentWindow;
+    for (let i=0;i<100 && !doc.querySelector('#self-trigger');i++) await new Promise((resolve) => setTimeout(resolve,30));
+    for (const count of [1,2]) {
+      doc.querySelector(`button[data-count="${count}"]`).click();
+      check(doc.querySelectorAll('.product').length === count + 1, `${count} 个竞品无多余商品框`);
+      check(doc.documentElement.scrollWidth <= win.innerWidth, `${count} 个竞品无横向溢出`);
+    }
+    const buttons = [...doc.querySelectorAll('.switch[aria-pressed]')];
+    buttons[1].click();
+    check(doc.querySelectorAll('.switch[aria-pressed="true"]').length === 1, '竞品只选中一个');
+    check(doc.querySelectorAll('.product-link').length === 3 && !doc.querySelector('button a'), '京东链接与选择按钮独立');
+    const trigger = doc.querySelector('#self-trigger');
+    trigger.click();
+    const menu = doc.querySelector('#self-menu');
+    check(!menu.hidden && menu.getBoundingClientRect().right <= win.innerWidth, '本品菜单不溢出');
+    doc.activeElement.dispatchEvent(new win.KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}));
+    check(doc.activeElement === menu.lastElementChild, '方向键选择本品');
+    doc.activeElement.click();
+    check(menu.hidden && doc.activeElement.id === 'self-trigger', '选择后收回并恢复焦点');
+    doc.querySelector('#self-trigger').click();
+    doc.dispatchEvent(new win.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+    check(menu.hidden, 'Esc 关闭菜单');
+    result.textContent = log.join('\n');
+  } catch(error) { result.textContent = `${log.join('\n')}\n失败：${error.message}`; }
+}
+frame.addEventListener('load',run);
+</script>
+</html>
