@@ -16,7 +16,7 @@ const configs = [
   { self: '101', comp: '202', date: yesterday },
   { self: '102', comp: '203', date: today },
   { self: '102', comp: '204', date: today },
-  { self: '102', comp: '205', date: today },
+  { self: '103', comp: '205', date: today },
 ];
 const entries = configs.map((item) => ({
   self_spu: item.self, competitor_spu: item.comp, self_name: `测试本品${item.self}`,
@@ -59,10 +59,10 @@ const option = (text) => [...document.querySelectorAll('.product-select-option')
 const chooseSelf = (id) => { $('#pair-trigger').click(); option(`测试本品${id}`).click(); };
 const card = (id) => $(`.product-select-card[data-pair-key="101::${id}"]`);
 const settled = () => !$('#dashboard').hidden && !$('#updated-at').textContent.includes('正在');
-const chooseComp = (id) => { $('#competitor-trigger').click(); option(`测试竞品${id}`).click(); };
+const chooseComp = (id) => { $(`[data-pair-key="102::${id}"]`).click(); };
 
 /**
- * 功能说明：在真实页面 DOM 上验证分组、搜索、空报告和异步切换。
+ * 功能说明：在真实页面 DOM 上验证单／双竞品、商品链接、空报告和异步切换。
  * 参数：无，使用本模块隔离的测试响应。
  * 返回值：Promise，结束时向父页面发送测试结果。
  */
@@ -70,10 +70,16 @@ async function run() {
   await import('/src/main.js');
   await until(settled);
   $('#pair-trigger').click();
-  check(document.querySelectorAll('#pair-trigger-list button').length === 2, '本品去重为两项');
+  check(document.querySelectorAll('#pair-trigger-list button').length === 3, '本品去重为三项');
   option('测试本品101').click();
   await until(settled);
   check(document.querySelectorAll('[data-pair-key]').length === 2, '两个竞品展示卡片');
+  check(document.querySelectorAll('.product-select-item').length === 3, '本品加双竞品共三个商品块');
+  check(document.querySelectorAll('.product-select-link').length === 3 && !document.querySelector('.product-select-card a'), '商品主图链接与选择按钮独立');
+  if (innerWidth > 1050) {
+    const positions = [...document.querySelectorAll('.product-select-item')].map((node) => node.getBoundingClientRect().top);
+    check(positions.every((top) => top === positions[0]), '宽屏三个商品保持一行');
+  }
   const selectedDate = $('#period-trigger').textContent;
   card('202').click();
   await until(() => !$('#page-state').hidden && $('#page-state').textContent.includes('暂无报告'));
@@ -92,21 +98,19 @@ async function run() {
   check(settled() && $('#metrics').textContent.includes('201.00'), '快速切换不被旧空报告请求覆盖');
   chooseSelf('102');
   await until(settled);
-  check(!!$('#competitor-trigger') && !document.querySelector('[data-pair-key]'), '三个竞品使用下拉框');
-  $('#competitor-trigger').click();
-  const search = $('.product-select-search');
-  search.value = '204';
-  search.dispatchEvent(new Event('input', { bubbles: true }));
-  check(document.querySelectorAll('#competitor-trigger-list button').length === 1, '支持按竞品 ID 搜索');
-  search.value = '无匹配';
-  search.dispatchEvent(new Event('input', { bubbles: true }));
-  check(!!$('.product-select-empty'), '搜索无结果状态');
-  search.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-  check($('#competitor-trigger').getAttribute('aria-expanded') === 'false' && document.activeElement === $('#competitor-trigger'), 'Esc 收起并恢复焦点');
+  $('#pair-trigger').click();
+  document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
+  check(document.activeElement === $('#pair-trigger-list').lastElementChild, '键盘导航到最后一个本品');
+  document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  check($('#pair-trigger').getAttribute('aria-expanded') === 'false' && document.activeElement === $('#pair-trigger'), 'Esc 收起并恢复焦点');
   chooseComp('204');
-  chooseComp('205');
+  chooseComp('203');
   await sleep(230);
-  check(settled() && $('#metrics').textContent.includes('205.00'), '慢报告响应不覆盖最新竞品');
+  check(settled() && $('#metrics').textContent.includes('203.00'), '慢报告响应不覆盖最新竞品');
+  chooseSelf('103');
+  await until(settled);
+  check(document.querySelectorAll('.product-select-item').length === 2, '单竞品只展示两个商品，不留空框');
+  check($('#pair-trigger').getAttribute('aria-expanded') === 'false', '切换本品后菜单自动收回');
   $('#pair-trigger').click();
   document.body.click();
   check($('#pair-trigger').getAttribute('aria-expanded') === 'false', '点击外部关闭菜单');
