@@ -758,7 +758,7 @@ a.product-card:active {
 
 .period-calendar-panel:not(.period-month-panel) {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
   min-height: 0;
 }
 
@@ -870,7 +870,7 @@ a.product-card:active {
 }
 
 .period-day-cell:not(:nth-child(7n))::after,
-.period-week-day:not(:last-child)::after {
+.period-week-day:not(:nth-child(7))::after {
   position: absolute;
   top: 11px;
   right: 0;

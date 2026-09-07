@@ -121,6 +121,11 @@ function selectedEntry(options, granularity = options.activeGranularity) {
   return reports.find((entry) => entry.report_id === selectedReportId) || reports.at(-1) || null;
 }
 
+function isSelectedReport(entry, selected) {
+  // 仅真实报告可以选中，空日期与空选中项不能因标识都为空而匹配。
+  return Boolean(entry?.report_id && selected?.report_id && entry.report_id === selected.report_id);
+}
+
 function contextForEntry(granularity, entry) {
   if (!entry) return "";
   return granularity === "month" ? entry.start_date.slice(0, 4) : entry.start_date.slice(0, 7);
@@ -138,7 +143,11 @@ function activeContext(options, granularity) {
   const contexts = availableContexts(options, granularity);
   const selectedContext = contextForEntry(granularity, selectedEntry(options, granularity));
   const current = options.pickerState.contexts[granularity];
-  if (!contexts.includes(current)) options.pickerState.contexts[granularity] = selectedContext || contexts.at(-1) || "";
+  if (!contexts.includes(current)) {
+    options.pickerState.contexts[granularity] = contexts.includes(selectedContext)
+      ? selectedContext
+      : contexts.at(-1) || selectedContext || "";
+  }
   return options.pickerState.contexts[granularity];
 }
 
@@ -187,8 +196,9 @@ function createDayPanel(options) {
   const [year, month] = context.split("-").map(Number);
   const root = document.createElement("div");
   root.className = "period-calendar-panel";
+  const dates = calendarWeeks(year, month).flat();
   const selectedCandidate = selectedEntry(options, "day");
-  const selected = contextForEntry("day", selectedCandidate) === context
+  const selected = dates.includes(selectedCandidate?.start_date)
     ? selectedCandidate
     : null;
   const available = new Map(reportsFor(options.index, "day").map((entry) => [entry.start_date, entry]));
@@ -196,13 +206,14 @@ function createDayPanel(options) {
     ${calendarHeader(options, "day", `${year} 年 ${month} 月`, "选择单日报告")}
     ${weekdayHeader()}
     <div class="period-day-grid">
-      ${calendarWeeks(year, month).flat().map((date) => {
+      ${dates.map((date) => {
         const parts = dateParts(date);
         const entry = available.get(date);
         const outside = parts.month !== month;
         const status = entryStatus(entry, "day");
+        const isSelected = isSelectedReport(entry, selected);
         const label = entry ? `，${status.label}` : "，暂无报告";
-        return `<button type="button" data-report-id="${entry?.report_id || ""}" class="period-day-cell${outside ? " is-outside" : ""}${entry ? " has-report" : ""}${entry?.report_id === selected?.report_id ? " is-selected" : ""}" ${entry ? "" : "disabled"} aria-label="${formatDayLabel(date)}${label}" aria-pressed="${entry?.report_id === selected?.report_id}"><span>${outside ? `${parts.month}/${parts.day}` : parts.day}</span>${statusMarker(entry, "day")}</button>`;
+        return `<button type="button" data-report-id="${entry?.report_id || ""}" class="period-day-cell${outside ? " is-outside" : ""}${entry ? " has-report" : ""}${isSelected ? " is-selected" : ""}" ${entry ? "" : "disabled"} aria-label="${formatDayLabel(date)}${label}" aria-pressed="${isSelected}"><span>${outside ? `${parts.month}/${parts.day}` : parts.day}</span>${statusMarker(entry, "day")}</button>`;
       }).join("")}
     </div>
     ${statusLegend()}
@@ -218,8 +229,9 @@ function createWeekPanel(options) {
   const [year, month] = context.split("-").map(Number);
   const root = document.createElement("div");
   root.className = "period-calendar-panel period-week-panel";
+  const weeks = calendarWeeks(year, month);
   const selectedCandidate = selectedEntry(options, "week");
-  const selected = contextForEntry("week", selectedCandidate) === context
+  const selected = weeks.some((dates) => dates[0] === selectedCandidate?.start_date)
     ? selectedCandidate
     : null;
   const available = new Map(reportsFor(options.index, "week").map((entry) => [entry.start_date, entry]));
@@ -227,14 +239,14 @@ function createWeekPanel(options) {
     ${calendarHeader(options, "week", `${year} 年 ${month} 月`, "选择完整自然周")}
     ${weekdayHeader()}
     <div class="period-week-grid">
-      ${calendarWeeks(year, month).map((dates) => {
+      ${weeks.map((dates) => {
         const entry = available.get(dates[0]);
-        const isSelected = entry?.report_id === selected?.report_id;
+        const isSelected = isSelectedReport(entry, selected);
         const missingDays = new Set(entry?.missing_days || []);
         const status = entryStatus(entry, "week");
         const coverage = coverageLabel(entry);
         return `
-        <button type="button" class="period-week-row${isSelected ? " is-selected" : ""}" data-report-id="${entry?.report_id || ""}" ${entry ? "" : "disabled"} aria-pressed="${isSelected}" ${entry ? `aria-label="第 ${isoWeekNumber(entry.start_date)} 周，${formatWeekRange(entry.start_date, entry.end_date)}，${status.label}${coverage ? `，${coverage}` : ""}"` : ""}>
+        <button type="button" class="period-week-row${isSelected ? " is-selected" : ""}" data-report-id="${entry?.report_id || ""}" ${entry ? "" : "disabled"} aria-pressed="${isSelected}" aria-label="第 ${isoWeekNumber(dates[0])} 周，${formatWeekRange(dates[0], dates[6])}，${entry ? `${status.label}${coverage ? `，${coverage}` : ""}` : "暂无报告"}">
           ${dates.map((date) => {
             const parts = dateParts(date);
             const outside = parts.month !== month;
@@ -272,9 +284,11 @@ function createMonthPanel(options) {
         const entry = entries.find((item) => Number(item.start_date.slice(5, 7)) === month);
         const status = entryStatus(entry, "month");
         const coverage = coverageLabel(entry);
-        return `<button type="button" data-report-id="${entry?.report_id || ""}" ${entry ? "" : "disabled"} class="period-month-cell${entry?.report_id === selected?.report_id ? " is-selected" : ""}" aria-pressed="${entry?.report_id === selected?.report_id}" ${entry ? `aria-label="${month}月，${status.label}${coverage ? `，${coverage}` : ""}"` : ""}><strong>${String(month).padStart(2, "0")}</strong>${entry ? statusMarker(entry, "month") : ""}<span>${entry ? coverage || status.label : "暂无报告"}</span></button>`;
+        const isSelected = isSelectedReport(entry, selected);
+        return `<button type="button" data-report-id="${entry?.report_id || ""}" ${entry ? "" : "disabled"} class="period-month-cell${isSelected ? " is-selected" : ""}" aria-pressed="${isSelected}" aria-label="${year}年${month}月，${entry ? `${status.label}${coverage ? `，${coverage}` : ""}` : "暂无报告"}"><strong>${String(month).padStart(2, "0")}</strong>${entry ? statusMarker(entry, "month") : ""}<span>${entry ? coverage || status.label : "暂无报告"}</span></button>`;
       }).join("")}
     </div>
+    ${statusLegend()}
     ${selected ? `<footer class="period-selection-summary period-month-summary"><span>已选月份</span><strong>${formatPeriodLabel("month", selected)}</strong></footer>` : ""}
   `;
   bindContextNavigation(root, options, "month");
