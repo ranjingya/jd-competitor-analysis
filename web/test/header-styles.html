@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>页头样式回归</title>
+<h1>页头样式回归</h1>
+<label>视口宽度 <select id="width"><option>1280</option><option>900</option><option>320</option></select></label>
+<pre id="result">测试中…</pre>
+<iframe title="页头样式预览" id="frame" width="1280" height="1100" src="/playground/header-styles.html"></iframe>
+<script type="module">
+const frame = document.querySelector('#frame');
+const output = document.querySelector('#result');
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+document.querySelector('#width').onchange = (event) => {
+  frame.width = event.target.value;
+  frame.src = '/playground/header-styles.html';
+};
+/**
+ * 功能说明：验证页头预览在指定宽度下的组合、菜单和键盘交互。
+ * 参数：无，读取 iframe 的实际页面。
+ * 返回值：Promise<void>，结果写到测试面板。
+ */
+async function checkPreview() {
+  const log = [];
+  const check = (value, label) => { if (!value) throw new Error(label); log.push(`通过：${label}`); };
+  output.textContent = '测试中…';
+  try {
+    const doc = frame.contentDocument;
+    const win = frame.contentWindow;
+    for (let i = 0; i < 100 && !doc.querySelector('#a'); i++) await wait(30);
+    check(doc.querySelectorAll('.example').length === 5, '五种方案完整显示');
+    for (const count of ['1','2','4']) {
+      const selector = doc.querySelector('#count');
+      selector.value = count;
+      selector.dispatchEvent(new win.Event('change'));
+      for (const density of ['compact','relaxed']) {
+        const input = doc.querySelector('#density');
+        input.value = density;
+        input.dispatchEvent(new win.Event('change'));
+        check(doc.documentElement.scrollWidth <= win.innerWidth, `${count} 竞品 / ${density} 无横向溢出`);
+      }
+    }
+    const trigger = doc.querySelector('#a [data-action="menu"]');
+    trigger.click();
+    const menu = doc.querySelector('#menu');
+    const rect = menu.getBoundingClientRect();
+    check(!menu.hidden && rect.left >= 0 && rect.right <= win.innerWidth, '菜单在视口内');
+    const search = menu.querySelector('input');
+    const options = [...menu.querySelectorAll('[role="option"]')];
+    search.value = options.at(-1).dataset.id;
+    search.dispatchEvent(new win.Event('input'));
+    check(menu.querySelectorAll('[role="option"]').length === 1, '搜索精确匹配');
+    search.dispatchEvent(new win.KeyboardEvent('keydown', { key:'ArrowDown', bubbles:true }));
+    check(doc.activeElement.matches('[role="option"]'), '方向键导航选项');
+    doc.activeElement.dispatchEvent(new win.KeyboardEvent('keydown', { key:'Escape', bubbles:true }));
+    check(menu.hidden && doc.activeElement === trigger, 'Esc 关闭并恢复焦点');
+    trigger.click();
+    menu.querySelector('[role="option"]:last-child').click();
+    check(menu.hidden, '选择后自动收回');
+    doc.querySelector('#a [data-action="self"]').click();
+    doc.body.click();
+    check(menu.hidden, '点击外部关闭');
+    doc.querySelector('#a [data-action="sku"]').click();
+    check(doc.querySelector('dialog').open, 'SKU 弹窗可打开');
+    doc.querySelector('#close-dialog').click();
+    check(!doc.querySelector('dialog').open, 'SKU 弹窗可关闭');
+    output.textContent = log.join('\n');
+  } catch (error) { output.textContent = `${log.join('\n')}\n失败：${error.message}`; }
+}
+frame.addEventListener('load', checkPreview);
+</script>
+</html>

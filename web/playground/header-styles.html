@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>看板页头 · 样式组合</title>
+  <link rel="stylesheet" href="./header-styles.css">
+</head>
+<body>
+  <main>
+    <header class="intro">
+      <div><p class="eyebrow">PLAYGROUND · 仅样式预览</p><h1>让商品选择，更轻一点。</h1><p>五种页头布局，可切换商品、竞品与日期。正式看板不受影响。</p></div>
+      <a href="/" class="back">返回看板 ↗</a>
+    </header>
+    <section class="settings" aria-label="预览设置">
+      <label>竞品数量<select id="count"><option value="1">1 个竞品</option><option value="2" selected>2 个竞品</option><option value="4">4 个竞品</option></select></label>
+      <label>配色<select id="palette"><option value="warm">暖白 · 延续看板</option><option value="white">纯白 · 清爽工具</option></select></label>
+      <label>密度<select id="density"><option value="compact">紧凑</option><option value="relaxed">舒展</option></select></label>
+      <span>商品图／名称用于预览，不代表实际对比关系</span>
+    </section>
+    <nav class="jump" aria-label="跳转方案"><a href="#a">A 紧凑横栏</a><a href="#b">B 标签导航</a><a href="#c">C 左右对比</a><a href="#d">D 轻量排版</a><a href="#e">E 操作分层</a></nav>
+    <div id="examples" aria-live="polite"><p>正在加载预览素材…</p></div>
+    <footer>选布局时可以直接说：例如「B 的竞品标签 + D 的标题 + A 的日期位置」。</footer>
+  </main>
+  <div id="menu" class="menu" hidden></div>
+  <dialog id="sku-dialog"><header><h2>本品 SKU 构成</h2><button id="close-dialog" aria-label="关闭 SKU 预览">×</button></header><p>这里保留「查看 SKU」入口，正式页面按所选报告读取 SKU 快照。</p><p class="muted">当前为样式预览，不请求业务数据。</p></dialog>
+  <script type="module" src="./header-styles.js"></script>
+</body>
+</html>
