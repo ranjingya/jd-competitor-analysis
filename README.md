@@ -106,13 +106,16 @@ LARK_ALERT_OPEN_ID=<当前飞书应用下的用户 open_id>
 0 12 * * * /home/yatui/jd-competitor-analysis/scripts/run-daily-analysis.sh
 ```
 
-只测试飞书完成通知样式时使用以下命令。该模式不读取数仓、不执行固定公式或 AI 分析，也不向 Healthchecks 上报任务状态：
+通知测试需要提供批次结果 JSON，格式为 `{"total_pairs": 1, "results": [{"date": "2026-09-07", "self_spu": "10001", "competitor_spu": "20001", "status": "ready"}]}`。私聊测试发送给 `LARK_ALERT_OPEN_ID`，测试卡片标题明确标注“通知测试”。测试不读取数仓、不执行固定公式或 AI 分析，也不向 Healthchecks 上报任务状态：
 
 ```bash
-/bin/bash scripts/run-daily-analysis.sh --test-notification
+/bin/bash scripts/run-daily-analysis.sh --test-notification-private notification-result.json
+
+# 明确向群机器人发送测试卡片
+/bin/bash scripts/run-daily-analysis.sh --test-notification notification-result.json
 ```
 
-脚本向 Healthchecks 上报开始、成功和失败状态；日周月批次全部成功时向 `LARK_COMPLETION_WEBHOOK_URL` 对应的飞书群机器人发送一张绿色完成卡片，展示本次执行内容、完成时间和由 `DASHBOARD_URL` 指向的在线看板按钮。每次请求使用 `LARK_COMPLETION_WEBHOOK_SECRET` 和当前 Unix 时间生成签名；飞书返回 `11232` 限流码时按 30、60 秒等待后定向重试。最终失败时使用飞书自建应用机器人向 `LARK_ALERT_OPEN_ID` 发送一次告警卡片，卡片展示失败原因、时间、服务器、退出码和末尾日志摘要。`open_id` 必须由当前 `LARK_APP_ID` 查询得到。飞书通知异常只记录警告，不覆盖分析任务的原始退出码。运行日志保存在 `data/logs/`。宿主机、Backend、Web/Nginx、运行日志、数据库时间和前端展示统一使用 `Asia/Shanghai`；数据库和 API 时间字段明确携带 `+08:00`。DeepSeek 每次产生计费用量的响应均将 Token、基础价格快照、契约校验状态和估算费用按月追加到 `data/logs/deepseek-usage-YYYY-MM.jsonl`，文件权限为 `0644`，宿主机用户可直接查看；日志不保存提示词或业务正文。模型结果不符合 JSON 契约时只重新生成当前商品对一次；仍失败则保存 `ai_failed` 状态、继续后续商品对并上报告警，不触发整个批次重试。定时任务按商品对依次检查昨天及此前六天：已有完整报告直接跳过；基础数据完整且仅 AI 失败的报告复用已保存的 AI 输入，只重新调用模型；其他报告缺口重新查询数仓。同一本品的 SKU 映射在本次进程内复用。商品对在五张来源表中存在任意记录时生成报告，缺失模块和指标按数仓事实保留为空；商品对五张表全部为空时跳过。主业务日期的全部商品对均为空时上报数据异常。
+脚本向 Healthchecks 上报开始、成功和失败状态；日周月批次全部成功时向 `LARK_COMPLETION_WEBHOOK_URL` 对应的飞书群机器人发送一张绿色完成卡片，展示商品对总数、本次实际处理日期的新增和无数据数量，以及由 `DASHBOARD_URL` 指向的在线看板按钮。补数据和补 AI 成功均计为新增，全部已有的日期不展示；整体重试按日期和商品对去重汇总，已成功的结果保留在本次新增中。周月报执行内容另行标明。每次请求使用 `LARK_COMPLETION_WEBHOOK_SECRET` 和当前 Unix 时间生成签名；飞书返回 `11232` 限流码时按 30、60 秒等待后定向重试。真正失败时不发送群 Webhook，仅使用飞书自建应用机器人向 `LARK_ALERT_OPEN_ID` 发送一次告警卡片，卡片展示失败原因、时间、服务器、退出码和末尾日志摘要。`open_id` 必须由当前 `LARK_APP_ID` 查询得到。飞书通知异常只记录警告，不覆盖分析任务的原始退出码。运行日志保存在 `data/logs/`。宿主机、Backend、Web/Nginx、运行日志、数据库时间和前端展示统一使用 `Asia/Shanghai`；数据库和 API 时间字段明确携带 `+08:00`。DeepSeek 每次产生计费用量的响应均将 Token、基础价格快照、契约校验状态和估算费用按月追加到 `data/logs/deepseek-usage-YYYY-MM.jsonl`，文件权限为 `0644`，宿主机用户可直接查看；日志不保存提示词或业务正文。模型结果不符合 JSON 契约时只重新生成当前商品对一次；仍失败则保存 `ai_failed` 状态、继续后续商品对并上报告警，不触发整个批次重试。定时任务按商品对依次检查昨天及此前六天：已有完整报告直接跳过；基础数据完整且仅 AI 失败的报告复用已保存的 AI 输入，只重新调用模型；其他报告缺口重新查询数仓。同一本品的 SKU 映射在本次进程内复用。商品对在五张来源表中存在任意记录时生成报告，缺失模块和指标按数仓事实保留为空；商品对五张表全部为空时跳过。主业务日期的全部商品对均为空时记录无数据，任务正常完成；无数据不触发失败通知，也不阻断计划中的周月报。
 
 每周一在日报完成后聚合上一个自然周，每月 1 日在日报和周报完成后聚合上一个自然月。周报和月报只读取 `data.db` 中状态为 `ready` 的日报，不再读取数仓。金额、人数和次数累加；转化率按累计成交人数除以累计访客数重算；客单价按累计成交金额除以累计成交人数重算；占比按周期累计分子和分母重算。缺失日报记录在报告元数据中，日均值始终除以自然周期天数。
 

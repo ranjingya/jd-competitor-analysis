@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import tempfile
+import json
+import io
 import unittest
 from datetime import date
 from pathlib import Path
@@ -14,8 +16,6 @@ from app.jobs.analysis import start_ai_analysis
 from app.jobs.daily_analysis import (
     AI_PARTIAL_FAILURE_EXIT_CODE,
     ALREADY_RUNNING_EXIT_CODE,
-    DAILY_DATA_MISSING_EXIT_CODE,
-    DailyWarehouseDataMissingError,
     _date_data_status,
     _repair_strategy,
     _retry_ai_failed_report,
@@ -23,6 +23,7 @@ from app.jobs.daily_analysis import (
     process_daily_pair,
     process_daily_pairs,
     run_warehouse_daily_analysis,
+    write_notification_result,
 )
 from app.job_lock import acquire_job_lock
 from app.repositories.dataset_repository import DatasetRepository
@@ -254,7 +255,7 @@ class DailyAnalysisJobTest(unittest.TestCase):
         self.assertEqual(process_pair.call_count, 2)
 
     def test_date_is_missing_only_when_every_pair_has_no_data(self) -> None:
-        """单个商品对无数据正常，全部商品对无数据才是整日异常。"""
+        """区分单对和整日缺失，无数据只作为业务状态。"""
 
         mixed = _date_data_status(
             "2026-08-18",
@@ -278,11 +279,61 @@ class DailyAnalysisJobTest(unittest.TestCase):
         self.assertEqual(missing["status"], "data_missing")
         self.assertEqual(missing["no_data_pairs"], 2)
         self.assertEqual(selected_missing["status"], "selection_no_data")
-        self.assertEqual(
-            DailyWarehouseDataMissingError("2026-08-18").code,
-            DAILY_DATA_MISSING_EXIT_CODE,
-        )
         self.assertEqual(AI_PARTIAL_FAILURE_EXIT_CODE, 14)
+
+    def test_notification_result_preserves_ready_for_both_generation_paths(self) -> None:
+        """新增与 AI 补生成使用同一状态，通知文件不含业务正文。"""
+        path = Path(self.temporary_directory.name) / "notification.json"
+        results = [
+            {"date": "2026-09-07", "self_spu": "10001", "competitor_spu": str(id),
+             "status": "ready", "ai_retry_only": bool(id % 2), "payload": "业务正文"}
+            for id in (20001, 20002)
+        ]
+        write_notification_result(path, 2, results)
+        actual = json.loads(path.read_text())
+        self.assertEqual(actual["total_pairs"], 2)
+        self.assertEqual([item["status"] for item in actual["results"]], ["ready", "ready"])
+        self.assertNotIn("业务正文", path.read_text())
+
+    def test_primary_day_without_data_finishes_and_repairs_other_days(self) -> None:
+        """主日期全空时仍处理七天、写通知结果并正常结束。"""
+        root = Path(self.temporary_directory.name)
+        settings = SimpleNamespace(
+            database_path=self.database.path, analysis_lock_path=root / "run.lock",
+            analysis_status_path=root / "status.json", deepseek_api_key="test",
+            deepseek_base_url="https://example.invalid", deepseek_model="test",
+            deepseek_timeout_seconds=1, deepseek_max_attempts=1,
+            deepseek_pricing_path=root / "pricing.json", deepseek_usage_log_dir=root,
+            product_images_path=root / "images.json",
+        )
+        args = SimpleNamespace(
+            date=None, yesterday=True, env_file=None, self_spu=None, competitor_spu=None,
+            notification_file=root / "notification.json",
+        )
+        def process(*values, **kwargs):
+            """模拟昨天无记录、其他日期生成成功。"""
+            day = values[3]
+            return [{"date": day, "self_spu": "10001", "competitor_spu": "20001",
+                     "status": "no_data" if day == "2026-09-07" else "ready"}]
+        with (
+            patch("app.jobs.daily_analysis.get_settings", return_value=settings),
+            patch("app.jobs.daily_analysis._selected_report_date", return_value="2026-09-07"),
+            patch("app.jobs.daily_analysis.load_warehouse_config"),
+            patch("app.jobs.daily_analysis.load_lark_base_config"),
+            patch("app.jobs.daily_analysis.DeepSeekAnalyzer"),
+            patch("app.jobs.daily_analysis.load_product_images", return_value={}),
+            patch("app.jobs.daily_analysis.create_warehouse_engine"),
+            patch("app.jobs.daily_analysis.LarkBaseMappingClient"),
+            patch("app.jobs.daily_analysis._selected_pairs", return_value=[self.pair]),
+            patch("app.jobs.daily_analysis.process_daily_pairs", side_effect=process) as mocked,
+            patch("sys.stdout", new_callable=io.StringIO),
+        ):
+            run_warehouse_daily_analysis(args)
+        self.assertEqual(mocked.call_count, 7)
+        self.assertEqual(json.loads((root / "status.json").read_text())["status"], "completed")
+        result = json.loads(args.notification_file.read_text())
+        self.assertEqual(len(result["results"]), 7)
+        self.assertEqual(result["results"][0]["status"], "no_data")
 
     @patch("app.jobs.daily_analysis.random.uniform", return_value=0)
     @patch("app.jobs.daily_analysis.time.sleep")

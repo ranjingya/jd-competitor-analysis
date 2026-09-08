@@ -63,6 +63,7 @@ def parse_args() -> argparse.Namespace:
     daily_run_parser.add_argument("--competitor-spu", help="手动指定竞品 SPU；需要和 --self-spu 一起使用。")
     daily_run_parser.add_argument("--title", help="可选看板标题。")
     daily_run_parser.add_argument("--log-level", default="INFO", help="日志级别。")
+    daily_run_parser.add_argument("--notification-file", type=Path, help="可选的批次通知结果 JSON 输出路径。")
     daily_run_parser.set_defaults(handler=run_warehouse_daily_analysis)
 
     weekly_parser = subparsers.add_parser(

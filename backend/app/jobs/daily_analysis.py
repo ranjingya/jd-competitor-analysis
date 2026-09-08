@@ -43,30 +43,9 @@ CONCURRENCY_RETRY_DELAYS = (30, 60, 120)
 CONCURRENCY_RETRY_JITTER_SECONDS = 10
 CONCURRENCY_EXHAUSTED_EXIT_CODE = 11
 ALREADY_RUNNING_EXIT_CODE = 12
-DAILY_DATA_MISSING_EXIT_CODE = 13
 AI_PARTIAL_FAILURE_EXIT_CODE = 14
 DAILY_REPAIR_WINDOW_DAYS = 7
 PairProgressCallback = Callable[[str, ProductPair], None]
-
-
-class DailyWarehouseDataMissingError(SystemExit):
-    """表示主业务日期的所有商品对均没有数仓记录。"""
-
-    def __init__(self, report_date: str) -> None:
-        """初始化整日数据异常。
-
-        功能说明：保存业务日期并使用专用退出码结束命令，供宿主机上报告警且避免普通重试。
-        参数 report_date：完全没有商品对记录的主业务日期。
-        返回值：无。
-        """
-
-        self.report_date = report_date
-        super().__init__(DAILY_DATA_MISSING_EXIT_CODE)
-
-    def __str__(self) -> str:
-        """生成整日无数据的可读错误信息。"""
-
-        return f"主业务日期所有商品对均没有数仓记录：date={self.report_date}"
 
 
 class AIAnalyzer(Protocol):
@@ -715,13 +694,36 @@ def _date_data_status(
     }
 
 
+def write_notification_result(
+    path: Path | None, total_pairs: int, results: list[dict[str, Any]]
+) -> None:
+    """输出独立的日报通知结果，供宿主机合并重试批次。
+
+    功能说明：按日期和两个 SPU 保存处理状态，固定公式和 AI 补生成成功均为 ready。
+    参数 path：可选输出文件路径；为空时不写文件。
+    参数 total_pairs：本批次处理的商品对总数。
+    参数 results：当前尝试的各日期、各商品对处理结果。
+    返回值：无；结果写入指定 JSON，不改变标准输出和运行日志内容。
+    """
+
+    if path is not None:
+        payload = {
+            "total_pairs": total_pairs,
+            "results": [
+                {key: item[key] for key in ("date", "self_spu", "competitor_spu", "status")}
+                for item in results
+            ],
+        }
+        path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+
+
 def run_warehouse_daily_analysis(args: Any) -> None:
     """执行正式数仓日报分析和最近七天缺口修复。
 
     功能说明：持有进程锁后处理主业务日期；`--yesterday` 模式同时检查最近七天，
     跳过已有完整日报，基础数据完整的 AI 失败报告只重试 AI，其余缺口执行完整流程。
-    参数 args：包含 env_file、date 或 yesterday、self_spu、competitor_spu 和 title 的命令行参数。
-    返回值：无；普通失败抛出异常，数仓并发、整日无数据、AI 部分失败和进程锁冲突使用专用退出码。
+    参数 args：包含 env_file、date 或 yesterday、self_spu、competitor_spu、title 和可选 notification_file 的命令行参数。
+    返回值：无；无数据正常结束，普通失败抛出异常，数仓并发、AI 部分失败和进程锁冲突使用专用退出码。
     """
 
     settings = get_settings()
@@ -975,6 +977,9 @@ def run_warehouse_daily_analysis(args: Any) -> None:
             }
             sys.stdout.write(json.dumps(output_summary, ensure_ascii=False, indent=2) + "\n")
             failed_count = summary["counts"]["failed"]
+            write_notification_result(
+                getattr(args, "notification_file", None), len(product_pairs), results
+            )
             if failed_count:
                 failed_messages = "；".join(
                     f"本品 {item['self_spu']} / 竞品 {item['competitor_spu']}："
@@ -990,8 +995,6 @@ def run_warehouse_daily_analysis(args: Any) -> None:
                     concurrency_count,
                 )
                 raise SystemExit(CONCURRENCY_EXHAUSTED_EXIT_CODE)
-            if selected_date in data_missing_dates:
-                raise DailyWarehouseDataMissingError(selected_date)
             ai_failed_count = summary["counts"]["ai_failed"]
             if ai_failed_count:
                 LOGGER.error(

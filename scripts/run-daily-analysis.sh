@@ -14,8 +14,9 @@ EXECUTED_REPORT_TYPES="日报"
 GENERAL_RETRY_DELAY_SECONDS=30
 CONCURRENCY_EXHAUSTED_EXIT_CODE=11
 ALREADY_RUNNING_EXIT_CODE=12
-DAILY_DATA_MISSING_EXIT_CODE=13
 AI_PARTIAL_FAILURE_EXIT_CODE=14
+NOTIFICATION_FILES=()
+NOTIFICATION_TITLE="京东竞品分析 · 任务完成"
 
 if ! mkdir -p "$LOG_DIR"; then
   printf '%s ERROR 无法创建日志目录：%s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$LOG_DIR" >&2
@@ -149,11 +150,53 @@ generate_lark_webhook_sign() {
   printf '' | openssl dgst -sha256 -hmac "$string_to_sign" -binary | openssl base64 -A
 }
 
+build_completion_card() {
+  # 功能说明：合并本次各尝试的商品对结果，构造完成通知卡片。
+  # 参数：无，读取 NOTIFICATION_FILES、通知标题和在线看板地址。
+  # 返回值：标准输出为卡片消息 JSON；输入缺失或格式错误时返回非零状态。
+  jq -sc --arg title "$NOTIFICATION_TITLE" --arg dashboard_url "$DASHBOARD_URL" \
+    --arg report_types "$EXECUTED_REPORT_TYPES" '
+      if length == 0 or any(.[];
+        (.total_pairs | type) != "number" or (.results | type) != "array")
+      then error("缺少有效的批次通知结果") else . end
+      | . as $attempts
+      | reduce (.[] | .results[]) as $item ({};
+          ($item | [.date, .self_spu, .competitor_spu] | tojson) as $key
+          | if $item.status == "existing" and has($key) then . else .[$key] = $item end)
+      | [.[]] | group_by(.date) | sort_by(.[0].date) | reverse
+      | map(select(any(.[]; .status != "existing")) | {
+          date: .[0].date,
+          added: (map(select(.status == "ready")) | length),
+          no_data: (map(select(.status == "no_data")) | length)
+        })
+      | map(.date + "：新增 " + (.added | tostring)
+          + (if .no_data > 0 then "，无数据 " + (.no_data | tostring) else "" end))
+      | (if length == 0 then "本次无新增" else join("\n") end) as $details
+      | {
+          msg_type: "interactive",
+          card: {
+            config: {wide_screen_mode: true},
+            header: {template: "green", title: {tag: "plain_text", content: $title}},
+            elements: [
+              {tag: "div", text: {tag: "lark_md", content:
+                ("**商品对：** " + ($attempts[-1].total_pairs | tostring) + " 对")}},
+              {tag: "div", text: {tag: "plain_text", content: $details}},
+              (if $report_types != "日报" then
+                {tag: "note", elements: [{tag: "plain_text", content: $report_types}]}
+               else empty end),
+              {tag: "action", actions: [{tag: "button",
+                text: {tag: "plain_text", content: "打开在线看板"},
+                type: "primary", url: $dashboard_url}]}
+            ]
+          }
+        }
+    ' "${NOTIFICATION_FILES[@]}"
+}
+
 send_lark_completion_webhook() {
   # 功能说明：整个日周月批次成功后，通过飞书群机器人 Webhook 发送一次完成卡片。
-  # 参数：无，使用脚本当前批次的执行内容、完成时间、在线看板地址和 Webhook 配置。
+  # 参数：无，使用脚本当前批次的通知结果、执行内容、在线看板地址和 Webhook 配置。
   # 返回值：始终返回成功；通知异常仅写入运行日志，不改变分析任务退出码。
-  local completed_at=""
   local card_payload=""
   local payload=""
   local webhook_timestamp=""
@@ -170,43 +213,10 @@ send_lark_completion_webhook() {
     return 0
   fi
 
-  completed_at="$(date '+%Y-%m-%d %H:%M:%S')"
-  card_payload="$(
-    jq -cn \
-      --arg report_types "$EXECUTED_REPORT_TYPES" \
-      --arg completed_at "$completed_at" \
-      --arg dashboard_url "$DASHBOARD_URL" \
-      '{
-        msg_type: "interactive",
-        card: {
-          config: {wide_screen_mode: true},
-          header: {
-            template: "green",
-            title: {tag: "plain_text", content: "京东竞品分析任务完成"}
-          },
-          elements: [
-            {
-              tag: "div",
-              fields: [
-                {is_short: false, text: {tag: "lark_md", content: ("**执行内容：** " + $report_types)}},
-                {is_short: false, text: {tag: "lark_md", content: ("**完成时间：** " + $completed_at)}}
-              ]
-            },
-            {
-              tag: "action",
-              actions: [
-                {
-                  tag: "button",
-                  text: {tag: "plain_text", content: "打开在线看板"},
-                  type: "primary",
-                  url: $dashboard_url
-                }
-              ]
-            }
-          ]
-        }
-      }'
-  )"
+  if ! card_payload="$(build_completion_card)"; then
+    log_message WARNING "飞书完成通知结果无法解析，本次不发送群消息"
+    return 0
+  fi
 
   while true; do
     webhook_timestamp="$(date '+%s')"
@@ -271,7 +281,6 @@ failure_reason() {
   case "$exit_code" in
     "$CONCURRENCY_EXHAUSTED_EXIT_CODE") printf '%s' "数仓并发重试耗尽" ;;
     "$ALREADY_RUNNING_EXIT_CODE") printf '%s' "已有分析任务正在运行" ;;
-    "$DAILY_DATA_MISSING_EXIT_CODE") printf '%s' "主业务日期全部商品对均无数仓数据" ;;
     "$AI_PARTIAL_FAILURE_EXIT_CODE") printf '%s' "部分报告 AI 分析失败" ;;
     *) printf '%s' "定时分析任务异常" ;;
   esac
@@ -285,11 +294,6 @@ send_lark_failure() {
   local occurred_at=""
   local server_name=""
   local card_json=""
-  local token_response=""
-  local tenant_access_token=""
-  local api_response=""
-  local api_code=""
-  local api_message=""
 
   if [[ "$LARK_ALERT_READY" -ne 1 ]]; then
     return 0
@@ -351,6 +355,20 @@ send_lark_failure() {
       }'
   )"
 
+  send_lark_private_card "$card_json" "失败通知"
+}
+
+send_lark_private_card() {
+  # 功能说明：使用项目自建应用发送私聊卡片，目标固定为告警接收人。
+  # 参数 card_json：待发送的卡片 JSON；label：用于日志的通知类型。
+  # 返回值：发送成功返回零，失败返回非零；调用方决定是否影响测试退出码。
+  local card_json="$1"
+  local label="$2"
+  local token_response="" tenant_access_token="" api_response="" api_code="" api_message=""
+
+  if [[ "$LARK_ALERT_READY" -ne 1 ]]; then
+    return 1
+  fi
   if ! token_response="$(
     jq -cn \
       --arg app_id "$LARK_APP_ID" \
@@ -362,15 +380,15 @@ send_lark_failure() {
         'https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal'
   )"; then
     log_message WARNING "飞书 tenant_access_token 获取失败"
-    return 0
+    return 1
   fi
 
   tenant_access_token="$(jq -r 'if .code == 0 then .tenant_access_token // empty else empty end' <<<"$token_response")"
   if [[ -z "$tenant_access_token" ]]; then
     api_code="$(jq -r '.code // "unknown"' <<<"$token_response")"
     api_message="$(jq -r '.msg // "未知错误"' <<<"$token_response")"
-    log_message WARNING "飞书 tenant_access_token 获取失败：code=$api_code，message=${api_message:0:200}"
-    return 0
+    log_message WARNING "飞书 tenant_access_token 获取失败：code=${api_code}，message=${api_message:0:200}"
+    return 1
   fi
 
   if ! api_response="$(
@@ -385,32 +403,37 @@ send_lark_failure() {
         'https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=open_id'
   )"; then
     unset tenant_access_token
-    log_message WARNING "飞书失败通知发送失败"
-    return 0
+    log_message WARNING "飞书${label}发送失败"
+    return 1
   fi
   unset tenant_access_token
 
   api_code="$(jq -r '.code // "unknown"' <<<"$api_response")"
   if [[ "$api_code" != "0" ]]; then
     api_message="$(jq -r '.msg // "未知错误"' <<<"$api_response")"
-    log_message WARNING "飞书失败通知发送失败：code=$api_code，message=${api_message:0:200}"
-    return 0
+    log_message WARNING "飞书${label}发送失败：code=${api_code}，message=${api_message:0:200}"
+    return 1
   fi
 
-  log_message INFO "飞书失败通知发送成功：recipient=$LARK_ALERT_OPEN_ID"
+  log_message INFO "飞书${label}发送成功：recipient=$LARK_ALERT_OPEN_ID"
 }
 
 run_daily_analysis() {
   # 执行一轮完整日报；成功商品会由后端报告唯一键在下一轮中自动跳过或复用。
   local attempt="$1"
   local command_status
+  local notification_file
+
+  notification_file="$(mktemp "$LOG_DIR/.daily-notification.XXXXXX")" || return 1
+  NOTIFICATION_FILES+=("$notification_file")
 
   log_message INFO "开始执行日报批次：attempt=$attempt"
   docker compose exec -T jd-competitor-analysis-backend \
     python /app/cli.py warehouse-daily-run --yesterday \
+    --notification-file "/app/data/logs/$(basename "$notification_file")" \
     2>&1 | tee -a "$RUN_LOG"
   command_status="${PIPESTATUS[0]}"
-  log_message INFO "日报批次执行结束：attempt=$attempt，exit_code=$command_status"
+  log_message INFO "日报批次执行结束：attempt=${attempt}，exit_code=$command_status"
   return "$command_status"
 }
 
@@ -426,7 +449,7 @@ run_period_analysis() {
     python /app/cli.py "$@" \
     2>&1 | tee -a "$RUN_LOG"
   command_status="${PIPESTATUS[0]}"
-  log_message INFO "${label}批次执行结束：attempt=$attempt，exit_code=$command_status"
+  log_message INFO "${label}批次执行结束：attempt=${attempt}，exit_code=$command_status"
   return "$command_status"
 }
 
@@ -448,13 +471,27 @@ run_period_with_retry() {
   return "$period_status"
 }
 
-if [[ "${1:-}" == "--test-notification" ]]; then
+if [[ "${1:-}" == "--test-notification" || "${1:-}" == "--test-notification-private" ]]; then
   # 仅发送一张完成通知测试卡片，不启动任何数据或分析流程。
+  if [[ "$#" -ne 2 || ! -f "$2" ]]; then
+    log_message ERROR "请提供通知结果 JSON：$1 <文件路径>"
+    exit 2
+  fi
+  NOTIFICATION_FILES=("$2")
+  NOTIFICATION_TITLE="京东竞品分析 · 通知测试"
+  if [[ "$1" == "--test-notification-private" ]]; then
+    if [[ "$LARK_ALERT_READY" -ne 1 || ! "$DASHBOARD_URL" =~ ^https?:// ]]; then
+      log_message ERROR "飞书私聊测试配置不可用"
+      exit 1
+    fi
+    card_payload="$(build_completion_card)" || exit 1
+    send_lark_private_card "$(jq -c '.card' <<<"$card_payload")" "私聊测试通知"
+    exit "$?"
+  fi
   if [[ "$LARK_COMPLETION_WEBHOOK_READY" -ne 1 ]]; then
     log_message ERROR "飞书完成通知配置不可用，无法发送测试卡片"
     exit 1
   fi
-  EXECUTED_REPORT_TYPES="通知样式测试"
   log_message INFO "开始发送飞书完成通知测试卡片"
   send_lark_completion_webhook
   exit 0
@@ -475,12 +512,22 @@ cd "$PROJECT_DIR" || {
   exit 1
 }
 
+cleanup_notification_files() {
+  # 仅清理当前脚本通过 mktemp 创建的通知中间文件。
+  local file
+  for file in "${NOTIFICATION_FILES[@]:-}"; do
+    if [[ -n "$file" ]]; then
+      rm -f -- "$file"
+    fi
+  done
+}
+trap cleanup_notification_files EXIT
+
 run_daily_analysis 1
 status="$?"
 
 if [[ "$status" -ne 0 && "$status" -ne "$CONCURRENCY_EXHAUSTED_EXIT_CODE" && \
   "$status" -ne "$ALREADY_RUNNING_EXIT_CODE" && \
-  "$status" -ne "$DAILY_DATA_MISSING_EXIT_CODE" && \
   "$status" -ne "$AI_PARTIAL_FAILURE_EXIT_CODE" ]]; then
   log_message WARNING "日报批次发生普通异常，${GENERAL_RETRY_DELAY_SECONDS} 秒后整体重试一次"
   sleep "$GENERAL_RETRY_DELAY_SECONDS"

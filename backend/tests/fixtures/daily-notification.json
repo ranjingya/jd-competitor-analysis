@@ -1,0 +1,14 @@
+{
+  "total_pairs": 3,
+  "results": [
+    {"date": "2026-09-07", "self_spu": "10001", "competitor_spu": "20001", "status": "ready"},
+    {"date": "2026-09-07", "self_spu": "10002", "competitor_spu": "20002", "status": "no_data"},
+    {"date": "2026-09-07", "self_spu": "10003", "competitor_spu": "20003", "status": "no_data"},
+    {"date": "2026-09-06", "self_spu": "10001", "competitor_spu": "20001", "status": "ready"},
+    {"date": "2026-09-06", "self_spu": "10002", "competitor_spu": "20002", "status": "ready"},
+    {"date": "2026-09-06", "self_spu": "10003", "competitor_spu": "20003", "status": "existing"},
+    {"date": "2026-09-05", "self_spu": "10001", "competitor_spu": "20001", "status": "existing"},
+    {"date": "2026-09-05", "self_spu": "10002", "competitor_spu": "20002", "status": "existing"},
+    {"date": "2026-09-05", "self_spu": "10003", "competitor_spu": "20003", "status": "existing"}
+  ]
+}
