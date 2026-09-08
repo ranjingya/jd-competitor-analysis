@@ -155,6 +155,7 @@ print(values.get(sys.argv[1], "2026-09-01 12:00:00"))
         card = json.loads(message["content"])
         self.assertIn("通知测试", card["header"]["title"]["content"])
         self.assertIn("2026-08-31：新增 1，无数据 1", message["content"])
+        self.assertIn("生成时间：2026-09-01 12:00:00（UTC+8）", message["content"])
 
     def test_existing_only_has_no_date_rows(self) -> None:
         """全部已有时不列出日期结果。"""

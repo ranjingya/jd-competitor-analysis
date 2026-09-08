@@ -155,6 +155,7 @@ build_completion_card() {
   # 参数：无，读取 NOTIFICATION_FILES、通知标题和在线看板地址。
   # 返回值：标准输出为卡片消息 JSON；输入缺失或格式错误时返回非零状态。
   jq -sc --arg title "$NOTIFICATION_TITLE" --arg dashboard_url "$DASHBOARD_URL" \
+    --arg generated_at "$(date '+%Y-%m-%d %H:%M:%S')" \
     --arg report_types "$EXECUTED_REPORT_TYPES" '
       if length == 0 or any(.[];
         (.total_pairs | type) != "number" or (.results | type) != "array")
@@ -184,6 +185,8 @@ build_completion_card() {
               (if $report_types != "日报" then
                 {tag: "note", elements: [{tag: "plain_text", content: $report_types}]}
                else empty end),
+              {tag: "note", elements: [{tag: "plain_text",
+                content: ("生成时间：" + $generated_at + "（UTC+8）")}]},
               {tag: "action", actions: [{tag: "button",
                 text: {tag: "plain_text", content: "打开在线看板"},
                 type: "primary", url: $dashboard_url}]}
