@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import stat
 import tempfile
 import uuid
 from datetime import datetime
@@ -17,6 +18,24 @@ from jd_competitor_analysis.time_utils import beijing_now, beijing_now_text
 LOGGER = logging.getLogger(__name__)
 STATUS_SCHEMA_VERSION = "1.0"
 STALE_PROGRESS_SECONDS = 15 * 60
+
+
+def ensure_status_file_readable(path: Path) -> None:
+    """确保已有状态文件可由宿主机用户读取。
+
+    功能说明：将指定状态文件权限设为 0644，文件缺失时跳过，权限异常记录警告。
+    参数 path：共享目录中的日报状态 JSON 路径。
+    返回值：无；只调整该文件权限，不修改内容、所有者或目录权限。
+    """
+
+    try:
+        if stat.S_IMODE(path.stat().st_mode) != 0o644:
+            path.chmod(0o644)
+            LOGGER.info("日报状态文件权限已设置：path=%s，mode=0644", path)
+    except FileNotFoundError:
+        return
+    except OSError as error:
+        LOGGER.warning("日报状态文件权限设置失败：path=%s，error=%s", path, error)
 
 
 def read_daily_analysis_status(path: Path) -> dict[str, Any]:
@@ -264,6 +283,8 @@ class DailyAnalysisStatusWriter:
                 json.dump(self.payload, temporary_file, ensure_ascii=False, indent=2)
                 temporary_file.write("\n")
                 temporary_file.flush()
+                # 原子替换会继承临时文件权限，发布前明确开放宿主机只读权限。
+                os.fchmod(temporary_file.fileno(), 0o644)
                 os.fsync(temporary_file.fileno())
             os.replace(temporary_path, self.path)
         finally:

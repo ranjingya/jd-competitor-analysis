@@ -249,7 +249,11 @@ docker compose exec -T jd-competitor-analysis-backend \
 
 ## 运行状态
 
-日报 CLI 在共享数据目录维护 `daily-analysis-status.json`，并由 Backend API 提供同一份只读状态：
+日报 CLI 在共享数据目录维护 `daily-analysis-status.json`，并由 Backend API 提供同一份只读状态。
+
+状态文件权限为 `0644`，允许宿主机用户读取。Backend 启动时修正已有状态文件权限，CLI 每次原子更新也设置同样的权限；文件内容、所有者和目录权限由各自流程维护。
+
+查询运行状态：
 
 ```bash
 curl -fsS https://jd-comp.skills.kktree.cn/api/analysis-status
