@@ -15,7 +15,7 @@ CONCURRENCY_EXHAUSTED_EXIT_CODE=11
 ALREADY_RUNNING_EXIT_CODE=12
 AI_PARTIAL_FAILURE_EXIT_CODE=14
 NOTIFICATION_FILES=()
-NOTIFICATION_TITLE="京东竞品分析 · 任务完成"
+NOTIFICATION_TITLE="京东竞品分析 · 报告更新"
 
 if ! mkdir -p "$LOG_DIR"; then
   printf '%s ERROR 无法创建日志目录：%s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$LOG_DIR" >&2
@@ -150,51 +150,43 @@ generate_lark_webhook_sign() {
 }
 
 build_completion_card() {
-  # 功能说明：合并本次各尝试的商品对结果，构造完成通知卡片。
+  # 功能说明：按粒度和日期汇总本次成功报告，无成功结果时不输出卡片。
   # 参数：无，读取 NOTIFICATION_FILES、通知标题和在线看板地址。
-  # 返回值：标准输出为卡片消息 JSON；输入缺失或格式错误时返回非零状态。
+  # 返回值：成功时输出卡片 JSON 或空文本；输入格式错误时返回非零状态。
   jq -sc --arg title "$NOTIFICATION_TITLE" --arg dashboard_url "$DASHBOARD_URL" \
-    --arg generated_at "$(date '+%Y-%m-%d %H:%M:%S')" '
+    --arg generated_at "$(date '+%m-%d %H:%M')" '
       if length == 0 or any(.[];
         (.total_pairs | type) != "number" or (.results | type) != "array")
       then error("缺少有效的批次通知结果") else . end
-      | . as $attempts
       | reduce (.[] | (.granularity // "day") as $granularity
           | .results[] | . + {granularity: $granularity}) as $item ({};
           ($item | [.granularity, .date, .start_date, .end_date, .self_spu, .competitor_spu] | tojson) as $key
           | if $item.status == "existing" and has($key) then . else .[$key] = $item end)
-      | [.[]] as $results
-      | $results | map(select(.granularity == "day"))
-      | group_by(.date) | sort_by(.[0].date) | reverse
-      | map(select(any(.[]; .status != "existing")) | {
-          date: .[0].date,
-          added: (map(select(.status == "ready")) | length),
-          no_data: (map(select(.status == "no_data")) | length)
-        })
-      | map(.date + "：新增 " + (.added | tostring)
-          + (if .no_data > 0 then "，无数据 " + (.no_data | tostring) else "" end))
-      | . as $daily
-      | ($results | map(select(.granularity != "day" and .status == "ready"))
-          | group_by([.granularity, .start_date, .end_date])
-          | sort_by([ (if .[0].granularity == "week" then 0 else 1 end), .[0].start_date ])
-          | map((if .[0].granularity == "week" then "周报" else "月报" end)
-              + "\n" + .[0].start_date + "～" + .[0].end_date + "：新增 " + (length | tostring))) as $periods
-      | ([if ($daily | length) > 0 then "日报\n" + ($daily | join("\n")) else empty end]
-          + $periods | if length == 0 then "本次无新增" else join("\n\n") end) as $details
+      | [.[] | select(.status == "ready")]
+      | if length == 0 then empty else . end
+      | group_by(.granularity)
+      | sort_by(if .[0].granularity == "day" then 0 elif .[0].granularity == "week" then 1 else 2 end)
+      | map(
+          (if .[0].granularity == "day" then "日报" elif .[0].granularity == "week" then "周报" else "月报" end)
+          + "\n" + (group_by([.date, .start_date, .end_date]) | reverse
+            | map(
+                (if .[0].granularity == "day" then .[0].date[5:]
+                 elif .[0].start_date[:4] == .[0].end_date[:4] then .[0].start_date[5:] + "～" + .[0].end_date[5:]
+                 else .[0].start_date + "～" + .[0].end_date end)
+                + "：成功 " + (length | tostring) + " 份")
+            | join("\n")))
+      | join("\n\n") as $details
       | {
           msg_type: "interactive",
           card: {
             config: {wide_screen_mode: true},
             header: {template: "green", title: {tag: "plain_text", content: $title}},
             elements: [
-              {tag: "div", text: {tag: "lark_md", content:
-                ("**商品对：** " + (([$attempts[] | select((.granularity // "day") == "day")
-                  | .total_pairs] | max) // ($attempts | map(.total_pairs) | max) // 0 | tostring) + " 对")}},
               {tag: "div", text: {tag: "plain_text", content: $details}},
               {tag: "note", elements: [{tag: "plain_text",
-                content: ("生成时间：" + $generated_at + "（UTC+8）")}]},
+                content: ("生成时间：" + $generated_at)}]},
               {tag: "action", actions: [{tag: "button",
-                text: {tag: "plain_text", content: "打开在线看板"},
+                text: {tag: "plain_text", content: "查看报告"},
                 type: "primary", url: $dashboard_url}]}
             ]
           }
@@ -224,6 +216,11 @@ send_lark_completion_webhook() {
 
   if ! card_payload="$(build_completion_card)"; then
     log_message WARNING "飞书完成通知结果无法解析，本次不发送群消息"
+    return 0
+  fi
+
+  if [[ -z "$card_payload" ]]; then
+    log_message INFO "本次没有成功生成的报告，不发送群通知"
     return 0
   fi
 
@@ -499,6 +496,10 @@ if [[ "${1:-}" == "--test-notification" || "${1:-}" == "--test-notification-priv
       exit 1
     fi
     card_payload="$(build_completion_card)" || exit 1
+    if [[ -z "$card_payload" ]]; then
+      log_message INFO "测试结果没有成功生成的报告，不发送测试通知"
+      exit 0
+    fi
     send_lark_private_card "$(jq -c '.card' <<<"$card_payload")" "私聊测试通知"
     exit "$?"
   fi

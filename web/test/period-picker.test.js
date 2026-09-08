@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { renderPeriodPicker } from "../src/period-picker.js";
+import { closePeriodPicker, renderPeriodPicker } from "../src/period-picker.js";
 
 /**
  * 功能说明：用最小 DOM 替身捕获日历实际渲染的 HTML。
@@ -113,4 +113,94 @@ test("该商品整个粒度无报告时也能打开所选周期日历", (t) => {
   assert.deepEqual(selectedIds(html), []);
   assert.match(options.container.innerHTML, /2026年8月24日—30日/);
   assert.doesNotMatch(options.container.innerHTML, /id="period-trigger"[^>]*disabled/);
+});
+
+/**
+ * 功能说明：建立可跟踪节点重建次数的日历交互测试环境。
+ * 参数 t：测试上下文，负责恢复 document 和 window。
+ * 返回值：渲染配置、DOM 节点引用及容器初始化次数读取函数。
+ */
+function interactivePicker(t) {
+  const { options } = renderPanel(t, "day", [report("sep", "2026-09-03")], "sep", "2026-09", ["2026-08", "2026-09"]);
+  const previousWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
+  t.after(() => {
+    if (previousWindow) Object.defineProperty(globalThis, "window", previousWindow);
+    else delete globalThis.window;
+  });
+  globalThis.window = { matchMedia: () => ({ matches: false }) };
+  let initializations = 0;
+  let nodes = {};
+  options.pickerState.open = false;
+  options.container = {
+    set innerHTML(value) {
+      initializations += 1;
+      const popover = { className: "" };
+      popover.classList = {
+        remove(...names) { popover.className = popover.className.split(" ").filter((name) => !names.includes(name)).join(" "); },
+        add(name) { popover.className += ` ${name}`; }
+      };
+      nodes = {
+        "#period-trigger": { attributes: {}, setAttribute(key, value) { this.attributes[key] = value; } },
+        "#period-popover": popover,
+        ".period-granularity-rail": { innerHTML: "" },
+        "[data-selector-content]": { replaceChildren(panel) { this.panel = panel; } }
+      };
+    },
+    querySelector: (selector) => nodes[selector] || null,
+    querySelectorAll: () => []
+  };
+  renderPeriodPicker(options);
+  return { options, nodes, initializations: () => initializations };
+}
+
+test("展开中异步日期返回保留弹层和触发器节点，不重复初始化或绑定点击", (t) => {
+  const { options, nodes, initializations } = interactivePicker(t);
+  const trigger = nodes["#period-trigger"];
+  const popover = nodes["#period-popover"];
+  let contextRequests = 0;
+  options.onContextChange = () => { contextRequests += 1; };
+  renderPeriodPicker(options);
+  trigger.onclick();
+  assert.equal(options.pickerState.animateOpen, true);
+  options.index.reports.day.push(report("new", "2026-09-02"));
+  renderPeriodPicker(options);
+  assert.equal(initializations(), 1);
+  assert.equal(options.container.querySelector("#period-popover"), popover);
+  assert.equal(options.container.querySelector("#period-trigger"), trigger);
+  assert.equal(contextRequests, 1);
+  assert.match(popover.className, /is-entering/);
+  popover.onanimationend({ target: popover, animationName: "period-picker-fold-enter" });
+  renderPeriodPicker(options);
+  assert.equal(options.pickerState.animateOpen, false);
+  assert.doesNotMatch(popover.className, /is-entering/);
+  trigger.onclick();
+  assert.equal(options.pickerState.open, false);
+  assert.equal(contextRequests, 1);
+});
+
+test("收起后异步更新不能重新打开弹层，再次点击只打开一次", (t) => {
+  const { options, nodes, initializations } = interactivePicker(t);
+  const trigger = nodes["#period-trigger"];
+  const popover = nodes["#period-popover"];
+  trigger.onclick();
+  closePeriodPicker(options.container, options.pickerState);
+  renderPeriodPicker(options);
+  assert.equal(trigger.attributes["aria-expanded"], "false");
+  assert.match(popover.className, /is-closing/);
+  assert.doesNotMatch(popover.className, /is-open|is-entering/);
+  popover.onanimationend({ target: popover, animationName: "period-picker-fold-exit" });
+  assert.equal(options.pickerState.closing, false);
+  trigger.onclick();
+  assert.equal(options.pickerState.open, true);
+  assert.equal(initializations(), 1);
+});
+
+test("减少动态效果时日历开合不添加动画状态", (t) => {
+  const { options, nodes } = interactivePicker(t);
+  window.matchMedia = () => ({ matches: true });
+  nodes["#period-trigger"].onclick();
+  assert.equal(options.pickerState.animateOpen, false);
+  closePeriodPicker(options.container, options.pickerState);
+  assert.equal(options.pickerState.closing, false);
+  assert.doesNotMatch(nodes["#period-popover"].className, /is-open|is-entering|is-closing/);
 });

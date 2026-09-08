@@ -371,7 +371,8 @@ export function renderPeriodPicker(options) {
   const pickerGranularity = options.pickerState.open
     ? options.pickerState.draftGranularity || options.activeGranularity
     : options.activeGranularity;
-  options.container.innerHTML = `
+  // 异步日期响应只更新内容，保持弹层和触发器节点，避免重新播放展开动画。
+  if (!options.container.querySelector("#period-popover")) options.container.innerHTML = `
     <label class="period-label" for="period-trigger">分析周期</label>
     <button class="period-trigger" id="period-trigger" type="button" aria-expanded="${options.pickerState.open}" aria-controls="period-popover" ${activeEntry ? "" : "disabled"}>
       <span class="period-calendar-icon" aria-hidden="true">▦</span>
@@ -388,22 +389,37 @@ export function renderPeriodPicker(options) {
       <section class="period-selector-content" data-selector-content></section>
     </div>
   `;
-  options.container.querySelector("#period-trigger")?.addEventListener("click", () => {
-    if (options.pickerState.open) {
-      closePeriodPicker(options.container, options.pickerState);
-      return;
-    }
-    options.pickerState.open = true;
-    options.pickerState.closing = false;
-    options.pickerState.animateOpen = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    options.pickerState.draftGranularity = options.activeGranularity;
-    options.pickerState.contexts[options.activeGranularity] = contextForEntry(options.activeGranularity, activeEntry);
-    renderPeriodPicker(options);
-    options.onContextChange?.(
-      options.activeGranularity,
-      options.pickerState.contexts[options.activeGranularity]
-    );
-  });
+  const trigger = options.container.querySelector("#period-trigger");
+  if (trigger) {
+    trigger.setAttribute("aria-expanded", String(options.pickerState.open));
+    trigger.disabled = !activeEntry;
+    trigger.innerHTML = `
+      <span class="period-calendar-icon" aria-hidden="true">▦</span>
+      <span>${formatPeriodLabel(options.activeGranularity, activeEntry)}</span>
+      <span class="period-chevron" aria-hidden="true"></span>
+    `;
+    trigger.onclick = () => {
+      if (options.pickerState.open) {
+        closePeriodPicker(options.container, options.pickerState);
+        return;
+      }
+      options.pickerState.open = true;
+      options.pickerState.closing = false;
+      options.pickerState.animateOpen = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      options.pickerState.draftGranularity = options.activeGranularity;
+      options.pickerState.contexts[options.activeGranularity] = contextForEntry(options.activeGranularity, activeEntry);
+      renderPeriodPicker(options);
+      options.onContextChange?.(
+        options.activeGranularity,
+        options.pickerState.contexts[options.activeGranularity]
+      );
+    };
+  }
+  const rail = options.container.querySelector(".period-granularity-rail");
+  if (rail) rail.innerHTML = Object.entries(granularityLabels).map(([key, label]) => {
+    const count = Number(options.reportCounts?.[key] || 0);
+    return `<button type="button" data-granularity="${key}" class="${key === pickerGranularity ? "is-selected" : ""}" aria-pressed="${key === pickerGranularity}" ${count ? "" : "disabled"}><strong>${label}</strong><span>${count}</span></button>`;
+  }).join("");
   options.container.querySelectorAll("[data-granularity]:not(:disabled)").forEach((button) => {
     button.addEventListener("click", () => {
       const granularity = button.dataset.granularity;
@@ -418,17 +434,21 @@ export function renderPeriodPicker(options) {
     });
   });
   const popover = options.container.querySelector("#period-popover");
-  popover?.addEventListener("animationend", (event) => {
-    if (event.animationName === "period-picker-fold-enter") {
-      options.pickerState.animateOpen = false;
-      popover.classList.remove("is-entering");
-      return;
-    }
-    if (event.animationName === "period-picker-fold-exit" && options.pickerState.closing) {
-      options.pickerState.closing = false;
-      popover.classList.remove("is-closing");
-    }
-  });
+  if (popover) {
+    popover.className = `period-popover${options.pickerState.open ? " is-open" : ""}${options.pickerState.closing ? " is-closing" : ""}${options.pickerState.animateOpen ? " is-entering" : ""}`;
+    popover.onanimationend = (event) => {
+      if (event.target !== popover) return;
+      if (event.animationName === "period-picker-fold-enter") {
+        options.pickerState.animateOpen = false;
+        popover.classList.remove("is-entering");
+        return;
+      }
+      if (event.animationName === "period-picker-fold-exit" && options.pickerState.closing) {
+        options.pickerState.closing = false;
+        popover.classList.remove("is-closing");
+      }
+    };
+  }
   const content = options.container.querySelector("[data-selector-content]");
   if (content && activeContext(options, pickerGranularity)) content.replaceChildren(createActivePanel(options, pickerGranularity));
 }
