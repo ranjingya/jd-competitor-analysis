@@ -1,25 +1,18 @@
 # 京东竞品分析
 
-本项目是一个前后端分离的竞品分析系统。服务器运行 Web 与 Backend 两个容器；宿主机定时启动 Backend CLI，依次完成数仓读取、确定性计算、DeepSeek 分析和报告入库。
-
-## 目录
-
-```text
-web/      Vite 看板与内部 Nginx
-backend/  FastAPI、批处理、StarRocks 访问、DeepSeek 调用和数据持久化
-docs/     数据、估算、报告和看板契约
-scripts/  宿主机定时执行脚本
-```
+从 StarRocks 读取京东商智数据，按固定公式计算竞品估算值，由 DeepSeek 生成分析建议，在 Web 看板展示日、周、月报告。
 
 ## 本地运行
 
-复制根目录 `.env.example` 为 `.env`，然后启动后端：
+准备 Python 环境管理工具 uv 和 Node.js，将根目录 `.env.example` 复制为 `.env` 并填写配置。
+
+启动后端：
 
 ```bash
 uv run --project backend uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000
 ```
 
-另一个终端启动前端：
+另开终端启动前端：
 
 ```bash
 cd web
@@ -27,128 +20,41 @@ npm ci
 npm run dev
 ```
 
-前端只访问同源 `/api`。Vite 开发服务器将该路径转发到 `127.0.0.1:8000`；生产环境由 Web 容器内的 Nginx 转发到 Backend 容器。
+打开终端显示的前端地址。页面通过 `/api` 访问后端；生成报告的命令见[手动命令速查](docs/warehouse.md#服务器手动命令速查)。
 
-## 商品主图配置
+## 服务器部署
 
-商品主图在运行数据目录的 `data/product-images.json` 中按商品 ID 维护：
+Web 与 Backend 分别运行在两个容器中，Traefik 提供访问入口，数据持久化到宿主机 `data/`。
 
-```json
-{
-  "schema_version": "1.0",
-  "updated_at": "2026-08-21",
-  "products": {
-    "商品 ID": {
-      "name": "商品名称",
-      "image_url": "https://example.com/product.jpg"
-    }
-  }
-}
-```
-
-`image_url` 使用完整 HTTPS 地址，可以直接手动增加或修改。商品没有配置主图时，报告正常生成，Web 使用缺图占位。日分析任务启动时读取一次该文件，先将新地址同步到已有报告，再使用同一份配置生成当天报告。
-
-需要立即同步已有报告时执行：
-
-```bash
-backend/.venv/bin/python backend/cli.py sync-product-images
-```
-
-## 部署
-
-服务器部署目录保存：
-
-```text
-.env
-docker-compose.yaml
-data/
-  data.db
-  daily-analysis-status.json
-  deepseek-pricing.json
-  product-images.json
-scripts/
-  run-daily-analysis.sh
-```
-
-启动服务：
+在部署目录准备 `.env`、`docker-compose.yaml`、`scripts/` 和 `data/`，然后执行：
 
 ```bash
 docker compose up -d
 ```
 
-两个服务都只使用 Docker 网络中的 `expose`，不直接向宿主机发布端口。Traefik 只连接 Web 容器，Backend 通过内部网络接受 `/api` 转发。
+GitHub Actions 在推送 `v*` 标签后构建镜像并部署。文件配置及权限说明见[部署与运维](docs/operations.md)。
 
-服务器 `.env` 由 Docker Compose 读取并注入 Backend 进程，同时供宿主机日报脚本读取 Healthchecks 地址。`data/deepseek-pricing.json` 随部署文件同步，用于计算 DeepSeek 单次请求费用。Backend 容器不挂载 `.env` 文件，运行时直接读取进程环境变量。
+## 定时运行
 
-## 定时分析任务
+在服务器部署目录手动执行完整任务：
 
-日报由 Backend CLI 在独立进程中执行：
-
-```text
-飞书与 StarRocks → 标准化 → 固定公式 → DeepSeek → 最终报告
+```bash
+/bin/bash scripts/run-daily-analysis.sh
 ```
 
-生产环境由宿主机 cron 使用 `docker compose exec` 启动 CLI。FastAPI 持续提供只读报告接口，不通过 Web 请求触发长时间分析。
-
-`.env` 配置 Healthchecks 检查地址、飞书完成通知 Webhook 和失败通知接收人的 `open_id`：
-
-```dotenv
-HEALTHCHECKS_PING_URL=https://hc-cron.kktree.cn/ping/<检查 UUID>
-LARK_COMPLETION_WEBHOOK_URL=https://open.feishu.cn/open-apis/bot/v2/hook/<Webhook 标识>
-LARK_COMPLETION_WEBHOOK_SECRET=<群机器人签名校验密钥>
-DASHBOARD_URL=https://jd-comp.skills.kktree.cn/
-LARK_ALERT_OPEN_ID=<当前飞书应用下的用户 open_id>
-```
-
-部署用户执行一次 `crontab -e`，每天 12:00 启动宿主机脚本：
+部署用户通过 `crontab -e` 设置每天北京时间 12:00 执行（宿主机时区需为 `Asia/Shanghai`）：
 
 ```cron
 0 12 * * * /home/yatui/jd-competitor-analysis/scripts/run-daily-analysis.sh
 ```
 
-通知测试需要提供批次结果 JSON，格式为 `{"total_pairs": 1, "results": [{"date": "2026-09-07", "self_spu": "10001", "competitor_spu": "20001", "status": "ready"}]}`。私聊测试发送给 `LARK_ALERT_OPEN_ID`，测试卡片标题明确标注“通知测试”。测试不读取数仓、不执行固定公式或 AI 分析，也不向 Healthchecks 上报任务状态：
+日报检查最近七天；每周一生成上周周报，每月 1 日生成上月月报。Healthchecks 记录任务状态，完成通知发到飞书群，失败告警发到指定私聊。
 
-```bash
-/bin/bash scripts/run-daily-analysis.sh --test-notification-private notification-result.json
+## 文档
 
-# 明确向群机器人发送测试卡片
-/bin/bash scripts/run-daily-analysis.sh --test-notification notification-result.json
-```
-
-脚本向 Healthchecks 上报开始、成功和失败状态；日周月批次全部成功时向 `LARK_COMPLETION_WEBHOOK_URL` 对应的飞书群机器人发送一张绿色完成卡片，展示商品对总数、本次实际处理日期的新增和无数据数量，生成时间（UTC+8），以及由 `DASHBOARD_URL` 指向的在线看板按钮。补数据和补 AI 成功均计为新增，全部已有的日期不展示；整体重试按日期和商品对去重汇总，已成功的结果保留在本次新增中。周月报执行内容另行标明。每次请求使用 `LARK_COMPLETION_WEBHOOK_SECRET` 和当前 Unix 时间生成签名；飞书返回 `11232` 限流码时按 30、60 秒等待后定向重试。真正失败时不发送群 Webhook，仅使用飞书自建应用机器人向 `LARK_ALERT_OPEN_ID` 发送一次告警卡片，卡片展示失败原因、时间、服务器、退出码和末尾日志摘要。`open_id` 必须由当前 `LARK_APP_ID` 查询得到。飞书通知异常只记录警告，不覆盖分析任务的原始退出码。运行日志保存在 `data/logs/`。宿主机、Backend、Web/Nginx、运行日志、数据库时间和前端展示统一使用 `Asia/Shanghai`；数据库和 API 时间字段明确携带 `+08:00`。DeepSeek 每次产生计费用量的响应均将 Token、基础价格快照、契约校验状态和估算费用按月追加到 `data/logs/deepseek-usage-YYYY-MM.jsonl`，文件权限为 `0644`，宿主机用户可直接查看；日志不保存提示词或业务正文。模型结果不符合 JSON 契约时只重新生成当前商品对一次；仍失败则保存 `ai_failed` 状态、继续后续商品对并上报告警，不触发整个批次重试。定时任务按商品对依次检查昨天及此前六天：已有完整报告直接跳过；基础数据完整且仅 AI 失败的报告复用已保存的 AI 输入，只重新调用模型；其他报告缺口重新查询数仓。同一本品的 SKU 映射在本次进程内复用。商品对在五张来源表中存在任意记录时生成报告，缺失模块和指标按数仓事实保留为空；商品对五张表全部为空时跳过。主业务日期的全部商品对均为空时记录无数据，任务正常完成；无数据不触发失败通知，也不阻断计划中的周月报。
-
-每周一在日报完成后聚合上一个自然周，每月 1 日在日报和周报完成后聚合上一个自然月。周报和月报只读取 `data.db` 中状态为 `ready` 的日报，不再读取数仓。金额、人数和次数累加；转化率按累计成交人数除以累计访客数重算；客单价按累计成交金额除以累计成交人数重算；占比按周期累计分子和分母重算。缺失日报记录在报告元数据中，日均值始终除以自然周期天数。
-
-服务器手动执行日报、指定商品对、周报和月报的命令见[服务器手动命令速查](docs/warehouse.md#服务器手动命令速查)。
-
-查看当前运行阶段和最近进度：
-
-```bash
-curl -fsS https://jd-comp.skills.kktree.cn/api/analysis-status
-```
-
-也可以在服务器直接读取：
-
-```bash
-python3 -m json.tool data/daily-analysis-status.json
-```
-
-状态包含 `run_id`、容器 PID、当前日期、当前商品对、处理阶段、完成数量、总数量和 `progress_at`。API 同时计算 `process_alive`、`progress_age_seconds` 和 `stale`；进程不存在或业务进度超过 15 分钟没有变化时，`stale` 为 `true`。DeepSeek 阶段允许覆盖两次 300 秒请求超时。任务成功或失败后状态固定为 `completed` 或 `failed`。
-
-## 已有能力
-
-- Web 通过商品对、按需周期、轻量趋势和完整报告 API 展示看板。
-- Backend 已提供报告查询 API 和完整日分析 CLI。
-- 标准化日数据、AI 执行记录和看板报告统一保存在 `data/data.db`。
-- 日数据与报告按业务模块拆分保存，完整报告接口由数据库字段实时组装。
-- 同一日期和商品对只有一份当前报告及一条非过期 AI 执行记录。
-- StarRocks 连接探测和确定性分析逻辑统一位于 Backend。
-- `warehouse-daily-run` 固定一个商品对检查最近七天，再处理下一个商品对。
-- `weekly-report-run` 和 `monthly-report-run` 聚合已完成日报并各调用一次 DeepSeek。
-- 定时任务自动检查最近七天报告缺口，晚到数据在后续运行中补齐。
-- DeepSeek 网络错误在当前请求内有限重试，契约校验失败只重新生成当前分析一次，最终失败不触发整体重试。
-- 数仓并发上限错误按 30、60、120 秒定向重试，其他普通批次异常整体重试一次。
-- Healthchecks 记录日周月报告批次的开始、成功、失败及末尾错误日志。
-- `/api/analysis-status` 和 `data/daily-analysis-status.json` 提供日报实时阶段与进度快照。
-- 商品主图由宿主机 `data/product-images.json` 维护，日任务自动同步到已有报告。
-- 日分析使用进程锁防止同一服务器重复执行，单个商品对失败后继续处理下一组。
+- [部署、主图维护、通知测试与日志](docs/operations.md)
+- [数仓配置与手动命令](docs/warehouse.md)
+- [系统架构与 API](docs/architecture.md)
+- [数据库设计](docs/database-design.md)
+- [估算规则](docs/estimation.md) · [标准化数据](docs/normalized-data.md) · [分析结果](docs/analysis-result.md)
+- [看板说明](docs/dashboard.md)
