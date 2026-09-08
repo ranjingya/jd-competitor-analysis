@@ -634,13 +634,13 @@ class ReportRepository:
     ) -> dict[str, Any] | None:
         """查找来源日报未变化的周期报告候选。
 
-        功能说明：按周期业务键读取已完成报告及来源日报 ID，供周期任务判断是否可跳过。
+        功能说明：按周期业务键读取已完成报告及业务事实，供周期任务判断是否可跳过。
         参数 granularity：周期粒度，只允许 week 或 month。
         参数 start_date：周期开始日期。
         参数 end_date：周期结束日期。
         参数 self_spu：本品 SPU ID。
         参数 competitor_spu：竞品 SPU ID。
-        返回值：报告 ID 与来源日报 ID；不存在时返回空值。
+        返回值：报告 ID、来源日报 ID 与完整报告；不存在时返回空值。
         """
 
         if granularity not in {"week", "month"}:
@@ -648,7 +648,7 @@ class ReportRepository:
         with self.database.connection() as connection:
             row = connection.execute(
                 """
-                SELECT report_id, source_report_ids_json
+                SELECT *
                 FROM reports
                 WHERE granularity = ? AND start_date = ? AND end_date = ?
                   AND self_spu = ? AND competitor_spu = ? AND status = 'ready'
@@ -661,6 +661,7 @@ class ReportRepository:
         return {
             "report_id": str(row["report_id"]),
             "source_report_ids": json.loads(row["source_report_ids_json"] or "[]"),
+            "report": self._row_to_report(row),
         }
 
     def list_ready_day_reports(

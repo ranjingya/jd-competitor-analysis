@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 import tempfile
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -133,8 +133,11 @@ class PeriodAggregationTest(unittest.TestCase):
         """自然周和闰年二月范围应准确。"""
 
         self.assertEqual(previous_week(date(2026, 8, 26)), ("2026-08-17", "2026-08-23"))
+        self.assertEqual(previous_week(date(2026, 9, 8)), ("2026-08-31", "2026-09-06"))
+        self.assertEqual(previous_week(date(2026, 9, 14)), ("2026-09-07", "2026-09-13"))
         self.assertEqual(week_from_start("2026-08-17"), ("2026-08-17", "2026-08-23"))
         self.assertEqual(previous_month(date(2026, 3, 1)), ("2026-02-01", "2026-02-28"))
+        self.assertEqual(previous_month(date(2026, 9, 8)), ("2026-08-01", "2026-08-31"))
         self.assertEqual(month_range("2024-02"), ("2024-02-01", "2024-02-29"))
         with self.assertRaisesRegex(ValueError, "周一"):
             week_from_start("2026-08-18")
@@ -159,8 +162,12 @@ class PeriodAggregationTest(unittest.TestCase):
             database.initialize()
             reports = ReportRepository(database)
             tasks = TaskRepository(database)
-            source = daily_row("2026-08-10", 700, 100, 10)
-            source_report_id = reports.upsert(None, source["report"], status="ready")
+            source_report_ids = [
+                reports.upsert(None, daily_row(
+                    (date(2026, 8, 10) + timedelta(days=offset)).isoformat(), 700, 100, 10
+                )["report"], status="ready")
+                for offset in range(7)
+            ]
             rows = reports.list_ready_day_reports(
                 "2026-08-10", "2026-08-16", "10001", "20001"
             )
@@ -177,7 +184,7 @@ class PeriodAggregationTest(unittest.TestCase):
         self.assertEqual(second["status"], "existing")
         self.assertEqual(first["report_id"], second["report_id"])
         self.assertIsNone(stored["dataset_id"])
-        self.assertEqual(stored["report"]["meta"]["source_report_ids"], [source_report_id])
+        self.assertEqual(stored["report"]["meta"]["source_report_ids"], source_report_ids)
         analyzer.analyze.assert_called_once()
 
 

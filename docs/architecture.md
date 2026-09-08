@@ -33,7 +33,7 @@ FastAPI 和 CLI 是 Backend 容器中的独立进程，共享 `/app/data/data.db
   → Backend 校验结构化结果
   → 原子保存 AI 原始结果并更新报告分析字段
   → 报告状态更新为 ready
-  → 周一聚合上一个自然周，月初聚合上一个自然月
+  → 每天检查上一完整自然周、自然月，仅聚合每天均已完成的日报
   → 周月聚合结果各执行一次 DeepSeek 分析并保存
   → Web 通过 /api 展示
   → 上报 Healthchecks 成功或失败状态
@@ -42,7 +42,7 @@ FastAPI 和 CLI 是 Backend 容器中的独立进程，共享 `/app/data/data.db
 
 不同商品对依次串行执行，同一本品在最近七天内复用一次飞书 SKU 映射。调用 DeepSeek 期间不持有 SQLite 事务；单个商品对失败时记录 `failed` 和 `ai_failed`，随后继续下一组。来源表、商品角色和指标缺失时按现有事实生成部分报告；商品对五张来源表全部为空时跳过。主业务日期的全部商品对均为空时记录无数据并正常结束，计划中的周月报继续执行。数仓并发错误按 30、60、120 秒定向重试。
 
-周报和月报只读取 `reports` 中已完成日报，不查询数仓。周期报告保存自然周期天数、可用日报天数、缺失日期和来源日报 ID；累计指标按日报累加，转化率、客单价和占比使用周期累计值重新计算。周期内存在可用日报即可生成报告，日均值的分母为自然周期天数。
+周报和月报只读取 `reports` 中已完成日报，不查询数仓。每个商品对在周期内每一天都必须有 `ready` 日报，缺日或日报 AI 失败时记录日期并跳过；个别指标为空不影响。周期报告保存自然周期天数、可用日报天数和来源日报 ID；累计指标按日报累加，转化率、客单价和占比使用周期累计值重新计算，日均值的分母为自然周期天数。聚合业务事实相同的已完成报告直接跳过，事实变化时更新同一份报告并调用 AI。
 
 ## API
 
@@ -77,7 +77,7 @@ GET  /api/reports/{granularity}/{start_date}/{end_date}
 0 12 * * * /home/yatui/jd-competitor-analysis/scripts/run-daily-analysis.sh
 ```
 
-宿主机 `.env` 使用 `HEALTHCHECKS_PING_URL` 保存检查地址，使用 `LARK_COMPLETION_WEBHOOK_URL` 和 `LARK_COMPLETION_WEBHOOK_SECRET` 保存完成通知机器人地址及签名密钥，使用 `DASHBOARD_URL` 保存在线看板地址，使用 `LARK_ALERT_OPEN_ID` 保存当前飞书应用下的失败通知接收人。脚本通过 Backend 容器执行 `warehouse-daily-run --yesterday`；每周一继续执行 `weekly-report-run --previous-week`，每月 1 日继续执行 `monthly-report-run --previous-month`。所有应执行的报告均成功后，脚本通过飞书群机器人 Webhook 发送包含执行内容、完成时间和在线看板按钮的绿色卡片；请求携带当前 Unix 时间戳和 HMAC-SHA256 Base64 签名，飞书返回 `11232` 限流码时等待 30、60 秒定向重试，其他通知异常直接记录。最终失败时，脚本向 Healthchecks 上报失败日志，并使用飞书自建应用机器人发送包含失败原因、时间、服务器、退出码和末尾日志摘要的单聊卡片。飞书接口异常不改变分析任务退出码。宿主机、Backend、Web/Nginx、运行日志和数据库时间统一使用 `Asia/Shanghai`；数据库和 API 时间字段使用带 `+08:00` 的 ISO 8601 文本，前端固定按 `Asia/Shanghai` 展示。DeepSeek 用量日志使用官方基础价格配置计算估算费用，价格倍率固定为 1，并以 `0644` 权限保存在宿主机挂载目录。模型结果不符合 JSON 契约时只重新生成当前分析一次，最终 AI 失败使用专用退出码上报告警且不执行整体重试；其他普通运行异常等待 30 秒后整体重试一次，数仓并发上限由 CLI 按 30、60、120 秒定向重试。
+宿主机 `.env` 使用 `HEALTHCHECKS_PING_URL` 保存检查地址，使用 `LARK_COMPLETION_WEBHOOK_URL` 和 `LARK_COMPLETION_WEBHOOK_SECRET` 保存完成通知机器人地址及签名密钥，使用 `DASHBOARD_URL` 保存在线看板地址，使用 `LARK_ALERT_OPEN_ID` 保存当前飞书应用下的失败通知接收人。脚本通过 Backend 容器执行 `warehouse-daily-run --yesterday`，随后每天依次执行 `weekly-report-run --previous-week` 和 `monthly-report-run --previous-month`，只检查上一完整自然周和自然月。各阶段独立执行，日报失败不阻断周月报，最后统一汇总退出状态。所有应执行的报告均成功后，脚本通过飞书群机器人 Webhook 发送包含实际处理结果、生成时间和在线看板按钮的绿色卡片，周月报仅展示实际生成成功的周期及新增数量，没有新增时不展示对应区块；请求携带当前 Unix 时间戳和 HMAC-SHA256 Base64 签名，飞书返回 `11232` 限流码时等待 30、60 秒定向重试，其他通知异常直接记录。最终失败时，脚本向 Healthchecks 上报失败日志，并使用飞书自建应用机器人发送包含失败原因、时间、服务器、退出码和末尾日志摘要的单聊卡片。飞书接口异常不改变分析任务退出码。宿主机、Backend、Web/Nginx、运行日志和数据库时间统一使用 `Asia/Shanghai`；数据库和 API 时间字段使用带 `+08:00` 的 ISO 8601 文本，前端固定按 `Asia/Shanghai` 展示。DeepSeek 用量日志使用官方基础价格配置计算估算费用，价格倍率固定为 1，并以 `0644` 权限保存在宿主机挂载目录。模型结果不符合 JSON 契约时只重新生成当前分析一次，最终 AI 失败使用专用退出码上报告警且不执行整体重试；其他普通运行异常等待 30 秒后整体重试一次，数仓并发上限由 CLI 按 30、60、120 秒定向重试。
 
 日报、周报和月报 CLI 共用 `/app/data/warehouse-daily-run.lock` 进程锁。同一分析任务仍在运行时，后续触发直接退出，避免重复读取数仓和覆盖报告。日报定时模式检查最近七天，已有完整报告直接跳过；基础数据质量为 `ready` 的 `ai_failed` 报告复用失败任务中的结构化输入，仅重新执行 DeepSeek 分析；其余报告缺口重新读取数仓并执行完整流程。
 

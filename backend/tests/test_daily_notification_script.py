@@ -53,10 +53,15 @@ root = Path(os.environ["TEST_ROOT"])
 with (root / "docker.jsonl").open("a") as file:
     file.write(json.dumps(sys.argv[1:]) + "\\n")
 if "--notification-file" in sys.argv:
-    counter = root / "attempt"
+    kind = "week" if "weekly-report-run" in sys.argv else "month" if "monthly-report-run" in sys.argv else "day"
+    prefix = "" if kind == "day" else kind + "-"
+    counter = root / (prefix + "attempt")
     attempt = int(counter.read_text()) + 1 if counter.exists() else 1
     counter.write_text(str(attempt))
-    data = json.loads((root / ("attempt-" + str(attempt) + ".json")).read_text())
+    fixture = root / (prefix + "attempt-" + str(attempt) + ".json")
+    data = json.loads(fixture.read_text()) if fixture.exists() else {
+        "exit_code": 0, "summary": {"total_pairs": 0, "results": []}}
+    data["summary"]["granularity"] = kind
     path = Path(sys.argv[sys.argv.index("--notification-file") + 1])
     (root / "data/logs" / path.name).write_text(json.dumps(data["summary"]))
     sys.exit(data["exit_code"])
@@ -64,7 +69,7 @@ if "--notification-file" in sys.argv:
         self.command("sleep", "pass\n")
         self.command("date", '''
 import sys
-values = {"+%u": "1", "+%d": "01", "+%s": "1788220800", "+%Y-%m-%d": "2026-09-01"}
+values = {"+%u": "2", "+%d": "08", "+%s": "1788220800", "+%Y-%m-%d": "2026-09-08"}
 print(values.get(sys.argv[1], "2026-09-01 12:00:00"))
 ''')
 
@@ -91,6 +96,18 @@ print(values.get(sys.argv[1], "2026-09-01 12:00:00"))
             env=self.env, capture_output=True, text=True, errors="replace", timeout=20,
         )
 
+    def period_attempt(self, kind: str, number: int, statuses: list[str], exit_code: int = 0) -> None:
+        """提供指定周月批次的执行结果，默认周期覆盖八月最后一周或八月全月。"""
+        (self.root / f"{kind}-attempt-{number}.json").write_text(json.dumps({
+            "exit_code": exit_code,
+            "summary": {"total_pairs": len(statuses), "results": [
+                {"start_date": "2026-08-31" if kind == "week" else "2026-08-01",
+                 "end_date": "2026-09-06" if kind == "week" else "2026-08-31",
+                 "self_spu": str(index), "competitor_spu": "200", "status": status}
+                for index, status in enumerate(statuses)
+            ]},
+        }))
+
     def requests(self) -> list:
         """读取替身捕获的 HTTP 请求。"""
         path = self.root / "requests.jsonl"
@@ -112,6 +129,9 @@ print(values.get(sys.argv[1], "2026-09-01 12:00:00"))
         self.assertIn("weekly-report-run", commands)
         self.assertIn("monthly-report-run", commands)
         self.assertEqual(list((self.root / "data/logs").glob(".daily-notification.*")), [])
+        self.assertEqual(list((self.root / "data/logs").glob(".period-notification.*")), [])
+        self.assertNotIn("周报", group[0]["body"])
+        self.assertNotIn("月报", group[0]["body"])
 
     def test_retry_keeps_first_attempt_new_reports_without_duplicates(self) -> None:
         """第一次新增、第二次已有的报告仍只计入一次新增。"""
@@ -136,6 +156,69 @@ print(values.get(sys.argv[1], "2026-09-01 12:00:00"))
         self.assertEqual(json.loads(private[0]["body"])["receive_id"], "ou_test")
         self.assertFalse(any("/hook/" in r["url"] for r in requests))
         self.assertEqual((self.root / "attempt").read_text(), "1")
+        commands = (self.root / "docker.jsonl").read_text()
+        self.assertIn("weekly-report-run", commands)
+        self.assertIn("monthly-report-run", commands)
+
+    def test_period_success_is_listed_only_when_generated(self) -> None:
+        """周二正常补上周上月，通知只列实际新增周期而不列不全或已有数量。"""
+        self.attempt(1, [self.item("2026-09-07", "100", "existing")])
+        self.period_attempt("week", 1, ["ready", "existing", "incomplete"])
+        self.period_attempt("month", 1, ["ready", "incomplete"])
+        result = self.run_script()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        message = next(r["body"] for r in self.requests() if "/hook/" in r["url"])
+        self.assertIn("周报\\n2026-08-31～2026-09-06：新增 1", message)
+        self.assertIn("月报\\n2026-08-01～2026-08-31：新增 1", message)
+        self.assertNotIn("日报", message)
+        self.assertNotIn("本次无新增", message)
+        self.assertNotIn("incomplete", message)
+        self.assertNotIn("不全", message)
+
+    def test_incomplete_and_existing_periods_are_hidden(self) -> None:
+        """周月全部已有或不全时，通知不出现周报月报文字及对应周期。"""
+        self.attempt(1, [self.item("2026-09-07", "100", "ready")])
+        self.period_attempt("week", 1, ["incomplete", "existing"])
+        self.period_attempt("month", 1, ["incomplete"])
+        result = self.run_script()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        message = next(r["body"] for r in self.requests() if "/hook/" in r["url"])
+        self.assertNotIn("周报", message)
+        self.assertNotIn("月报", message)
+        self.assertNotIn("2026-08-31", message)
+
+    def test_period_retry_counts_success_once(self) -> None:
+        """周报重试保留第一次新增结果且月报继续执行。"""
+        self.attempt(1, [])
+        self.period_attempt("week", 1, ["ready", "failed"], 1)
+        self.period_attempt("week", 2, ["existing", "ready"])
+        result = self.run_script()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        message = next(r["body"] for r in self.requests() if "/hook/" in r["url"])
+        self.assertIn("2026-08-31～2026-09-06：新增 2", message)
+        self.assertNotIn("月报", message)
+
+    def test_failed_week_does_not_block_month_or_send_group(self) -> None:
+        """周报 AI 失败只告警私聊，月报仍独立执行。"""
+        self.attempt(1, [])
+        self.period_attempt("week", 1, ["ai_failed"], 14)
+        self.period_attempt("month", 1, ["ready"])
+        result = self.run_script()
+        self.assertEqual(result.returncode, 14, result.stderr)
+        self.assertEqual((self.root / "week-attempt").read_text(), "1")
+        self.assertEqual((self.root / "month-attempt").read_text(), "1")
+        self.assertFalse(any("/hook/" in r["url"] for r in self.requests()))
+        self.assertTrue(any("/messages" in r["url"] for r in self.requests()))
+
+    def test_daily_failure_remains_failure_after_successful_periods(self) -> None:
+        """日报普通失败重试耗尽后继续周月报，最终退出码和失败路由保持正确。"""
+        self.attempt(1, [], 1)
+        self.attempt(2, [], 1)
+        self.period_attempt("week", 1, ["ready"])
+        result = self.run_script()
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertEqual((self.root / "month-attempt").read_text(), "1")
+        self.assertFalse(any("/hook/" in r["url"] for r in self.requests()))
 
     def test_private_preview_does_not_call_docker_hc_or_group(self) -> None:
         """测试卡片只通过自建应用私聊发送，不启动任务或上报监控。"""
@@ -165,3 +248,17 @@ print(values.get(sys.argv[1], "2026-09-01 12:00:00"))
         message = next(r["body"] for r in self.requests() if "/hook/" in r["url"])
         self.assertIn("本次无新增", message)
         self.assertNotIn("2026-08-31", message)
+
+    def test_private_period_preview_keeps_pair_count(self) -> None:
+        """单独预览周报通知时，使用该周期提供的商品对总数。"""
+        self.period_attempt("week", 1, ["ready", "incomplete"])
+        data = json.loads((self.root / "week-attempt-1.json").read_text())["summary"]
+        data["granularity"] = "week"
+        preview = self.root / "period-preview.json"
+        preview.write_text(json.dumps(data))
+        result = self.run_script("--test-notification-private", str(preview))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        content = json.loads(self.requests()[-1]["body"])["content"]
+        self.assertIn("**商品对：** 2 对", content)
+        self.assertIn("周报\\n2026-08-31～2026-09-06：新增 1", content)
+        self.assertNotIn("月报", content)

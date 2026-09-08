@@ -695,22 +695,26 @@ def _date_data_status(
 
 
 def write_notification_result(
-    path: Path | None, total_pairs: int, results: list[dict[str, Any]]
+    path: Path | None, total_pairs: int, results: list[dict[str, Any]], granularity: str = "day"
 ) -> None:
-    """输出独立的日报通知结果，供宿主机合并重试批次。
+    """输出独立的报告通知结果，供宿主机合并重试批次。
 
     功能说明：按日期和两个 SPU 保存处理状态，固定公式和 AI 补生成成功均为 ready。
     参数 path：可选输出文件路径；为空时不写文件。
     参数 total_pairs：本批次处理的商品对总数。
     参数 results：当前尝试的各日期、各商品对处理结果。
+    参数 granularity：报告粒度，默认为 day，周期报告使用 week 或 month。
     返回值：无；结果写入指定 JSON，不改变标准输出和运行日志内容。
     """
 
     if path is not None:
         payload = {
+            "granularity": granularity,
             "total_pairs": total_pairs,
             "results": [
-                {key: item[key] for key in ("date", "self_spu", "competitor_spu", "status")}
+                {key: item[key] for key in (
+                    "date", "start_date", "end_date", "self_spu", "competitor_spu", "status"
+                ) if key in item}
                 for item in results
             ],
         }

@@ -48,7 +48,7 @@ GitHub Actions 在推送 `v*` 标签后构建镜像并部署。文件配置及�
 0 12 * * * /home/yatui/jd-competitor-analysis/scripts/run-daily-analysis.sh
 ```
 
-日报检查最近七天；每周一生成上周周报，每月 1 日生成上月月报。Healthchecks 记录任务状态，完成通知发到飞书群，失败告警发到指定私聊。
+每天检查最近七天日报、上一个完整自然周和自然月；周月报要求周期内每天的日报均已完成。Healthchecks 记录任务状态，完成通知发到飞书群，失败告警发到指定私聊。
 
 ## 文档
 

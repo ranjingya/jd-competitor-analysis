@@ -29,6 +29,7 @@ from .daily_analysis import (
     ALREADY_RUNNING_EXIT_CODE,
     AIAnalyzer,
     _processing_error_message,
+    write_notification_result,
 )
 
 
@@ -118,11 +119,31 @@ def _run_period_pair(
 
     self_spu = str(daily_rows[0]["self_spu"])
     competitor_spu = str(daily_rows[0]["competitor_spu"])
-    source_report_ids = [str(row["report_id"]) for row in daily_rows]
+    start = date.fromisoformat(start_date)
+    expected_days = (date.fromisoformat(end_date) - start).days + 1
+    available_dates = {str(row["report_date"]) for row in daily_rows}
+    missing_days = [
+        (start + timedelta(days=offset)).isoformat()
+        for offset in range(expected_days)
+        if (start + timedelta(days=offset)).isoformat() not in available_dates
+    ]
+    if missing_days:
+        LOGGER.info(
+            "周期日报不全，跳过：self=%s，competitor=%s，period=%s..%s，missing=%s",
+            self_spu, competitor_spu, start_date, end_date, ",".join(missing_days),
+        )
+        return {
+            "self_spu": self_spu, "competitor_spu": competitor_spu,
+            "status": "incomplete", "available_days": len(available_dates),
+            "missing_days": missing_days,
+        }
+    report = aggregate_period_report(daily_rows, granularity, start_date, end_date)
+    payload = build_period_ai_payload(report)
     existing = report_repository.find_ready_period_report(
         granularity, start_date, end_date, self_spu, competitor_spu
     )
-    if existing is not None and existing["source_report_ids"] == source_report_ids:
+    # 报告 ID 在日报更新时保持不变，使用聚合后的业务事实判断是否需要重新分析。
+    if existing is not None and build_period_ai_payload(existing["report"]) == payload:
         return {
             "self_spu": self_spu,
             "competitor_spu": competitor_spu,
@@ -130,9 +151,7 @@ def _run_period_pair(
             "report_id": existing["report_id"],
             "available_days": len(daily_rows),
         }
-    report = aggregate_period_report(daily_rows, granularity, start_date, end_date)
     report_id = report_repository.upsert(None, report, status="pending_ai")
-    payload = build_period_ai_payload(report)
     start_result = start_ai_analysis(
         task_repository,
         report_id,
@@ -191,8 +210,8 @@ def run_period_analysis(args: Any) -> None:
     """执行周报或月报聚合与 AI 分析。
 
     功能说明：从统一数据库读取周期内已完成日报，按商品对顺序聚合并生成一份周期报告；
-    缺失日报会记录到周期元数据，但不会阻止其他可用日报生成报告。
-    参数 args：包含粒度、周期选择、可选商品对过滤和日志参数的命令行参数。
+    每个自然日都必须存在 ready 日报，缺日商品对跳过并记录日期；已有聚合事实相同的报告直接复用。
+    参数 args：包含粒度、周期选择、可选商品对过滤、日志及 notification_file 输出路径的命令行参数。
     返回值：无；摘要写入标准输出，普通失败抛出异常，AI 部分失败使用专用退出码。
     """
 
@@ -274,6 +293,7 @@ def run_period_analysis(args: Any) -> None:
                     message,
                 )
                 LOGGER.debug("周期报告处理失败堆栈", exc_info=True)
+            result.update({"start_date": start_date, "end_date": end_date})
             results.append(result)
             LOGGER.info(
                 "[%s/%s] 周期报告完成：self=%s，competitor=%s，status=%s，days=%s，耗时=%.1fs",
@@ -287,7 +307,7 @@ def run_period_analysis(args: Any) -> None:
             )
         counts = {
             status: sum(result["status"] == status for result in results)
-            for status in ("ready", "existing", "ai_failed", "failed")
+            for status in ("ready", "existing", "incomplete", "ai_failed", "failed")
         }
         summary = {
             "granularity": granularity,
@@ -296,6 +316,9 @@ def run_period_analysis(args: Any) -> None:
             "counts": counts,
         }
         sys.stdout.write(json.dumps(summary, ensure_ascii=False, indent=2) + "\n")
+        write_notification_result(
+            getattr(args, "notification_file", None), len(grouped), results, granularity
+        )
         failed_count = counts["failed"]
         if failed_count:
             messages = "；".join(
@@ -311,9 +334,10 @@ def run_period_analysis(args: Any) -> None:
             )
             raise SystemExit(AI_PARTIAL_FAILURE_EXIT_CODE)
         LOGGER.info(
-            "%s任务完成：generated=%s，existing=%s，耗时=%.1fs",
+            "%s任务完成：generated=%s，existing=%s，incomplete=%s，耗时=%.1fs",
             "周报" if granularity == "week" else "月报",
             counts["ready"],
             counts["existing"],
+            counts["incomplete"],
             perf_counter() - started_at,
         )

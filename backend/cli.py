@@ -80,6 +80,7 @@ def parse_args() -> argparse.Namespace:
     weekly_parser.add_argument("--self-spu", help="可选本品 SPU；需与 --competitor-spu 同时提供。")
     weekly_parser.add_argument("--competitor-spu", help="可选竞品 SPU；需与 --self-spu 同时提供。")
     weekly_parser.add_argument("--log-level", default="INFO", help="日志级别。")
+    weekly_parser.add_argument("--notification-file", type=Path, help="可选的批次通知结果 JSON 输出路径。")
     weekly_parser.set_defaults(handler=run_period_analysis, granularity="week")
 
     monthly_parser = subparsers.add_parser(
@@ -96,6 +97,7 @@ def parse_args() -> argparse.Namespace:
     monthly_parser.add_argument("--self-spu", help="可选本品 SPU；需与 --competitor-spu 同时提供。")
     monthly_parser.add_argument("--competitor-spu", help="可选竞品 SPU；需与 --self-spu 同时提供。")
     monthly_parser.add_argument("--log-level", default="INFO", help="日志级别。")
+    monthly_parser.add_argument("--notification-file", type=Path, help="可选的批次通知结果 JSON 输出路径。")
     monthly_parser.set_defaults(handler=run_period_analysis, granularity="month")
 
     image_sync_parser = subparsers.add_parser(

@@ -10,7 +10,6 @@ PROJECT_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 ENV_FILE="$PROJECT_DIR/.env"
 LOG_DIR="$PROJECT_DIR/data/logs"
 RUN_LOG="$LOG_DIR/daily-analysis-$(date '+%Y-%m-%d').log"
-EXECUTED_REPORT_TYPES="日报"
 GENERAL_RETRY_DELAY_SECONDS=30
 CONCURRENCY_EXHAUSTED_EXIT_CODE=11
 ALREADY_RUNNING_EXIT_CODE=12
@@ -155,16 +154,18 @@ build_completion_card() {
   # 参数：无，读取 NOTIFICATION_FILES、通知标题和在线看板地址。
   # 返回值：标准输出为卡片消息 JSON；输入缺失或格式错误时返回非零状态。
   jq -sc --arg title "$NOTIFICATION_TITLE" --arg dashboard_url "$DASHBOARD_URL" \
-    --arg generated_at "$(date '+%Y-%m-%d %H:%M:%S')" \
-    --arg report_types "$EXECUTED_REPORT_TYPES" '
+    --arg generated_at "$(date '+%Y-%m-%d %H:%M:%S')" '
       if length == 0 or any(.[];
         (.total_pairs | type) != "number" or (.results | type) != "array")
       then error("缺少有效的批次通知结果") else . end
       | . as $attempts
-      | reduce (.[] | .results[]) as $item ({};
-          ($item | [.date, .self_spu, .competitor_spu] | tojson) as $key
+      | reduce (.[] | (.granularity // "day") as $granularity
+          | .results[] | . + {granularity: $granularity}) as $item ({};
+          ($item | [.granularity, .date, .start_date, .end_date, .self_spu, .competitor_spu] | tojson) as $key
           | if $item.status == "existing" and has($key) then . else .[$key] = $item end)
-      | [.[]] | group_by(.date) | sort_by(.[0].date) | reverse
+      | [.[]] as $results
+      | $results | map(select(.granularity == "day"))
+      | group_by(.date) | sort_by(.[0].date) | reverse
       | map(select(any(.[]; .status != "existing")) | {
           date: .[0].date,
           added: (map(select(.status == "ready")) | length),
@@ -172,7 +173,14 @@ build_completion_card() {
         })
       | map(.date + "：新增 " + (.added | tostring)
           + (if .no_data > 0 then "，无数据 " + (.no_data | tostring) else "" end))
-      | (if length == 0 then "本次无新增" else join("\n") end) as $details
+      | . as $daily
+      | ($results | map(select(.granularity != "day" and .status == "ready"))
+          | group_by([.granularity, .start_date, .end_date])
+          | sort_by([ (if .[0].granularity == "week" then 0 else 1 end), .[0].start_date ])
+          | map((if .[0].granularity == "week" then "周报" else "月报" end)
+              + "\n" + .[0].start_date + "～" + .[0].end_date + "：新增 " + (length | tostring))) as $periods
+      | ([if ($daily | length) > 0 then "日报\n" + ($daily | join("\n")) else empty end]
+          + $periods | if length == 0 then "本次无新增" else join("\n\n") end) as $details
       | {
           msg_type: "interactive",
           card: {
@@ -180,11 +188,9 @@ build_completion_card() {
             header: {template: "green", title: {tag: "plain_text", content: $title}},
             elements: [
               {tag: "div", text: {tag: "lark_md", content:
-                ("**商品对：** " + ($attempts[-1].total_pairs | tostring) + " 对")}},
+                ("**商品对：** " + (([$attempts[] | select((.granularity // "day") == "day")
+                  | .total_pairs] | max) // ($attempts | map(.total_pairs) | max) // 0 | tostring) + " 对")}},
               {tag: "div", text: {tag: "plain_text", content: $details}},
-              (if $report_types != "日报" then
-                {tag: "note", elements: [{tag: "plain_text", content: $report_types}]}
-               else empty end),
               {tag: "note", elements: [{tag: "plain_text",
                 content: ("生成时间：" + $generated_at + "（UTC+8）")}]},
               {tag: "action", actions: [{tag: "button",
@@ -256,7 +262,7 @@ send_lark_completion_webhook() {
       return 0
     fi
     if [[ "$api_code" == "0" ]]; then
-      log_message INFO "飞书完成通知发送成功：reports=${EXECUTED_REPORT_TYPES}，attempt=$attempt/$max_attempts"
+      log_message INFO "飞书完成通知发送成功：attempt=$attempt/$max_attempts"
       return 0
     fi
 
@@ -446,10 +452,15 @@ run_period_analysis() {
   local attempt="$2"
   shift 2
   local command_status
+  local notification_file
+
+  notification_file="$(mktemp "$LOG_DIR/.period-notification.XXXXXX")" || return 1
+  NOTIFICATION_FILES+=("$notification_file")
 
   log_message INFO "开始执行${label}批次：attempt=$attempt"
   docker compose exec -T jd-competitor-analysis-backend \
     python /app/cli.py "$@" \
+    --notification-file "/app/data/logs/$(basename "$notification_file")" \
     2>&1 | tee -a "$RUN_LOG"
   command_status="${PIPESTATUS[0]}"
   log_message INFO "${label}批次执行结束：attempt=${attempt}，exit_code=$command_status"
@@ -542,22 +553,18 @@ if [[ "$status" -eq "$AI_PARTIAL_FAILURE_EXIT_CODE" ]]; then
   log_message ERROR "部分报告 AI 分析失败，已保留基础报告且不执行整体重试"
 fi
 
+# 每天只检查上一完整自然周和月；各阶段独立执行，最终保留第一个失败退出码。
+daily_status="$status"
+run_period_with_retry "周报" weekly-report-run --previous-week
+weekly_status="$?"
+run_period_with_retry "月报" monthly-report-run --previous-month
+monthly_status="$?"
+log_message INFO "任务结果：日报=${daily_status}，周报=${weekly_status}，月报=${monthly_status}"
 if [[ "$status" -eq 0 ]]; then
-  if [[ "$(date '+%u')" == "1" ]]; then
-    run_period_with_retry "周报" weekly-report-run --previous-week
-    status="$?"
-    if [[ "$status" -eq 0 ]]; then
-      EXECUTED_REPORT_TYPES="${EXECUTED_REPORT_TYPES}、周报"
-    fi
-  fi
+  status="$weekly_status"
 fi
-
-if [[ "$status" -eq 0 && "$(date '+%d')" == "01" ]]; then
-  run_period_with_retry "月报" monthly-report-run --previous-month
-  status="$?"
-  if [[ "$status" -eq 0 ]]; then
-    EXECUTED_REPORT_TYPES="${EXECUTED_REPORT_TYPES}、月报"
-  fi
+if [[ "$status" -eq 0 ]]; then
+  status="$monthly_status"
 fi
 
 if [[ "$status" -eq 0 ]]; then
