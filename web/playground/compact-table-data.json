@@ -1,0 +1,43 @@
+{
+  "description": "展示方式演示数据，不对应实际商品报告。差距均为本品减竞品，空值保持为空。",
+  "tables": [
+    {
+      "id": "traffic", "label": "流量来源", "dimension": "渠道",
+      "metrics": [
+        {"key":"visitors","label":"访客","unit":"人"},
+        {"key":"gmv","label":"成交金额","unit":"元"},
+        {"key":"conversion","label":"转化率","unit":"%"},
+        {"key":"level_share","label":"同层访客占比","unit":"%"},
+        {"key":"total_share","label":"总访客占比","unit":"%"}
+      ],
+      "rows": [
+        {"id":"search","name":"搜索","parent":"站内场域","values":{"visitors":[650,920,480],"gmv":[2600,4600,1800],"conversion":[5,8,4.5],"level_share":[52,58,46],"total_share":[39,43,35]}},
+        {"id":"recommend","name":"推荐","parent":"站内场域","values":{"visitors":[430,300,680],"gmv":[2100,1800,3600],"conversion":[7,6,9],"level_share":[34,19,42],"total_share":[26,14,38]}},
+        {"id":"subsidy","name":"国补/百补-推荐页","parent":"站内场域 / 频道","values":{"visitors":[30,2.5,null],"gmv":[100,0,null],"conversion":[3.33,0,null],"level_share":[36.36,2.5,null],"total_share":[1.8,0.1,null]}},
+        {"id":"cart","name":"购物车","parent":"站内场域","values":{"visitors":[110,180,110],"gmv":[580,1100,520],"conversion":[8,12,8],"level_share":[8.8,11.3,10.5],"total_share":[6.6,8.4,8]}},
+        {"id":"store","name":"店铺","parent":"站内场域","values":{"visitors":[0,40,20],"gmv":[0,100,50],"conversion":[null,5,5],"level_share":[0,2.5,1.9],"total_share":[0,1.9,1.5]}},
+        {"id":"external","name":"站外渠道","parent":"","values":{"visitors":[null,null,null],"gmv":[null,null,null],"conversion":[null,null,null],"level_share":[null,null,null],"total_share":[null,null,null]}}
+      ]
+    },
+    {
+      "id":"keywords","label":"关键词","dimension":"关键词",
+      "metrics":[{"key":"visitors","label":"访客","unit":"人"},{"key":"gmv","label":"成交金额","unit":"元"},{"key":"conversion","label":"转化率","unit":"%"},{"key":"share","label":"访客占比","unit":"%"}],
+      "rows":[
+        {"id":"category","name":"品类通用词","parent":"","values":{"visitors":[260,400,210],"gmv":[1200,2400,900],"conversion":[5,8,4],"share":[30,40,26]}},
+        {"id":"scene","name":"场景需求词","parent":"","values":{"visitors":[120,60,180],"gmv":[700,300,1200],"conversion":[8,5,9],"share":[14,6,22]}},
+        {"id":"attribute","name":"功能属性词","parent":"","values":{"visitors":[80,null,60],"gmv":[360,null,240],"conversion":[6,null,5],"share":[9,null,7]}}
+      ]
+    },
+    {
+      "id":"profiles","label":"客户画像","dimension":"年龄",
+      "metrics":[{"key":"share","label":"成交客户占比","unit":"%"}],
+      "rows":[
+        {"id":"young","name":"16–25 岁","parent":"年龄","values":{"share":[2.8,5.1,4.3]}},
+        {"id":"middle","name":"26–35 岁","parent":"年龄","values":{"share":[37.3,44.2,32.8]}},
+        {"id":"mature","name":"36–45 岁","parent":"年龄","values":{"share":[54.4,43.6,57.7]}},
+        {"id":"older","name":"46–55 岁","parent":"年龄","values":{"share":[4.1,5.5,3.8]}},
+        {"id":"eldest","name":"56 岁以上","parent":"年龄","values":{"share":[1.4,1.6,1.4]}}
+      ]
+    }
+  ]
+}

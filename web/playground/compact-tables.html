@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>完整数据对比 · 紧凑布局预览</title>
+  <link rel="stylesheet" href="./compact-tables.css">
+</head>
+<body>
+  <main>
+    <header class="preview-heading"><div><p class="eyebrow">PLAYGROUND · 示例数据</p><h1>完整数据对比</h1></div><label class="scene-label">场景 <select id="scene"><option value="dual">双竞品</option><option value="single">单竞品</option><option value="missing">竞品 2 无报告</option></select></label></header>
+    <nav class="layouts" aria-label="展示方案">
+      <button type="button" data-layout="rows" aria-pressed="true"><span>A · 指标纵排 <em>推荐</em></span><small>指标变成行，三方与差距并排</small></button>
+      <button type="button" data-layout="cells" aria-pressed="false"><span>B · 三方同格</span><small>一个指标格内，三方上下对照</small></button>
+      <button type="button" data-layout="gaps" aria-pressed="false"><span>C · 差距优先</span><small>先看差距，展开查看三方数值</small></button>
+    </nav>
+    <p id="error" role="alert" hidden></p>
+    <section class="panel" id="panel" aria-label="完整数据对比预览" hidden>
+      <div class="panel-heading"><h2 id="table-title">完整数据对比</h2><button id="expand" type="button" aria-haspopup="dialog">放大</button></div>
+      <div class="toolbar"><div id="dimensions" class="button-strip" role="group" aria-label="差距来源维度"></div><label class="search"><span>查找</span><input id="search" type="search" placeholder="输入名称" autocomplete="off"></label></div>
+      <div class="metric-toolbar"><span>对比指标</span><div id="metrics" class="button-strip" role="group" aria-label="对比指标"></div></div>
+      <div class="table-caption"><span id="scope"></span><span>差距＝本品 − 竞品</span></div>
+      <div id="table-host"></div>
+    </section>
+  </main>
+  <dialog id="full" aria-labelledby="full-title"><header><h2 id="full-title">完整数据对比</h2><button type="button" id="close-full" aria-label="关闭放大表格">×</button></header><div id="full-content"></div></dialog>
+  <script type="module" src="./compact-tables.js"></script>
+</body>
+</html>
