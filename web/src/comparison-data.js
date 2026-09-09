@@ -89,6 +89,7 @@ export function comparisonTabs(slots) {
       const row = { ...sources.find(Boolean) };
       for (const column of selfColumns) row[column.key] = sharedValue(sources.map((source) => source?.[column.key]), column.unit);
       sources.forEach((source, index) => {
+        for (const column of selfColumns) row[`c${index}_${column.key}`] = source?.[column.key] ?? null;
         for (const column of pairedColumns) row[`c${index}_${column.key}`] = source?.[column.key] ?? null;
       });
       return row;

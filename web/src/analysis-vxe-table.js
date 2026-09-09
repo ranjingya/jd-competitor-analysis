@@ -2,11 +2,12 @@ import { createApp, h, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 import VxeButton from "vxe-pc-ui/es/button";
 import VxeNumberInput from "vxe-pc-ui/es/number-input";
 import VxeRadioGroup from "vxe-pc-ui/es/radio-group";
-import VxeUITable, { VxeColumn, VxeTable, VxeToolbar } from "vxe-table";
+import VxeUITable, { VxeColumn, VxeColgroup, VxeTable, VxeToolbar } from "vxe-table";
 import "vxe-pc-ui/lib/style.css";
 import "vxe-table/lib/style.css";
 import "./analysis-vxe-table.css";
 import { isDerivedColumn } from "./analysis-columns.js";
+import { compactColumnGroups, compactColumns, compactDifference, compactSortField, compactSortRows } from "./analysis-compact.js";
 import {
   sortFlatTreeRowsBySiblings,
   sortRowsWithBottomValues
@@ -109,6 +110,36 @@ function valueTone(value, column) {
 }
 
 /**
+ * 功能说明：渲染紧凑指标、身份与文字判断的纵排内容，本品值位于首行。
+ * 参数 row：合并后的表格行；column：带类型和竞品数量的列定义。
+ * 返回值：保持统一行高的 Vue 虚拟节点。
+ */
+function renderCompactCell(row, column) {
+  const roles = Array.from({ length: column.count }, (_, index) => `竞品 ${index + 1}`);
+  const line = (content, className = "", label) => h("div", { class: ["analysis-compact-line", className], "aria-label": label }, content);
+  if (column.kind === "roles") return h("div", { class: "analysis-compact-labels" }, [line("本品", "is-self"), ...roles.map((role) => line(role))]);
+  if (column.kind === "comparison") return h("div", {}, [line("", "is-self"), ...roles.map((role, index) => {
+    const value = row[`c${index}_${column.sourceKey}`];
+    return line(formatTableValue(value), valueTone(value, column), `${role}：${formatTableValue(value)}`);
+  })]);
+  const self = row[column.key];
+  const selfText = String(self ?? "").startsWith("对竞品 ")
+    ? roles.map((role, index) => h("span", { class: "analysis-compact-self-variant" }, [
+      h("small", {}, `${role}：`),
+      isProgressColumn(column) ? renderProgressValue(row[`c${index}_${column.key}`], column) : formatTableValue(row[`c${index}_${column.key}`], column.unit)
+    ]))
+    : isProgressColumn(column) ? renderProgressValue(self, column) : formatTableValue(self, column.unit);
+  return h("div", { class: "analysis-compact-metric" }, [line(selfText, "is-self", `本品：${formatTableValue(self, column.unit)}`), ...roles.map((role, index) => {
+    const gap = compactDifference(row, column, index);
+    const signed = (value, unit) => `${value > 0 ? "+" : ""}${formatTableValue(value, unit)}`;
+    const primary = gap.value == null ? "—" : signed(gap.value, gap.unit);
+    const secondary = gap.zeroBase ? "基数为 0" : gap.percent == null ? "" : signed(gap.percent, "%");
+    return line([h("strong", {}, primary), secondary ? h("small", {}, secondary) : null], valueTone(gap.value, { key: "gap" }),
+      `本品较${role}：${primary}${secondary ? `，${secondary}` : ""}`);
+  })]);
+}
+
+/**
  * 功能说明：把渠道路径数据转换成 VXE-Table transform 树所需的扁平父子关系。
  * 参数 rows：流量来源的原始渠道行。
  * 返回值：带稳定 id、parent_id 和末级名称的扁平渠道数组。
@@ -149,6 +180,9 @@ function columnWidth(column, columnIndex, tableId) {
   if (columnIndex === 0) {
     return tableId === "traffic" ? 196 : tableId === "keywords" ? 168 : 142;
   }
+  if (column.kind === "roles") return 68;
+  if (column.kind === "metric") return 152;
+  if (column.kind === "comparison") return 142;
   if (isProgressColumn(column)) {
     return 160;
   }
@@ -191,16 +225,21 @@ export function mountAnalysisVxeTable(target, config) {
   unmountAnalysisVxeTable();
   const tableId = config.id || "default";
   const isTree = tableId === "traffic";
+  const columnDefinitions = compactColumns(config.columns || [], config.competitorCount);
+  const compact = columnDefinitions.some((column) => column.kind === "metric");
+  const initialBasis = config.sortState?.basis || "self";
   const data = isTree
     ? prepareTrafficRows(config.rows || [])
     : prepareFlatRows(config.rows || [], tableId);
   const initialSortList = config.sortState?.key
-    ? [{ field: config.sortState.key, order: config.sortState.direction }]
+    ? [{ field: compactSortField(columnDefinitions, config.sortState.key), order: config.sortState.direction }]
     : [];
   const sortedInitialData = isTree
-    ? sortFlatTreeRowsBySiblings(data, initialSortList)
-    : sortRowsWithBottomValues(data, initialSortList, null);
-  const normalTableHeight = Math.min(380, Math.max(180, 48 + Math.min(data.length, 8) * 39));
+    ? sortFlatTreeRowsBySiblings(compactSortRows(data, columnDefinitions, initialBasis), initialSortList)
+    : sortRowsWithBottomValues(compactSortRows(data, columnDefinitions, initialBasis), initialSortList, null);
+  const selfHeight = data.some((row) => columnDefinitions.some((column) => column.kind === "metric" && String(row[column.key]).startsWith("对竞品 "))) ? 48 : 28;
+  const normalTableHeight = compact ? Math.min(460, Math.max(180, 88 + data.length * (selfHeight + config.competitorCount * 28 + 24)))
+    : Math.min(380, Math.max(180, 48 + Math.min(data.length, 8) * 39));
 
   const AnalysisTable = {
     name: "AnalysisVxeTable",
@@ -211,6 +250,8 @@ export function mountAnalysisVxeTable(target, config) {
       const isExpanded = ref(false);
       const tableHeight = ref(normalTableHeight);
       const tableData = ref(sortedInitialData);
+      const sortBasis = ref(initialBasis);
+      let activeSort = config.sortState || null;
 
       const recalculate = async () => {
         await nextTick();
@@ -313,11 +354,13 @@ export function mountAnalysisVxeTable(target, config) {
           left: scrollBody?.scrollLeft || 0,
           top: scrollBody?.scrollTop || 0
         };
-        const sortList = order ? [{ field, order }] : [];
+        const sortList = order ? [{ field: compactSortField(columnDefinitions, field), order }] : [];
+        const sortableData = compactSortRows(data, columnDefinitions, sortBasis.value);
         tableData.value = isTree
-          ? sortFlatTreeRowsBySiblings(data, sortList)
-          : sortRowsWithBottomValues(data, sortList, null);
-        config.onSortChange?.(order ? { key: field, direction: order } : null);
+          ? sortFlatTreeRowsBySiblings(sortableData, sortList)
+          : sortRowsWithBottomValues(sortableData, sortList, null);
+        activeSort = order ? { key: field, direction: order, basis: sortBasis.value } : null;
+        config.onSortChange?.(activeSort);
         await recalculate();
         const refreshedScrollBody = shellRef.value?.querySelector(
           ".vxe-table--main-wrapper .vxe-table--body-inner-wrapper"
@@ -338,27 +381,38 @@ export function mountAnalysisVxeTable(target, config) {
         document.body.classList.remove("has-analysis-modal");
       });
 
-      const columns = (config.columns || []).map((column, columnIndex) => {
+      const renderColumn = (column) => {
+        if (column.kind === "group") return h(VxeColgroup, {
+          key: column.key,
+          field: column.key,
+          title: column.label,
+          headerClassName: column.derived ? "analysis-derived-header" : undefined,
+          headerAlign: "center"
+        }, { default: () => column.children.map(renderColumn) });
+        const columnIndex = columnDefinitions.findIndex((item) => item.key === column.key);
+        const stacked = ["roles", "metric", "comparison"].includes(column.kind);
         const props = {
           field: column.key,
           title: column.label,
-          minWidth: columnWidth(column, columnIndex, tableId),
-          fixed: columnIndex === 0 ? "left" : undefined,
-          sortable: true,
+          minWidth: compact && columnIndex === 0 ? 168 : columnWidth(column, columnIndex, tableId),
+          fixed: columnIndex === 0 || column.kind === "roles" ? "left" : undefined,
+          sortable: column.kind !== "roles",
           treeNode: isTree && columnIndex === 0,
-          headerClassName: isDerivedColumn(column) ? "analysis-derived-header" : undefined,
-          showOverflow: "title",
+          headerClassName: column.kind === "metric" || column.kind === "comparison" || (!column.kind && isDerivedColumn(column)) ? "analysis-derived-header" : undefined,
+          showOverflow: stacked ? false : "title",
+          align: column.kind === "metric" || column.kind === "raw" ? "right" : undefined,
           showHeaderOverflow: "title"
         };
         return h(VxeColumn, props, {
-          default: ({ row }) => isProgressColumn(column)
+          default: ({ row }) => stacked ? renderCompactCell(row, column) : isProgressColumn(column)
             ? renderProgressValue(row[column.key], column)
             : h("span", {
               class: valueTone(row[column.key], column),
               title: formatTableValue(row[column.key], column.unit || "")
             }, formatTableValue(row[column.key], column.unit || ""))
         });
-      });
+      };
+      const columns = compactColumnGroups(columnDefinitions).map(renderColumn);
 
       return () => h("div", { class: "analysis-vxe-host" }, [
         isExpanded.value
@@ -372,6 +426,7 @@ export function mountAnalysisVxeTable(target, config) {
         h("section", {
           ref: shellRef,
           class: ["analysis-vxe-shell", { "is-modal-open": isExpanded.value }],
+          style: { "--compact-self-height": `${selfHeight}px` },
           role: isExpanded.value ? "dialog" : undefined,
           "aria-modal": isExpanded.value ? "true" : undefined,
           "aria-label": isExpanded.value ? "完整数据对比放大窗口" : undefined,
@@ -380,6 +435,14 @@ export function mountAnalysisVxeTable(target, config) {
           h("header", { class: "analysis-vxe-toolbar" }, [
             h("p", { class: "section-title" }, "完整数据对比"),
             h("div", { class: "analysis-vxe-actions" }, [
+              compact ? h("label", { class: "analysis-sort-basis" }, ["排序依据", h("select", {
+                value: sortBasis.value,
+                "aria-label": "多行指标排序依据",
+                onChange: (event) => {
+                  sortBasis.value = event.target.value;
+                  if (activeSort) handleControlledSort(activeSort.key, activeSort.direction);
+                }
+              }, [h("option", { value: "self" }, "本品值"), ...Array.from({ length: config.competitorCount }, (_, index) => h("option", { value: String(index) }, `较竞品 ${index + 1} 差值`))])]) : null,
               h(VxeToolbar, {
                 ref: toolbarRef,
                 custom: true,
@@ -402,7 +465,7 @@ export function mountAnalysisVxeTable(target, config) {
           }, [
             h(VxeTable, {
             ref: tableRef,
-            id: `analysis-vxe-${tableId}-${config.columns.map((column) => column.key).join("-")}`,
+            id: `analysis-vxe-${compact ? "grouped-compact-" : ""}${tableId}-${columnDefinitions.map((column) => column.key).join("-")}`,
             data: tableData.value,
             height: tableHeight.value,
             size: "small",
@@ -452,7 +515,7 @@ export function mountAnalysisVxeTable(target, config) {
               } : undefined
             },
             scrollX: { enabled: true, gt: 8 },
-            scrollY: { enabled: true, gt: 40 },
+            scrollY: { enabled: !compact, gt: 40 },
             onSortChange: ({ field, order }) => handleControlledSort(field, order)
             }, { default: () => columns })
           ])

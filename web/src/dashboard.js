@@ -242,6 +242,7 @@ function renderTabs() {
   if (tableTarget) {
     mountAnalysisVxeTable(tableTarget, {
       id: current.id,
+      competitorCount: highlightGroups.length,
       columns,
       rows: dimensionRows,
       sortState: currentSort,
