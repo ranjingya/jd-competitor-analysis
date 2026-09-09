@@ -3,7 +3,7 @@ import { compareValues, formatValue } from "./compact-table-model.js";
 const escape = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
 
 /**
- * 功能说明：渲染差距前置预览，竞品差距纵向排列，三方原始值按商品分组置于右侧。
+ * 功能说明：渲染本品数值与竞品差距纵排预览，三方原始值按商品分组置于右侧。
  * 参数 source：包含指标定义与示例行的数据；competitorCount：展示的竞品数量。
  * 返回值：无，将语义表格写入预览区域。
  */
@@ -14,16 +14,16 @@ function render(source, competitorCount) {
   const products = Array.from({ length: competitorCount + 1 }, (_, index) => index === 0 ? "本品" : `竞品 ${index}`);
   const label = (metric) => `${escape(metric.label)}${metric.unit === "元" ? "（元）" : ""}`;
   document.querySelector("#preview").innerHTML = `<table style="width:${260 + metrics.length * 154 + products.length * metrics.length * 120}px">
-    <caption>左侧两行分别为本品较竞品 1、竞品 2 的差距；右侧按商品分组展示原始值</caption>
+    <caption>左侧首行为本品数值，随后各行为本品相对对应竞品的差距；右侧按商品分组展示原始值</caption>
     <colgroup><col class="channel-col"><col class="role-col">${metrics.map(() => '<col class="gap-col">').join("")}${products.map(() => metrics.map(() => '<col class="raw-col">').join("")).join("")}</colgroup>
     <thead>
-      <tr><th rowspan="2" class="channel">${escape(source.dimension)}</th><th rowspan="2" class="role">对比</th><th colspan="${metrics.length}" class="group-heading">本品差距</th>${products.map((product, index) => `<th colspan="${metrics.length}" class="raw-heading group-heading"${index === 0 ? ' id="raw-start"' : ""}>${product} · 原始值</th>`).join("")}</tr>
+      <tr><th rowspan="2" class="channel">${escape(source.dimension)}</th><th rowspan="2" class="role">对比</th><th colspan="${metrics.length}" class="group-heading">本品数值与差距</th>${products.map((product, index) => `<th colspan="${metrics.length}" class="raw-heading group-heading"${index === 0 ? ' id="raw-start"' : ""}>${product} · 原始值</th>`).join("")}</tr>
       <tr>${metrics.map((metric, index) => `<th id="gap-${index}">${label(metric)}</th>`).join("")}${products.map((product, productIndex) => metrics.map((metric, index) => `<th id="raw-${productIndex}-${index}" class="raw-heading${index === 0 ? " group-start" : ""}"><span class="sr-only">${product}</span>${label(metric)}</th>`).join("")).join("")}</tr>
     </thead>
     <tbody>${rows.map((row, rowIndex) => `<tr>
       <th id="channel-${rowIndex}" class="channel" scope="row">${escape(row.name)}<small>${escape(row.parent)}</small></th>
-      <td class="role">${products.slice(1).map((product) => `<div class="compare-line">${product}</div>`).join("")}</td>
-      ${metrics.map((metric, metricIndex) => `<td headers="channel-${rowIndex} gap-${metricIndex}">${products.slice(1).map((product, index) => {
+      <td class="role"><div class="compare-line self-value">本品</div>${products.slice(1).map((product) => `<div class="compare-line">${product}</div>`).join("")}</td>
+      ${metrics.map((metric, metricIndex) => `<td headers="channel-${rowIndex} gap-${metricIndex}"><div class="compare-line self-value"><span class="sr-only">本品：</span>${formatValue(row.values[metric.key][0], metric.unit)}</div>${products.slice(1).map((product, index) => {
         const values = row.values[metric.key];
         const delta = compareValues(values[0], values[index + 1], metric.unit);
         return `<div class="compare-line ${delta.tone}"><span class="sr-only">较${product}：</span><strong>${escape(delta.primary)}</strong>${delta.primary !== "—" && delta.secondary ? `<small>${escape(delta.secondary)}</small>` : ""}</div>`;
