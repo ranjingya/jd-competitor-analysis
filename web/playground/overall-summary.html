@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>总体优劣势 · 看板预览</title>
+  <link rel="stylesheet" href="./dual-competitor.css">
+  <link rel="stylesheet" href="./overall-summary.css">
+</head>
+<body data-summary="overall">
+  <main>
+    <div class="preview-bar">
+      <span><b>PLAYGROUND</b>总体结论 · 示例数据</span>
+      <div class="segmented" role="group" aria-label="预览场景">
+        <button data-mode="dual" aria-pressed="true">双竞品</button>
+        <button data-mode="single" aria-pressed="false">单竞品</button>
+        <button data-mode="missing" aria-pressed="false">竞品 2 无报告</button>
+      </div>
+    </div>
+    <header class="page-heading"><h1>竞品准真实值看板</h1></header>
+    <section class="panel toolbar" aria-label="商品与分析周期">
+      <div id="products" class="products"></div>
+      <div class="toolbar-bottom"><div class="period-controls"><label for="report-date">分析周期</label><span class="day-label">日</span><select id="report-date" aria-label="分析日期"></select></div></div>
+    </section>
+    <p id="error" role="alert" hidden></p>
+    <div id="dashboard" hidden>
+      <section class="summary-grid" id="summaries" aria-label="本品总体优劣势"></section>
+      <section class="metrics" id="metrics" aria-label="核心指标，点击切换趋势"></section>
+      <section class="panel trend-panel" aria-labelledby="trend-title">
+        <div class="section-header"><h2 id="trend-title">成交金额趋势</h2><div id="legend" class="legend"></div></div>
+        <div id="trend" class="chart" role="img" aria-label="三方最近七天成交金额趋势"></div>
+      </section>
+      <section class="panel sources" aria-labelledby="source-title">
+        <div class="section-header"><h2 id="source-title">差距来源分析</h2><span class="unit-note" id="table-unit"></span></div>
+        <div class="tabs" role="tablist" aria-label="差距来源维度" id="tabs"></div>
+        <div class="table-wrap" id="comparison-panel" role="tabpanel" tabindex="0" aria-label="差距来源对照表，可横向滚动"><table id="comparison"></table></div>
+      </section>
+      <section class="advice-section" aria-labelledby="advice-title">
+        <div class="section-header"><h2 id="advice-title">AI 劣势建议</h2></div>
+        <div id="advice" class="advice-grid"></div>
+      </section>
+    </div>
+  </main>
+  <dialog id="detail" aria-labelledby="detail-title"><header><div><span class="eyebrow" id="detail-context"></span><h2 id="detail-title">总体优劣势</h2></div><button id="close-detail" aria-label="关闭详情">×</button></header><div id="detail-content"></div></dialog>
+  <script type="module" src="./dual-competitor.js"></script>
+</body>
+</html>

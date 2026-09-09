@@ -1,0 +1,32 @@
+/* 总体结论沿用正式看板的面板、阴影与边框高亮。 */
+:root { --advantage:#b96905; --b:#667085; }
+#summaries { display:block; }
+.overall-summary { padding:20px 24px; }
+.overall-heading { display:block; color:var(--ink); font-size:18px; font-weight:800; margin-bottom:16px; }
+.overall-columns { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+.overall-side { display:flex; gap:16px; align-items:flex-start; min-width:0; }
+.overall-label { border-left:3px solid currentColor; padding-left:8px; margin-top:3px; font-size:12px; font-weight:800; flex-shrink:0; }
+.overall-points { display:flex; flex-direction:column; gap:10px; min-width:0; }
+.overall-point { display:flex; align-items:center; gap:8px 12px; flex-wrap:wrap; }
+.overall-point strong { font-size:17px; line-height:1.5; }
+.comparison-scope { font-size:12px; border:1px solid currentColor; border-radius:6px; padding:1px 7px; white-space:nowrap; }
+.overall-empty { color:var(--muted); font-size:15px; }
+.overall-unavailable { display:block; border-top:1px solid var(--line); margin-top:16px; padding-top:12px; color:var(--muted); font-size:13px; }
+.overall-summary:hover { box-shadow:var(--shadow); transform:none; }
+dialog { width:min(760px,calc(100% - 32px)); padding:0; }
+dialog>header { position:sticky; top:0; z-index:1; padding:20px 24px; margin:0; background:var(--panel); border-bottom:1px solid var(--line); gap:16px; }
+dialog>header button { flex-shrink:0; }
+#detail-content { padding:20px 24px; }
+.detail-section h3 { font-size:17px; }
+.detail-section li p { color:var(--ink); margin-top:4px; }
+.individual-breakdown article { border:1px solid var(--line); padding:12px 16px; margin-top:12px; border-radius:8px; }
+.individual-breakdown h4 { margin:0 0 8px; font-size:14px; }
+.individual-breakdown p+p { margin-top:6px; }
+@media(max-width:720px) {
+  .overall-columns { grid-template-columns:1fr; gap:20px; }
+  .overall-summary { padding:16px; }
+  .overall-side { gap:12px; }
+  .overall-point strong { font-size:16px; }
+  .overall-heading { font-size:17px; }
+  dialog>header,#detail-content { padding:16px; }
+}

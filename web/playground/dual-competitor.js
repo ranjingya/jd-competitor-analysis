@@ -1,4 +1,5 @@
 import * as echarts from "echarts";
+import { renderOverallSummary, showOverallDetail } from "./overall-summary.js";
 
 const $ = (selector) => document.querySelector(selector);
 const escape = (value) => String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
@@ -55,6 +56,10 @@ function renderProducts() {
 }
 
 function renderSummaries() {
+  if (document.body.dataset.summary === "overall") {
+    renderOverallSummary({ self: product(), competitors: competitors().map((item, i) => ({ ...item, available: available(item, i + 1) })), metrics: data.metrics });
+    return;
+  }
   $("#summaries").innerHTML = competitors().map((item, i) => available(item, i + 1)
     ? `<button class="summary" data-detail="${i}" aria-haspopup="dialog" aria-controls="detail" aria-label="查看本品对比${escape(item.name)}的优缺点详情">
       <span class="summary-header"><span class="badge ${classes[i + 1]}">${roles[i + 1]}</span>${escape(item.shortName)}</span>
@@ -200,7 +205,8 @@ async function initialize() {
   };
   $("#summaries").onclick = (event) => {
     const button = event.target.closest("[data-detail]");
-    if (button) showDetail(Number(button.dataset.detail));
+    if (button?.dataset.detail === "overall") showOverallDetail();
+    else if (button) showDetail(Number(button.dataset.detail));
   };
   $("#close-detail").onclick = () => $("#detail").close();
   $("#detail").onclick = (event) => { if (event.target === $("#detail")) {
