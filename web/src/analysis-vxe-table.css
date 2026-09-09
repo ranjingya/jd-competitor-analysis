@@ -195,8 +195,8 @@
   left: 50%;
   z-index: 1000;
   display: flex;
-  width: 80vw;
-  height: 80vh;
+  width: 90vw;
+  height: 90vh;
   box-sizing: border-box;
   padding: 18px;
   flex-direction: column;
@@ -222,8 +222,6 @@ body.has-analysis-modal {
 
 @media (max-width: 720px) {
   .analysis-vxe-shell.is-modal-open {
-    width: calc(100vw - 24px);
-    height: calc(100vh - 24px);
     padding: 12px;
   }
 }

@@ -224,10 +224,12 @@ export function mountAnalysisVxeTable(target, config) {
        */
       const syncExpandedState = async (active) => {
         isExpanded.value = active;
-        tableHeight.value = active
-          ? Math.max(Math.floor(window.innerHeight * 0.8) - 94, 260)
-          : normalTableHeight;
         document.body.classList.toggle("has-analysis-modal", active);
+        await nextTick();
+        // 按弹窗实际内容区计算高度，随视口尺寸与响应式内边距同步。
+        tableHeight.value = active
+          ? Math.max(1, shellRef.value.querySelector(".analysis-vxe-stage").clientHeight)
+          : normalTableHeight;
         await recalculate();
       };
 

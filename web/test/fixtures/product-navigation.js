@@ -96,6 +96,18 @@ async function run() {
   const headers = [...document.querySelectorAll('.vxe-table--main-wrapper .vxe-header--column')];
   check(headers.length === 6 && headers[1].classList.contains('analysis-derived-header') && headers[2].classList.contains('analysis-derived-header') && !headers[3].classList.contains('analysis-derived-header'), '访客指标蓝色计算列位于名称列后和原始列前');
   $('[data-measure="all"]').click();
+  $('.analysis-expand-button').click();
+  await until(() => $('.analysis-vxe-shell.is-modal-open'));
+  await sleep(30);
+  const modalBounds = $('.analysis-vxe-shell').getBoundingClientRect();
+  check(Math.abs(modalBounds.width - innerWidth * 0.9) < 2 && Math.abs(modalBounds.height - innerHeight * 0.9) < 2, '表格放大窗口宽高均占视口 90%');
+  check(Math.abs(modalBounds.left - innerWidth * 0.05) < 2 && Math.abs(modalBounds.top - innerHeight * 0.05) < 2, '放大窗口居中');
+  const stageBounds = $('.analysis-vxe-stage').getBoundingClientRect();
+  const tableBounds = $('.analysis-vxe-stage .vxe-table').getBoundingClientRect();
+  check(Math.abs(tableBounds.height - stageBounds.height) < 3, '表格填满弹窗内容区');
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  await until(() => !$('.analysis-vxe-shell.is-modal-open'));
+  check(!document.body.classList.contains('has-analysis-modal'), 'Esc 关闭放大窗口并恢复页面滚动');
   check(document.querySelectorAll('.product-select-link').length === 3 && !document.querySelector('.product-select-card a'), '商品主图链接独立');
   check([...document.querySelectorAll('.product-select-link')].every((link) => {
     const a = link.getBoundingClientRect(), b = link.firstElementChild.getBoundingClientRect();
