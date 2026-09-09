@@ -31,7 +31,7 @@
 .comparison-gap strong { display:flex; align-items:center; gap:6px; font-weight:800; }
 .comparison-dashboard .trend-chart { height:340px; min-height:0; }
 .comparison-dashboard .trend-panel { min-height:0; }
-.comparison-insight-groups { --insight-advantage:#ad5845; --insight-advantage-background:#f6e6e2; display:grid; grid-template-columns:repeat(var(--comparison-count,1),minmax(0,1fr)); gap:var(--card-gap); }
+.comparison-insight-groups { display:grid; grid-template-columns:repeat(var(--comparison-count,1),minmax(0,1fr)); gap:var(--card-gap); }
 .comparison-insight-group { min-width:0; }
 .comparison-dashboard .comparison-insight-group .insight-grid { grid-template-columns:minmax(0,1fr); }
 .comparison-insight-group .insight-type { font-size:11px; }

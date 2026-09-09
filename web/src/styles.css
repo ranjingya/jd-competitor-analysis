@@ -1757,7 +1757,7 @@ a.product-card:active {
   padding: 7px 10px 8px;
   border: 1px solid var(--line);
   border-radius: 7px;
-  background: var(--insight-advantage-background, var(--soft-amber));
+  background: var(--soft-amber);
 }
 
 .insight-card.warning {
@@ -1770,7 +1770,7 @@ a.product-card:active {
 }
 
 .insight-card h4 {
-  color: var(--insight-advantage, var(--amber));
+  color: var(--amber);
   font-size: 13px;
   line-height: 1.35;
 }
@@ -1787,7 +1787,7 @@ a.product-card:active {
 
 .insight-card .insight-type {
   margin-top: 0;
-  color: var(--insight-advantage, var(--amber));
+  color: var(--amber);
   font-size: 10px;
   font-weight: 900;
   letter-spacing: 0.08em;
@@ -1806,7 +1806,7 @@ a.product-card:active {
   align-items: center;
   gap: 6px;
   margin-top: 5px;
-  color: var(--insight-advantage, var(--amber));
+  color: var(--amber);
   font-size: 12px;
   font-weight: 900;
   font-variant-numeric: tabular-nums;

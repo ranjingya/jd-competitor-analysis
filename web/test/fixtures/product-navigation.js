@@ -94,9 +94,9 @@ async function run() {
   check(!$('#sku-trigger').disabled, '另一侧有报告仍可查看本品 SKU');
   const missingGroups = [...document.querySelectorAll('.comparison-insight-group')];
   check(missingGroups.length === 2 && missingGroups[1].textContent.includes('竞品 2') && missingGroups[1].textContent.includes('暂无重点数据') && !missingGroups[1].querySelector('.insight-card'), '重点数据缺失保留竞品对应空栏');
-  check(getComputedStyle($('.insight-card.advantage h4')).color === 'rgb(173, 88, 69)' && getComputedStyle($('.insight-card.warning h4')).color === 'rgb(15, 123, 115)', '优势使用柔和红色，劣势使用绿色');
-  check(getComputedStyle($('.insight-card.advantage')).backgroundColor === 'rgb(246, 230, 226)' && getComputedStyle($('.insight-card.warning')).backgroundColor === 'rgb(223, 241, 236)', '优势与劣势卡片分别使用浅红与浅绿背景');
-  check(getComputedStyle($('.hero-label.advantage')).color === 'rgb(185, 105, 5)' && getComputedStyle($('.summary-dialog-section.advantage')).color === 'rgb(185, 105, 5)', '顶部优势与详情保持橙色，不受局部红色影响');
+  check(getComputedStyle($('.insight-card.advantage h4')).color === 'rgb(185, 105, 5)' && getComputedStyle($('.insight-card.warning h4')).color === 'rgb(15, 123, 115)', '差距来源优势与劣势沿用看板橙绿配色');
+  check(getComputedStyle($('.insight-card.advantage')).backgroundColor === 'rgb(244, 231, 211)' && getComputedStyle($('.insight-card.warning')).backgroundColor === 'rgb(223, 241, 236)', '优势与劣势卡片沿用看板浅色背景');
+  check(getComputedStyle($('.hero-label.advantage')).color === getComputedStyle($('.insight-card.advantage h4')).color && getComputedStyle($('.summary-dialog-section.advantage')).color === 'rgb(185, 105, 5)', '顶部摘要、详情和差距来源优势颜色一致');
   check($('[data-measure="all"]').getAttribute('aria-pressed') === 'true' && !$('#comparison-measure'), '指标默认全部且使用按钮而非下拉框');
   $('[data-measure="self_visitors"]').click();
   check($('[data-measure="self_visitors"]').getAttribute('aria-pressed') === 'true' && document.activeElement === $('[data-measure="self_visitors"]'), '切换指标保留键盘焦点与选中状态');
