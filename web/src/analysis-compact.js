@@ -38,6 +38,12 @@ export function compactColumns(columns, count) {
   if (!count || !selfColumns.length) return columns;
   const metrics = selfColumns.map((column) => ({ ...column, label: column.label.replace(/^本品/, ""), kind: "metric", count,
     suffix: column.key.slice(5), gapKey: GAP_KEYS[column.key.slice(5)] }));
+  const metricOrder = ["visitors", "gmv", "conversion_rate_pct", "current_level_visitor_rate_pct", "total_visitor_rate_pct"];
+  const priority = (column) => {
+    const index = metricOrder.indexOf(column.suffix);
+    return index < 0 ? metricOrder.length : index;
+  };
+  metrics.sort((left, right) => priority(left) - priority(right));
   const coveredGaps = new Set(metrics.flatMap((column) => Array.from({ length: count }, (_, index) => `c${index}_${column.gapKey}`)));
   const raw = columns.filter((column) => /^c\d+_competitor_/.test(column.key))
     .map((column) => ({ ...column, kind: "raw" }))

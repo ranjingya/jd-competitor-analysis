@@ -91,6 +91,12 @@ test("判断文案省略本品前缀，其他状态和缺失值保持原样", ()
   assert.equal(compactJudgement(null), null);
 });
 
+test("渠道差距指标按规模、成交、转化、同层占比、总占比排序", () => {
+  const keys = ["total_visitor_rate_pct", "current_level_visitor_rate_pct", "conversion_rate_pct", "gmv", "visitors"];
+  const columns = compactColumns([{ key: "path", label: "渠道" }, ...keys.map((key) => ({ key: `self_${key}`, label: key })), { key: "c0_judgement", label: "判断" }], 1);
+  assert.deepEqual(compactColumnGroups(columns)[2].children.map((column) => column.key), ["compact_judgement", "self_visitors", "self_gmv", "self_conversion_rate_pct", "self_current_level_visitor_rate_pct", "self_total_visitor_rate_pct"]);
+});
+
 test("排序可按指定竞品差值且保持父子层级，空差距沉底", () => {
   const tab = fixture();
   const columns = compactColumns(tab.columns, 2);
