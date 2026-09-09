@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>完整数据对比 · 合并行预览</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#f4efe6;color:#1f2933;font:13px/1.5 "PingFang SC","Microsoft YaHei",sans-serif}
+    main{margin:32px auto;width:calc(100% - 40px);max-width:1240px;padding:24px;background:#fffdf8;border:1px solid #ded6c8;border-radius:8px;box-shadow:0 12px 32px #1f293314}
+    header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px}h1{font-size:22px;margin:0}header small{font-size:11px;color:#667085;font-weight:400;margin-left:12px}
+    button{background:transparent;border:1px solid #ded6c8;border-radius:6px;padding:7px 12px;font:inherit;color:#667085;cursor:pointer}button:hover{border-color:#0f7b73}button[aria-pressed="true"]{background:#0f7b73;color:white;border-color:#0f7b73}button:focus-visible,.scroll:focus-visible{outline:2px solid #0f7b73;outline-offset:3px}
+    .scroll{overflow:auto;border:1px solid #ded6c8;border-radius:7px}table{width:100%;min-width:1040px;border-collapse:separate;border-spacing:0;table-layout:fixed;font-variant-numeric:tabular-nums}
+    th,td{padding:10px 12px;vertical-align:middle;text-align:center}thead th{height:40px;background:#e4ebf4;color:#3f5872;font-size:12px;border-bottom:1px solid #d7dfe7}thead .plain{background:#f2ece2;color:#1f2933}
+    .edge{border-left:1px solid #cdd4da}.metric-edge{border-left:1px solid #e5e9ed}tbody td,tbody th{height:44px;background:#fff;border-bottom:1px solid #eef0f2}tbody:nth-of-type(even) td,tbody:nth-of-type(even) th{background:#fafbf9}
+    tbody+tbody tr:first-child>*{border-top:1px solid #cdd4da}tbody tr:last-child>*{border-bottom:0}.channel{font-weight:600}.channel small{display:block;color:#667085;font-size:11px;font-weight:400;margin-top:4px}.role{font-size:11px;color:#667085}.self{font-weight:700;color:#1f2933}.merged{font-weight:600}
+    .share{display:grid;grid-template-columns:minmax(0,1fr) 72px;gap:12px;align-items:center}.bar-value{display:grid;grid-template-columns:minmax(28px,1fr) 54px;gap:8px;align-items:center;text-align:right}.track{height:6px;background:#e3e8e5;border-radius:9px;overflow:hidden}.fill{display:block;height:100%;background:#0f8a80;border-radius:9px}.delta{display:flex;justify-content:flex-end;gap:8px;align-items:center;white-space:nowrap}.delta small{font-size:11px}.positive{color:#b65d00}.negative{color:#087c73}.neutral{color:#667085}.share>strong{text-align:right;font-size:12px}.number{text-align:right;font-weight:600}
+    @media(max-width:720px){main{width:calc(100% - 24px);padding:12px;margin:16px auto}header{flex-wrap:wrap}h1{font-size:19px}}
+  </style>
+</head>
+<body><main><header><h1>完整数据对比<small>示例数据</small></h1><div><button data-count="1" aria-pressed="false">单竞品</button> <button data-count="2" aria-pressed="true">双竞品</button></div></header><div class="scroll" id="preview" tabindex="0" aria-label="合并行表格预览"></div></main><script type="module" src="./aligned-rows.js"></script></body>
+</html>
