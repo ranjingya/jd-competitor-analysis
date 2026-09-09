@@ -6,8 +6,6 @@
   --muted: #667085;
   --teal: #0f7b73;
   --amber: #b96905;
-  --advantage: #ad5845;
-  --soft-advantage: #f6e6e2;
   --soft-teal: #dff1ec;
   --soft-amber: #f4e7d3;
   --shadow: 0 12px 32px rgba(31, 41, 51, 0.08);
@@ -1318,7 +1316,7 @@ a.product-card:active {
 
 .hero-label.advantage,
 .summary {
-  color: var(--advantage);
+  color: var(--amber);
 }
 
 .hero-label.warning,
@@ -1421,7 +1419,7 @@ a.product-card:active {
 }
 
 .summary-dialog-section.advantage {
-  color: var(--advantage);
+  color: var(--amber);
 }
 
 .summary-dialog-section.warning {
@@ -1526,7 +1524,7 @@ a.product-card:active {
 }
 
 .metric-card.status-advantage {
-  background: linear-gradient(90deg, var(--soft-advantage), var(--panel) 64%);
+  background: linear-gradient(90deg, var(--soft-amber), var(--panel) 64%);
 }
 
 .metric-card.status-warning {
@@ -1534,7 +1532,7 @@ a.product-card:active {
 }
 
 .metric-card.status-advantage.active::before {
-  background: var(--advantage);
+  background: var(--amber);
 }
 
 .metric-card.status-warning.active::before {
@@ -1610,7 +1608,7 @@ a.product-card:active {
 }
 
 .status-advantage .metric-gap {
-  color: var(--advantage);
+  color: var(--amber);
 }
 
 .status-warning .metric-gap {
@@ -1759,7 +1757,7 @@ a.product-card:active {
   padding: 7px 10px 8px;
   border: 1px solid var(--line);
   border-radius: 7px;
-  background: var(--soft-advantage);
+  background: var(--insight-advantage-background, var(--soft-amber));
 }
 
 .insight-card.warning {
@@ -1772,7 +1770,7 @@ a.product-card:active {
 }
 
 .insight-card h4 {
-  color: var(--advantage);
+  color: var(--insight-advantage, var(--amber));
   font-size: 13px;
   line-height: 1.35;
 }
@@ -1789,7 +1787,7 @@ a.product-card:active {
 
 .insight-card .insight-type {
   margin-top: 0;
-  color: var(--advantage);
+  color: var(--insight-advantage, var(--amber));
   font-size: 10px;
   font-weight: 900;
   letter-spacing: 0.08em;
@@ -1808,7 +1806,7 @@ a.product-card:active {
   align-items: center;
   gap: 6px;
   margin-top: 5px;
-  color: var(--advantage);
+  color: var(--insight-advantage, var(--amber));
   font-size: 12px;
   font-weight: 900;
   font-variant-numeric: tabular-nums;
@@ -2085,7 +2083,7 @@ a.product-card:active {
 }
 
 .cell-good {
-  color: var(--advantage);
+  color: var(--amber);
   font-weight: 900;
 }
 
@@ -2128,7 +2126,7 @@ a.product-card:active {
   padding: 13px 14px;
   border: 1px solid var(--line);
   border-radius: 7px;
-  background: var(--soft-advantage);
+  background: var(--soft-amber);
 }
 
 .ai-recommendation-card.warning {
@@ -2256,7 +2254,7 @@ a.product-card:active {
 }
 
 .ai-recommendation-type {
-  color: var(--advantage);
+  color: var(--amber);
   font-size: 10.5px;
   font-weight: 900;
   line-height: 1.4;
