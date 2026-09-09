@@ -41,6 +41,28 @@ test("本品不同口径值分开标注，空值不覆盖有效值", () => {
 
 const columns = [{ key: "keyword", label: "关键词" }, { key: "visitor_gap", label: "访客差距" }, { key: "self_visitors", label: "本品访客" }, { key: "competitor_visitors", label: "竞品访客" }];
 const keywordSlot = (rows) => ({ report: { tabs: [{ id: "keywords", columns, rows }] } });
+test("优劣势按竞品分组，组内优势在前且不修改报告", () => {
+  const first = keywordSlot([]);
+  const second = keywordSlot([]);
+  first.report.tabs[0].highlights = [{ label: "一的劣势", status: "warning" }, { label: "一的优势", status: "advantage" }];
+  second.report.tabs[0].highlights = [{ label: "二的优势", status: "advantage" }, { label: "二的劣势", status: "warning" }];
+  const [tab] = comparisonTabs([first, second]);
+  assert.deepEqual(tab.highlightGroups.map((group) => [group.competitorLabel, ...group.highlights.map((item) => item.label)]), [
+    ["竞品 1", "一的优势", "一的劣势"], ["竞品 2", "二的优势", "二的劣势"],
+  ]);
+  assert.equal(first.report.tabs[0].highlights[0].label, "一的劣势");
+});
+
+test("优劣势空槽保留编号，单竞品仅一组", () => {
+  const second = keywordSlot([]);
+  second.report.tabs[0].highlights = [{ label: "二的优势", status: "advantage" }];
+  const [tab] = comparisonTabs([{ report: null }, second]);
+  assert.deepEqual(tab.highlightGroups[0], { competitorLabel: "竞品 1", highlights: [] });
+  assert.equal(tab.highlightGroups[1].competitorLabel, "竞品 2");
+  assert.equal(tab.highlightGroups[1].highlights[0].label, "二的优势");
+  assert.equal(comparisonTabs([second])[0].highlightGroups.length, 1);
+});
+
 test("关键词全量外连接，独有行保留，缺失竞品列不复制另一侧", () => {
   const [tab] = comparisonTabs([
     keywordSlot([{ keyword: "相同", self_visitors: 10, competitor_visitors: 2, visitor_gap: 8 }, { keyword: "独有1", self_visitors: 0, competitor_visitors: 4 }]),

@@ -38,6 +38,9 @@ const reportFor = (entry) => ({
     { key: 'self_gmv', label: '本品成交金额' },
     { key: 'competitor_gmv', label: '竞品成交金额' },
     { key: 'gmv_gap', label: '成交金额差距' }
+  ], highlights: [
+    { label: `劣势渠道${entry.competitor_spu}`, status: 'warning', metric_label: '访客', gap_value: -10 },
+    { label: `优势渠道${entry.competitor_spu}`, status: 'advantage', metric_label: '访客', gap_value: 10 },
   ], rows: [{ path: '测试渠道', level_1: '测试渠道', self_visitors: 100, competitor_visitors: 90, visitor_gap: 10, self_gmv: 200, competitor_gmv: 300, gmv_gap: -100 }] }], ai_recommendations: [], risks: [],
 });
 const nativeFetch = window.fetch.bind(window);
@@ -89,6 +92,8 @@ async function run() {
   check($('#hero-summaries').textContent.includes('对比竞品 1') && $('#hero-summaries').textContent.includes('所选周期暂无报告'), '一侧缺失只显示该侧空状态');
   check($('#metrics').textContent.includes('201.00') && !$('#metrics').textContent.includes('202.00'), '缺失侧不拿其他日期报告填充');
   check(!$('#sku-trigger').disabled, '另一侧有报告仍可查看本品 SKU');
+  const missingGroups = [...document.querySelectorAll('.comparison-insight-group')];
+  check(missingGroups.length === 2 && missingGroups[1].textContent.includes('竞品 2') && missingGroups[1].textContent.includes('暂无重点数据') && !missingGroups[1].querySelector('.insight-card'), '重点数据缺失保留竞品对应空栏');
   check($('[data-measure="all"]').getAttribute('aria-pressed') === 'true' && !$('#comparison-measure'), '指标默认全部且使用按钮而非下拉框');
   $('[data-measure="self_visitors"]').click();
   check($('[data-measure="self_visitors"]').getAttribute('aria-pressed') === 'true' && document.activeElement === $('[data-measure="self_visitors"]'), '切换指标保留键盘焦点与选中状态');
@@ -133,6 +138,15 @@ async function run() {
   chooseSelf('102');
   await until(settled);
   check($('#metrics').textContent.includes('203.00') && $('#metrics').textContent.includes('204.00'), '双竞品指标同时加载');
+  const insightGroups = [...document.querySelectorAll('.comparison-insight-group')];
+  check(insightGroups.length === 2 && insightGroups[0].textContent.includes('优势渠道203') && !insightGroups[0].textContent.includes('204') && insightGroups[1].textContent.includes('优势渠道204'), '优劣势按竞品独立分组');
+  for (const group of insightGroups) {
+    const cards = [...group.querySelectorAll('.insight-card')];
+    const [first, second] = cards.map((node) => node.getBoundingClientRect());
+    check(cards[0].classList.contains('advantage') && cards[1].classList.contains('warning') && first.left === second.left && second.top >= first.bottom, '每个竞品的优势和劣势上下排列');
+  }
+  const [left, right] = insightGroups.map((node) => node.getBoundingClientRect());
+  check(innerWidth > 720 ? left.top === right.top && right.left > left.left : right.top >= left.bottom, '优劣势宽屏左右分栏，窄屏按竞品上下排列');
   await until(() => $('#trend-chart svg'));
   check($('#trend-chart').textContent.includes('竞品 1') && $('#trend-chart').textContent.includes('竞品 2'), '三条趋势线共享图例');
   const summaries = [...document.querySelectorAll('[data-summary-index]')];
@@ -148,6 +162,7 @@ async function run() {
   chooseSelf('103');
   await until(settled);
   check(document.querySelectorAll('.product-select-item').length === 2 && document.querySelectorAll('[data-summary-index]').length === 1, '单竞品布局自动收拢');
+  check(document.querySelectorAll('.comparison-insight-group').length === 1, '单竞品仅展示一组优劣势');
   chooseSelf('102');
   chooseSelf('103');
   await sleep(250);

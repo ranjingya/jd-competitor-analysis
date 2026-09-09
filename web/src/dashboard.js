@@ -164,7 +164,7 @@ function renderTabs() {
   });
 
   const current = tabs[dashboardState.activeTab] || tabs[0] || {};
-  const highlights = current.highlights || [];
+  const highlightGroups = current.highlightGroups || [];
   const rows = current.rows || [];
   const measureKey = dashboardState.measures[current.id] || "all";
   const columns = current.measures?.find((item) => item.key === measureKey)?.columns || current.columns || [];
@@ -180,14 +180,17 @@ function renderTabs() {
 
   document.querySelector("#tab-body").innerHTML = `
     <section class="tab-section">
-      <p class="section-title">优势与劣势</p>
-      <div class="insight-grid">
-        ${highlights.map((item) => {
+      <div class="comparison-insight-groups">
+        ${highlightGroups.map((group) => `
+        <section class="comparison-insight-group" aria-label="${escapeHtml(group.competitorLabel)}优劣势">
+          <h3 class="section-title">${escapeHtml(group.competitorLabel)} 优劣势</h3>
+          <div class="insight-grid">
+        ${group.highlights.map((item) => {
           const amplitudeText = formatHighlightAmplitude(item);
           return `
           <article class="insight-card ${item.status === "warning" ? "warning" : "advantage"}">
             <div class="insight-card-label">
-              <p class="insight-type">${escapeHtml(item.competitorLabel)} · ${item.status === "warning" ? "劣势" : "优势"}</p>
+              <p class="insight-type">${item.status === "warning" ? "劣势" : "优势"}</p>
               <h4>${escapeHtml(item.label || "-")}</h4>
             </div>
             <div class="insight-compare ${item.status === "warning" ? "warning" : "advantage"}">
@@ -200,6 +203,8 @@ function renderTabs() {
           </article>
         `;
         }).join("") || '<p class="empty-inline">当前周期暂无重点数据</p>'}
+          </div>
+        </section>`).join("") || '<p class="empty-inline">当前周期暂无重点数据</p>'}
       </div>
     </section>
     <section class="tab-section">

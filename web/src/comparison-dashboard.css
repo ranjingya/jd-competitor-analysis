@@ -31,7 +31,12 @@
 .comparison-gap strong { display:flex; align-items:center; gap:6px; font-weight:800; }
 .comparison-dashboard .trend-chart { height:340px; min-height:0; }
 .comparison-dashboard .trend-panel { min-height:0; }
-.comparison-dashboard .insight-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+.comparison-insight-groups { display:grid; grid-template-columns:repeat(var(--comparison-count,1),minmax(0,1fr)); gap:var(--card-gap); }
+.comparison-insight-group { min-width:0; }
+.comparison-dashboard .comparison-insight-group .insight-grid { grid-template-columns:minmax(0,1fr); }
+.comparison-insight-group .insight-type { font-size:11px; }
+.comparison-insight-group .insight-card h4 { overflow-wrap:anywhere; }
+.comparison-insight-group .insight-compare { flex-wrap:wrap; white-space:normal; }
 .comparison-table-controls { display:flex; align-items:center; gap:10px; margin:0 0 14px; min-width:0; font-size:13px; color:var(--muted); }
 .comparison-table-controls > span { flex-shrink:0; }
 .comparison-measures { display:flex; align-items:center; gap:8px; min-width:0; overflow-x:auto; padding:5px; }
@@ -46,16 +51,15 @@
 @media (max-width:1100px) {
   .comparison-dashboard .metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .comparison-dashboard .metric-value { font-size:22px; }
-  .comparison-dashboard .insight-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
 @media (max-width:720px) {
-  .comparison-summaries, .comparison-advice-grid { grid-template-columns:minmax(0,1fr); }
+  .comparison-summaries, .comparison-advice-grid, .comparison-insight-groups { grid-template-columns:minmax(0,1fr); }
   .comparison-advice + .comparison-advice { border-left:0; padding:18px 0 0; border-top:1px solid var(--line); }
   .comparison-dashboard .comparison-hero { padding:14px; }
   .comparison-dashboard .trend-chart { height:290px; }
 }
 @media (max-width:480px) {
-  .comparison-dashboard .metrics, .comparison-dashboard .insight-grid { grid-template-columns:minmax(0,1fr); }
+  .comparison-dashboard .metrics { grid-template-columns:minmax(0,1fr); }
   .comparison-dashboard .metric-value { font-size:20px; }
   .comparison-hero .summary, .comparison-hero .weakness-text { font-size:14px; }
 }

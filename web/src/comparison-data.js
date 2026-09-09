@@ -102,7 +102,10 @@ export function comparisonTabs(slots) {
       return { key: column.key, label: column.label.replace(/^本品/, ""), columns: orderAnalysisColumns(keys.map((key) => columns.find((item) => item.key === key)).filter(Boolean)) };
     });
     return { ...base, columns, rows, measures,
-      highlights: tabs.flatMap((tab, index) => (tab?.highlights || []).map((item) => ({ ...item, competitorLabel: `竞品 ${index + 1}` }))) };
+      highlightGroups: tabs.map((tab, index) => ({
+        competitorLabel: `竞品 ${index + 1}`,
+        highlights: [...(tab?.highlights || [])].sort((a, b) => Number(a.status === "warning") - Number(b.status === "warning")),
+      })) };
   });
 }
 
