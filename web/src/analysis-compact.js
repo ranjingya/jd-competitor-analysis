@@ -19,7 +19,14 @@ export function compactColumns(columns, count) {
     const first = remaining.find((column) => column.key.replace(/^c\d+_/, "") === key);
     return { ...first, key: `compact_${key}`, sourceKey: key, label: first.label.replace(/^竞品 \d+ · /, ""), kind: "comparison", count };
   });
-  return [columns[0], { key: "compact_roles", label: "对比", kind: "roles", count }, ...metrics, ...textColumns, ...raw];
+  const judgements = textColumns.filter((column) => column.sourceKey === "judgement");
+  return [columns[0], { key: "compact_roles", label: "对比", kind: "roles", count }, ...judgements, ...metrics,
+    ...textColumns.filter((column) => column.sourceKey !== "judgement"), ...raw];
+}
+
+/** 简化判断列的本品前缀，其他状态和缺失值保持原样。 */
+export function compactJudgement(value) {
+  return typeof value === "string" ? value.replace(/^本品(?=领先|落后)/, "") : value;
 }
 
 /**

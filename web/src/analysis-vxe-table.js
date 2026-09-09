@@ -7,7 +7,7 @@ import "vxe-pc-ui/lib/style.css";
 import "vxe-table/lib/style.css";
 import "./analysis-vxe-table.css";
 import { isDerivedColumn } from "./analysis-columns.js";
-import { compactColumnGroups, compactColumns, compactDifference, compactSortField, compactSortRows } from "./analysis-compact.js";
+import { compactColumnGroups, compactColumns, compactDifference, compactJudgement, compactSortField, compactSortRows } from "./analysis-compact.js";
 import {
   sortFlatTreeRowsBySiblings,
   sortRowsWithBottomValues
@@ -119,7 +119,8 @@ function renderCompactCell(row, column) {
   const line = (content, className = "", label) => h("div", { class: ["analysis-compact-line", className], "aria-label": label }, content);
   if (column.kind === "roles") return h("div", { class: "analysis-compact-labels" }, [line("本品", "is-self"), ...roles.map((role) => line(role))]);
   if (column.kind === "comparison") return h("div", {}, [line("", "is-self"), ...roles.map((role, index) => {
-    const value = row[`c${index}_${column.sourceKey}`];
+    const rawValue = row[`c${index}_${column.sourceKey}`];
+    const value = column.sourceKey === "judgement" ? compactJudgement(rawValue) : rawValue;
     return line(formatTableValue(value), valueTone(value, column), `${role}：${formatTableValue(value)}`);
   })]);
   const self = row[column.key];

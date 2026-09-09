@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { compactColumnGroups, compactColumns, compactDifference, compactSortField, compactSortRows } from "../src/analysis-compact.js";
+import { compactColumnGroups, compactColumns, compactDifference, compactJudgement, compactSortField, compactSortRows } from "../src/analysis-compact.js";
 import { comparisonTabs } from "../src/comparison-data.js";
 import { sortFlatTreeRowsBySiblings } from "../src/analysis-sort.js";
 
@@ -19,7 +19,7 @@ const fixture = () => comparisonTabs([
 test("本品与差距合并为指标列，身份单列，竞品原值后置且本品不重复", () => {
   const tab = fixture();
   const columns = compactColumns(tab.columns, 2);
-  assert.deepEqual(columns.map((column) => column.key), ["path", "compact_roles", "self_visitors", "self_rate", "compact_judgement",
+  assert.deepEqual(columns.map((column) => column.key), ["path", "compact_roles", "compact_judgement", "self_visitors", "self_rate",
     "c0_competitor_visitors", "c0_competitor_rate", "c1_competitor_visitors", "c1_competitor_rate"]);
   assert.equal(columns.filter((column) => column.key === "self_visitors").length, 1);
   assert.equal(columns.find((column) => column.key === "self_visitors").label, "访客");
@@ -66,8 +66,17 @@ test("二层表头按差距和竞品分组，具体指标不重复商品前缀�
   const groups = compactColumnGroups(columns);
   assert.deepEqual(groups.map((column) => column.label), ["渠道", "对比", "差距", "竞品 1", "竞品 2"]);
   assert.equal(groups[2].derived, true);
+  assert.equal(groups[2].children[0].key, "compact_judgement");
   assert.deepEqual(groups[3].children.map((column) => column.label), ["访客", "占比"]);
   assert.deepEqual(groups.flatMap((group) => group.children || [group]).map((column) => column.key), columns.map((column) => column.key));
+});
+
+test("判断文案省略本品前缀，其他状态和缺失值保持原样", () => {
+  assert.equal(compactJudgement("本品领先"), "领先");
+  assert.equal(compactJudgement("本品落后"), "落后");
+  assert.equal(compactJudgement("基本持平"), "基本持平");
+  assert.equal(compactJudgement("无完整口径"), "无完整口径");
+  assert.equal(compactJudgement(null), null);
 });
 
 test("排序可按指定竞品差值且保持父子层级，空差距沉底", () => {
