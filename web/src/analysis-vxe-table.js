@@ -130,18 +130,17 @@ function renderCompactCell(row, column) {
       isProgressColumn(column) ? renderProgressValue(row[`c${index}_${column.key}`], column) : formatTableValue(row[`c${index}_${column.key}`], column.unit)
     ]))
     : isProgressColumn(column) ? renderProgressValue(self, column) : formatTableValue(self, column.unit);
-  return h("div", { class: "analysis-compact-metric" }, [line(selfText, "is-self", `本品：${formatTableValue(self, column.unit)}`), ...roles.map((role, index) => {
+  return h("div", { class: ["analysis-compact-metric", { "analysis-compact-share": isProgressColumn(column) }] }, [line(selfText, "is-self", `本品：${formatTableValue(self, column.unit)}`), ...roles.map((role, index) => {
     const gap = compactDifference(row, column, index);
     const signed = (value, unit) => `${value > 0 ? "+" : ""}${formatTableValue(value, unit)}`;
     const primary = gap.value == null ? "—" : signed(gap.value, gap.unit);
     const secondary = gap.zeroBase ? "基数为 0" : gap.percent == null ? "" : signed(gap.percent, "%");
-    if (isProgressColumn(column) && gap.value != null) {
-      return line(h("span", { class: "analysis-progress-cell analysis-progress-gap", title: `本品较${role}：${primary}` }, [
-        h("span", { class: "analysis-progress-track", "aria-hidden": "true" }, [
-          h("span", { class: "analysis-progress-fill", style: { width: `${Math.min(100, Math.abs(gap.value))}%` } })
-        ]),
-        h("strong", { class: "analysis-progress-value" }, primary)
-      ]), valueTone(gap.value, { key: "gap" }), `本品较${role}：${primary}`);
+    if (isProgressColumn(column)) {
+      const competitorValue = row[`c${index}_competitor_${column.suffix}`];
+      return line([
+        renderProgressValue(competitorValue, column),
+        h("strong", { class: valueTone(gap.value, { key: "gap" }), title: `本品较${role}：${primary}` }, primary)
+      ], "analysis-share-comparison", `${role}占比：${formatTableValue(competitorValue, column.unit)}，本品较${role}：${primary}`);
     }
     return line([h("strong", {}, primary), secondary ? h("small", {}, secondary) : null], valueTone(gap.value, { key: "gap" }),
       `本品较${role}：${primary}${secondary ? `，${secondary}` : ""}`);
@@ -190,7 +189,7 @@ function columnWidth(column, columnIndex, tableId) {
     return tableId === "traffic" ? 196 : tableId === "keywords" ? 168 : 142;
   }
   if (column.kind === "roles") return 68;
-  if (column.kind === "metric") return 152;
+  if (column.kind === "metric") return isProgressColumn(column) ? 240 : 152;
   if (column.kind === "comparison") return 142;
   if (isProgressColumn(column)) {
     return 160;

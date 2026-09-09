@@ -157,7 +157,9 @@
 
 .analysis-compact-metric .analysis-compact-line { justify-content: flex-end; }
 .analysis-compact-judgement .analysis-compact-line { justify-content: center; align-items: center; }
-.analysis-progress-gap .analysis-progress-fill { background: currentColor; }
+.analysis-compact-share .analysis-share-comparison { display: grid; grid-template-columns: minmax(0, 1fr) 76px; gap: 12px; }
+.analysis-compact-share .is-self { padding-right: 88px; }
+.analysis-compact-share .analysis-progress-cell { grid-template-columns: minmax(38px, 1fr) 58px; }
 .analysis-compact-line.is-self {
   height: var(--compact-self-height, 28px);
   color: #1f2933;
