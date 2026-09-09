@@ -135,6 +135,14 @@ function renderCompactCell(row, column) {
     const signed = (value, unit) => `${value > 0 ? "+" : ""}${formatTableValue(value, unit)}`;
     const primary = gap.value == null ? "—" : signed(gap.value, gap.unit);
     const secondary = gap.zeroBase ? "基数为 0" : gap.percent == null ? "" : signed(gap.percent, "%");
+    if (isProgressColumn(column) && gap.value != null) {
+      return line(h("span", { class: "analysis-progress-cell analysis-progress-gap", title: `本品较${role}：${primary}` }, [
+        h("span", { class: "analysis-progress-track", "aria-hidden": "true" }, [
+          h("span", { class: "analysis-progress-fill", style: { width: `${Math.min(100, Math.abs(gap.value))}%` } })
+        ]),
+        h("strong", { class: "analysis-progress-value" }, primary)
+      ]), valueTone(gap.value, { key: "gap" }), `本品较${role}：${primary}`);
+    }
     return line([h("strong", {}, primary), secondary ? h("small", {}, secondary) : null], valueTone(gap.value, { key: "gap" }),
       `本品较${role}：${primary}${secondary ? `，${secondary}` : ""}`);
   })]);
