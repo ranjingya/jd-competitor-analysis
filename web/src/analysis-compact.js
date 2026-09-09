@@ -1,6 +1,34 @@
 const GAP_KEYS = { visitors: "visitor_gap", gmv: "gmv_gap", conversion_rate_pct: "conversion_gap_pct", rate: "gap_rate" };
 
 /**
+ * 功能说明：把可见渠道或维度展开为本品及竞品独立行，折叠时隐藏完整后代组。
+ * 参数 rows：已排序的逻辑行；count：竞品数量；collapsed：折叠渠道 ID 集合。
+ * 返回值：带身份序号、组序号和逻辑行标识的表格行。
+ */
+export function alignedRows(rows, count, collapsed = new Set()) {
+  const parents = new Map(rows.map((row) => [row.id, row.parent_id]));
+  const hasChildren = new Set(rows.map((row) => row.parent_id).filter(Boolean));
+  return rows.filter((row) => {
+    const visited = new Set();
+    let parent = row.parent_id;
+    while (parent && !visited.has(parent)) {
+      if (collapsed.has(parent)) return false;
+      visited.add(parent);
+      parent = parents.get(parent);
+    }
+    return true;
+  }).flatMap((row, group) => Array.from({ length: count + 1 }, (_, role) => ({ ...row,
+    id: `${row.id}:role:${role}`, _sourceId: row.id, _role: role, _group: group, _hasChildren: hasChildren.has(row.id)
+  })));
+}
+
+/** 根据商品身份合并名称和竞品原值列，其他列保持单行。 */
+export function alignedSpan(row, column, firstKey, count) {
+  if (column === firstKey || /^c\d+_competitor_/.test(column)) return { rowspan: row._role === 0 ? count + 1 : 0, colspan: row._role === 0 ? 1 : 0 };
+  return { rowspan: 1, colspan: 1 };
+}
+
+/**
  * 功能说明：合并本品指标与各竞品差距为纵排列，竞品原值置于末尾，保留文字判断。
  * 参数 columns：当前指标筛选后的合并列；count：固定顺序的竞品槽位数量。
  * 返回值：紧凑表格列定义，原始输入保持不变。

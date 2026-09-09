@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { compactColumnGroups, compactColumns, compactDifference, compactJudgement, compactSortField, compactSortRows } from "../src/analysis-compact.js";
+import { alignedRows, alignedSpan, compactColumnGroups, compactColumns, compactDifference, compactJudgement, compactSortField, compactSortRows } from "../src/analysis-compact.js";
 import { comparisonTabs } from "../src/comparison-data.js";
 import { sortFlatTreeRowsBySiblings } from "../src/analysis-sort.js";
 
@@ -15,6 +15,18 @@ const fixture = () => comparisonTabs([
   slot([{ path: "搜索", self_visitors: 10, competitor_visitors: 20, visitor_gap: -10, self_rate: 30, competitor_rate: 40, judgement: "本品落后" }]),
   slot([{ path: "搜索", self_visitors: 10, competitor_visitors: 5, visitor_gap: 5, self_rate: 30, competitor_rate: 20, judgement: "本品领先" }]),
 ])[0];
+
+test("独立商品行保持连续，渠道折叠隐藏全部后代并保留兄弟组", () => {
+  const rows = [{ id: "a" }, { id: "b", parent_id: "a" }, { id: "c", parent_id: "b" }, { id: "d" }];
+  const expanded = alignedRows(rows, 2);
+  assert.equal(expanded.length, 12);
+  assert.deepEqual(expanded.slice(0, 3).map((row) => row._role), [0, 1, 2]);
+  assert.equal(new Set(expanded.map((row) => row.id)).size, 12);
+  assert.deepEqual(alignedRows(rows, 1, new Set(["a"])).map((row) => row._sourceId), ["a", "a", "d", "d"]);
+  assert.deepEqual(alignedSpan(expanded[0], "path", "path", 2), { rowspan: 3, colspan: 1 });
+  assert.deepEqual(alignedSpan(expanded[1], "c0_competitor_visitors", "path", 2), { rowspan: 0, colspan: 0 });
+  assert.deepEqual(alignedSpan(expanded[1], "self_visitors", "path", 2), { rowspan: 1, colspan: 1 });
+});
 
 test("本品与差距合并为指标列，身份单列，竞品原值后置且本品不重复", () => {
   const tab = fixture();

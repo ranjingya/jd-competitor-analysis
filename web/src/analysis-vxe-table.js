@@ -7,7 +7,7 @@ import "vxe-pc-ui/lib/style.css";
 import "vxe-table/lib/style.css";
 import "./analysis-vxe-table.css";
 import { isDerivedColumn } from "./analysis-columns.js";
-import { compactColumnGroups, compactColumns, compactDifference, compactJudgement, compactSortField, compactSortRows } from "./analysis-compact.js";
+import { alignedRows, alignedSpan, compactColumnGroups, compactColumns, compactDifference, compactJudgement, compactSortField, compactSortRows } from "./analysis-compact.js";
 import {
   sortFlatTreeRowsBySiblings,
   sortRowsWithBottomValues
@@ -162,6 +162,7 @@ function prepareTrafficRows(rows) {
       ...row,
       id: `traffic:${pathKey}`,
       parent_id: parentKey ? `traffic:${parentKey}` : null,
+      parent_path: levels.slice(0, -1).join(" > "),
       path: levels.at(-1) || row.path || "-"
     };
   });
@@ -257,7 +258,14 @@ export function mountAnalysisVxeTable(target, config) {
       const toolbarRef = ref();
       const isExpanded = ref(false);
       const tableHeight = ref(normalTableHeight);
-      const tableData = ref(sortedInitialData);
+      let logicalRows = sortedInitialData;
+      const collapsed = new Set();
+      const tableData = ref(compact ? alignedRows(logicalRows, config.competitorCount, collapsed) : logicalRows);
+      const toggleChannel = (id) => {
+        collapsed.has(id) ? collapsed.delete(id) : collapsed.add(id);
+        tableData.value = alignedRows(logicalRows, config.competitorCount, collapsed);
+        recalculate();
+      };
       const sortBasis = ref(initialBasis);
       let activeSort = config.sortState || null;
 
@@ -364,9 +372,10 @@ export function mountAnalysisVxeTable(target, config) {
         };
         const sortList = order ? [{ field: compactSortField(columnDefinitions, field), order }] : [];
         const sortableData = compactSortRows(data, columnDefinitions, sortBasis.value);
-        tableData.value = isTree
+        logicalRows = isTree
           ? sortFlatTreeRowsBySiblings(sortableData, sortList)
           : sortRowsWithBottomValues(sortableData, sortList, null);
+        tableData.value = compact ? alignedRows(logicalRows, config.competitorCount, collapsed) : logicalRows;
         activeSort = order ? { key: field, direction: order, basis: sortBasis.value } : null;
         config.onSortChange?.(activeSort);
         await recalculate();
@@ -405,19 +414,32 @@ export function mountAnalysisVxeTable(target, config) {
           minWidth: compact && columnIndex === 0 ? 168 : columnWidth(column, columnIndex, tableId),
           fixed: columnIndex === 0 || column.kind === "roles" ? "left" : undefined,
           sortable: column.kind !== "roles",
-          treeNode: isTree && columnIndex === 0,
+          treeNode: !compact && isTree && columnIndex === 0,
           headerClassName: column.kind === "metric" || column.kind === "comparison" || (!column.kind && isDerivedColumn(column)) ? "analysis-derived-header" : undefined,
           showOverflow: stacked ? false : "title",
-          align: column.sourceKey === "judgement" ? "center" : column.kind === "metric" || column.kind === "raw" ? "right" : undefined,
+          align: compact ? "center" : undefined,
+          headerAlign: "center",
+          className: compact ? (columnIndex === 2 || column.kind === "raw" ? "analysis-group-edge" : "analysis-metric-edge") : undefined,
           showHeaderOverflow: "title"
         };
         return h(VxeColumn, props, {
-          default: ({ row }) => stacked ? renderCompactCell(row, column) : isProgressColumn(column)
+          default: ({ row }) => {
+            if (compact && columnIndex === 0) return h("div", { class: "analysis-channel-label" }, [
+              row._hasChildren ? h("button", { type: "button", class: "analysis-channel-toggle", "aria-label": `${collapsed.has(row._sourceId) ? "展开" : "收起"}${row.path || row[column.key]}`, "aria-expanded": !collapsed.has(row._sourceId), onClick: () => toggleChannel(row._sourceId) }, collapsed.has(row._sourceId) ? "▸" : "▾") : null,
+              h("span", {}, [formatTableValue(row[column.key]), row.parent_path ? h("small", {}, row.parent_path) : null])
+            ]);
+            if (stacked) {
+              const cell = renderCompactCell(row, column);
+              cell.children = [cell.children[row._role]];
+              return cell;
+            }
+            return isProgressColumn(column)
             ? renderProgressValue(row[column.key], column)
             : h("span", {
               class: valueTone(row[column.key], column),
               title: formatTableValue(row[column.key], column.unit || "")
-            }, formatTableValue(row[column.key], column.unit || ""))
+            }, formatTableValue(row[column.key], column.unit || ""));
+          }
         });
       };
       const columns = compactColumnGroups(columnDefinitions).map(renderColumn);
@@ -433,7 +455,7 @@ export function mountAnalysisVxeTable(target, config) {
           : null,
         h("section", {
           ref: shellRef,
-          class: ["analysis-vxe-shell", { "is-modal-open": isExpanded.value }],
+          class: ["analysis-vxe-shell", { "is-modal-open": isExpanded.value, "is-aligned-table": compact }],
           style: { "--compact-self-height": `${selfHeight}px` },
           role: isExpanded.value ? "dialog" : undefined,
           "aria-modal": isExpanded.value ? "true" : undefined,
@@ -473,12 +495,14 @@ export function mountAnalysisVxeTable(target, config) {
           }, [
             h(VxeTable, {
             ref: tableRef,
-            id: `analysis-vxe-${compact ? "grouped-compact-" : ""}${tableId}-${columnDefinitions.map((column) => column.key).join("-")}`,
+            id: `analysis-vxe-${compact ? "aligned-" : ""}${tableId}-${columnDefinitions.map((column) => column.key).join("-")}`,
             data: tableData.value,
             height: tableHeight.value,
             size: "small",
             border: "inner",
-            stripe: true,
+            stripe: !compact,
+            spanMethod: compact ? ({ row, column }) => alignedSpan(row, column.field, columnDefinitions[0].key, config.competitorCount) : undefined,
+            rowClassName: compact ? ({ row }) => `${row._group % 2 ? "analysis-group-alt" : ""} ${row._role === 0 ? "analysis-group-first" : ""}` : undefined,
             round: true,
             showOverflow: "title",
             showHeaderOverflow: "title",
@@ -504,7 +528,7 @@ export function mountAnalysisVxeTable(target, config) {
                 transfer: false
               }
             },
-            treeConfig: isTree ? {
+            treeConfig: isTree && !compact ? {
               transform: true,
               rowField: "id",
               parentField: "parent_id",
@@ -522,7 +546,7 @@ export function mountAnalysisVxeTable(target, config) {
                 order: config.sortState.direction
               } : undefined
             },
-            scrollX: { enabled: true, gt: 8 },
+            scrollX: { enabled: !compact, gt: 8 },
             scrollY: { enabled: !compact, gt: 40 },
             onSortChange: ({ field, order }) => handleControlledSort(field, order)
             }, { default: () => columns })
