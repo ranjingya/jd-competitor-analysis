@@ -156,6 +156,7 @@
 }
 
 .analysis-compact-metric .analysis-compact-line { justify-content: flex-end; }
+.analysis-compact-judgement .analysis-compact-line { justify-content: center; align-items: center; }
 .analysis-compact-line.is-self {
   height: var(--compact-self-height, 28px);
   color: #1f2933;

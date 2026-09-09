@@ -1722,18 +1722,17 @@ a.product-card:active {
 }
 
 .analysis-panel {
+  height: auto;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .tab-body {
   min-height: 0;
   padding-top: var(--card-gap);
-  padding-right: 6px;
-  flex: 1 1 auto;
-  overflow-y: auto;
-  scrollbar-gutter: stable;
+  flex: 0 0 auto;
+  overflow: visible;
 }
 
 .tab-section + .tab-section {

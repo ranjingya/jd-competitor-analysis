@@ -118,7 +118,7 @@ function renderCompactCell(row, column) {
   const roles = Array.from({ length: column.count }, (_, index) => `竞品 ${index + 1}`);
   const line = (content, className = "", label) => h("div", { class: ["analysis-compact-line", className], "aria-label": label }, content);
   if (column.kind === "roles") return h("div", { class: "analysis-compact-labels" }, [line("本品", "is-self"), ...roles.map((role) => line(role))]);
-  if (column.kind === "comparison") return h("div", {}, [line("", "is-self"), ...roles.map((role, index) => {
+  if (column.kind === "comparison") return h("div", { class: column.sourceKey === "judgement" ? "analysis-compact-judgement" : undefined }, [line("", "is-self"), ...roles.map((role, index) => {
     const rawValue = row[`c${index}_${column.sourceKey}`];
     const value = column.sourceKey === "judgement" ? compactJudgement(rawValue) : rawValue;
     return line(formatTableValue(value), valueTone(value, column), `${role}：${formatTableValue(value)}`);
@@ -401,7 +401,7 @@ export function mountAnalysisVxeTable(target, config) {
           treeNode: isTree && columnIndex === 0,
           headerClassName: column.kind === "metric" || column.kind === "comparison" || (!column.kind && isDerivedColumn(column)) ? "analysis-derived-header" : undefined,
           showOverflow: stacked ? false : "title",
-          align: column.kind === "metric" || column.kind === "raw" ? "right" : undefined,
+          align: column.sourceKey === "judgement" ? "center" : column.kind === "metric" || column.kind === "raw" ? "right" : undefined,
           showHeaderOverflow: "title"
         };
         return h(VxeColumn, props, {
