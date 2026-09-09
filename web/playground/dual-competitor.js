@@ -8,7 +8,7 @@ let tables;
 let chart;
 const colors = ["#0f7b73", "#b96905", "#6076a3"];
 const classes = ["", "a", "b"];
-const roles = ["本品", "竞品 A", "竞品 B"];
+const roles = ["本品", "竞品 1", "竞品 2"];
 const formatter = new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 0 });
 
 function product() { return data.products[state.product]; }
@@ -33,7 +33,7 @@ function gap(value, other, percent = false) {
 /**
  * 功能说明：渲染本品和全部对照竞品，共用一个日期，主图独立跳转京东。
  * 参数：无，读取页面 state 与外部演示商品配置 data。
- * 返回值：无，更新商品、周期说明与布局列数。
+ * 返回值：无，更新商品与布局列数。
  */
 function renderProducts() {
   const items = [product(), ...competitors()];
@@ -52,16 +52,15 @@ function renderProducts() {
   $("#products").querySelectorAll("img").forEach((img) => {
     img.onerror = () => { img.parentElement.textContent = "暂无主图"; };
   });
-  $("#period-note").textContent = `${state.date} · ${items.length - 1} 个竞品同屏对照`;
 }
 
 function renderSummaries() {
   $("#summaries").innerHTML = competitors().map((item, i) => available(item, i + 1)
     ? `<button class="summary" data-detail="${i}" aria-haspopup="dialog" aria-controls="detail" aria-label="查看本品对比${escape(item.name)}的优缺点详情">
-      <span class="summary-header"><i class="dot ${classes[i + 1]}"></i>对比 ${escape(item.shortName)}</span>
-      <span class="summary-line weak"><span>弱点</span><strong>${escape(item.weakness)}</strong></span>
-      <span class="summary-line strong"><span>优点</span><strong>${escape(item.strength)}</strong></span></button>`
-    : `<div class="summary is-missing"><p class="summary-header"><i class="dot ${classes[i + 1]}"></i>对比 ${escape(item.shortName)}</p><p class="missing-copy">${state.date} 暂无报告</p></div>`).join("");
+      <span class="summary-header"><span class="badge ${classes[i + 1]}">${roles[i + 1]}</span>${escape(item.shortName)}</span>
+      <span class="summary-line weak"><span>弱势</span><strong>${escape(item.weakness)}</strong></span>
+      <span class="summary-line strong"><span>优势</span><strong>${escape(item.strength)}</strong></span></button>`
+    : `<div class="summary is-missing"><p class="summary-header"><span class="badge ${classes[i + 1]}">${roles[i + 1]}</span>${escape(item.shortName)}</p><p class="missing-copy">${state.date} 暂无报告</p></div>`).join("");
 }
 
 function renderMetrics() {
@@ -71,7 +70,7 @@ function renderMetrics() {
     <span class="metric-values">${items.map((item, i) => `<span class="metric-value"><small>${roles[i]}</small><strong>${available(item, i) ? number(item.metrics[metric.key], metric) : "—"}</strong></span>`).join("")}</span>
     <span class="metric-gaps">${competitors().map((item, i) => {
       const difference = gap(product().metrics[metric.key], available(item, i + 1) ? item.metrics[metric.key] : null, metric.unit === "%");
-      return `<span class="${difference.kind}">较 ${String.fromCharCode(65 + i)} ${difference.text}</span>`;
+      return `<span class="${difference.kind}">较竞品 ${i + 1} ${difference.text}</span>`;
     }).join("")}</span></button>`).join("");
 }
 
@@ -91,9 +90,6 @@ function renderTrend() {
   $("#trend-title").textContent = `${metric.label}趋势`;
   $("#trend").setAttribute("aria-label", `${dates[0]} 至 ${state.date}，${items.map((p) => p.name).join("、")}的${metric.label}趋势，数值可在图上查看`);
   $("#legend").innerHTML = items.map((item, i) => `<span><i class="dot ${classes[i]}"></i>${roles[i]} · ${escape(item.shortName || item.name)}</span>`).join("");
-  $("#chart-note").textContent = items.some((p, i) => i && !available(p, i))
-    ? "所选日期缺失的竞品显示为空，其他日期仍展示已有趋势。"
-    : "点击上方指标切换趋势 · 实线为本品，虚线为竞品估算值";
   chart.setOption({
     animation: !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
     animationDuration: 200,
@@ -127,7 +123,7 @@ function renderTable() {
     button.tabIndex = selected ? 0 : -1;
   });
   $("#comparison-panel").setAttribute("aria-labelledby", `tab-${state.table}`);
-  $("#comparison").innerHTML = `<thead><tr><th scope="col">${definition.dimension}</th><th scope="col" class="self-column">本品</th>${competitors().map((item, i) => `<th scope="col" class="group-start"><span class="badge ${classes[i + 1]}">${roles[i + 1]}</span> ${escape(item.shortName)}</th><th scope="col">本品较 ${String.fromCharCode(65 + i)}</th>`).join("")}</tr></thead><tbody>${definition.rows.map((row) => {
+  $("#comparison").innerHTML = `<thead><tr><th scope="col">${definition.dimension}</th><th scope="col" class="self-column">本品</th>${competitors().map((item, i) => `<th scope="col" class="group-start"><span class="badge ${classes[i + 1]}">${roles[i + 1]}</span> ${escape(item.shortName)}</th><th scope="col">本品较竞品 ${i + 1}</th>`).join("")}</tr></thead><tbody>${definition.rows.map((row) => {
     const values = items.map((item, i) => !available(item, i) || row.values[i] == null ? null : isShare ? row.values[i] : Math.round(item.metrics.visitors * row.values[i]));
     const display = (value) => value == null ? "—" : isShare ? `${value.toFixed(1)}%` : formatter.format(value);
     return `<tr><th scope="row">${escape(row.name)}</th><td class="self-column">${display(values[0])}</td>${competitors().map((item, i) => {
@@ -145,10 +141,10 @@ function renderAdvice() {
 
 function showDetail(index) {
   const item = competitors()[index];
-  $("#detail-context").textContent = `本品对比 ${item.name}`;
+  $("#detail-context").textContent = `本品对比${roles[index + 1]} · ${item.name}`;
   const list = (positive) => data.metrics.filter((metric) => positive ? product().metrics[metric.key] > item.metrics[metric.key] : product().metrics[metric.key] < item.metrics[metric.key])
     .map((metric) => `<li>${metric.label}：本品 ${number(product().metrics[metric.key], metric)}，竞品 ${number(item.metrics[metric.key], metric)}。</li>`).join("");
-  $("#detail-content").innerHTML = `<section class="detail-section"><h3 class="weak">弱点 · ${escape(item.weakness)}</h3><ul>${list(false) || "<li>暂无落后的核心指标。</li>"}</ul></section><section class="detail-section"><h3 class="strong">优点 · ${escape(item.strength)}</h3><ul>${list(true) || "<li>暂无领先的核心指标。</li>"}</ul></section>`;
+  $("#detail-content").innerHTML = `<section class="detail-section weak"><h3>弱势 · ${escape(item.weakness)}</h3><ul>${list(false) || "<li>暂无落后的核心指标。</li>"}</ul></section><section class="detail-section strong"><h3>优势 · ${escape(item.strength)}</h3><ul>${list(true) || "<li>暂无领先的核心指标。</li>"}</ul></section>`;
   $("#detail").showModal();
 }
 

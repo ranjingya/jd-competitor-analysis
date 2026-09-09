@@ -9,19 +9,18 @@
 <body>
   <main>
     <div class="preview-bar">
-      <span><b>PLAYGROUND</b> 双竞品同屏 · 示例数据</span>
+      <span><b>PLAYGROUND · 示例</b></span>
       <div class="segmented" role="group" aria-label="预览场景">
         <button data-mode="dual" aria-pressed="true">双竞品</button>
         <button data-mode="single" aria-pressed="false">单竞品</button>
-        <button data-mode="missing" aria-pressed="false">竞品 B 无报告</button>
+        <button data-mode="missing" aria-pressed="false">竞品 2 无报告</button>
       </div>
     </div>
-    <header class="page-heading"><h1>竞品准真实值看板</h1><span class="subtle">本品真实值 · 竞品估算值</span></header>
+    <header class="page-heading"><h1>竞品准真实值看板</h1></header>
     <section class="panel toolbar" aria-label="商品与分析周期">
       <div id="products" class="products"></div>
       <div class="toolbar-bottom">
         <div class="period-controls"><label for="report-date">分析周期</label><span class="day-label">日</span><select id="report-date" aria-label="分析日期"></select></div>
-        <span class="period-note" id="period-note"></span>
       </div>
     </section>
     <p id="error" role="alert" hidden></p>
@@ -29,24 +28,21 @@
       <section class="summary-grid" id="summaries" aria-label="与各竞品相比的优点和弱点"></section>
       <section class="metrics" id="metrics" aria-label="核心指标，点击切换趋势"></section>
       <section class="panel trend-panel" aria-labelledby="trend-title">
-        <div class="section-header"><div><span class="eyebrow">核心指标趋势</span><h2 id="trend-title">成交金额</h2></div><div id="legend" class="legend"></div></div>
+        <div class="section-header"><h2 id="trend-title">成交金额趋势</h2><div id="legend" class="legend"></div></div>
         <div id="trend" class="chart" role="img" aria-label="三方最近七天成交金额趋势"></div>
-        <p class="chart-note" id="chart-note"></p>
       </section>
       <section class="panel sources" aria-labelledby="source-title">
-        <div class="section-header"><div><h2 id="source-title">差距来源分析</h2><p class="subtle">三方数据横向对照，差距均以本品为基准</p></div><span class="unit-note" id="table-unit"></span></div>
+        <div class="section-header"><h2 id="source-title">差距来源分析</h2><span class="unit-note" id="table-unit"></span></div>
         <div class="tabs" role="tablist" aria-label="差距来源维度" id="tabs"></div>
         <div class="table-wrap" id="comparison-panel" role="tabpanel" tabindex="0" aria-label="差距来源对照表，可横向滚动"><table id="comparison"></table></div>
-        <p class="table-note">“—” 表示该项暂无数据，不计为 0。仅表格区域独立滚动。</p>
       </section>
       <section class="advice-section" aria-labelledby="advice-title">
-        <div class="section-header"><h2 id="advice-title">AI 劣势建议</h2><span class="subtle">分别对照竞品，明确优化方向</span></div>
+        <div class="section-header"><h2 id="advice-title">AI 劣势建议</h2></div>
         <div id="advice" class="advice-grid"></div>
       </section>
-      <footer class="page-footer">此页为交互原型，数值与分析文案仅用于展示布局，不读取或修改正式报告。</footer>
     </div>
   </main>
-  <dialog id="detail" aria-labelledby="detail-title"><header><div><span class="eyebrow" id="detail-context"></span><h2 id="detail-title">优点与弱点</h2></div><button id="close-detail" aria-label="关闭详情">×</button></header><div id="detail-content"></div></dialog>
+  <dialog id="detail" aria-labelledby="detail-title"><header><div><span class="eyebrow" id="detail-context"></span><h2 id="detail-title">优势与弱势</h2></div><button id="close-detail" aria-label="关闭详情">×</button></header><div id="detail-content"></div></dialog>
   <script type="module" src="./dual-competitor.js"></script>
 </body>
 </html>
