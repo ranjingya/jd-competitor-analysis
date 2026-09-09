@@ -11,14 +11,12 @@ import {
   defaultPairKey,
   findReportForPeriod,
   indexFromProductPairs,
-  indexForPair,
   mergePeriodEntries,
   reportPair,
-  reportPairs,
-  reportsForPair
+  reportPairs
 } from "./report-selection.js";
 import { bindSkuDialog, closeSkuDialog } from "./sku-dialog.js";
-import { bindHeroSummaryDialog } from "./hero-summary.js";
+import { comparisonIndex, comparisonPairs } from "./comparison-data.js";
 import { formatBeijingDateTime } from "./time-format.js";
 
 const granularityLabels = {
@@ -55,7 +53,7 @@ const pairPickerState = {
 };
 
 function reportsFor(granularity) {
-  return reportsForPair(state.index, granularity, state.activePairKey);
+  return comparisonIndex(state.index, comparisonPairs(state.index, state.activePairKey)).reports[granularity];
 }
 
 function activePair() {
@@ -70,13 +68,13 @@ function contextForEntry(granularity, entry) {
 }
 
 /**
- * 功能说明：按需加载当前商品对指定年月的可用报告，并合并到页面导航状态。
+ * 功能说明：按需加载指定商品对年月内的可用报告，并合并到页面导航状态。
  * 参数 granularity：day、week 或 month。
  * 参数 context：日报/周报月份 YYYY-MM，或月报年份 YYYY。
+ * 参数 pair：待查询商品对，默认使用当前本品的导航商品对。
  * 返回值：Promise；周期元数据加载并渲染完成后结束。
  */
-async function ensurePeriodContext(granularity, context) {
-  const pair = activePair();
+async function ensurePeriodContext(granularity, context, pair = activePair()) {
   if (!pair || !context) return;
   const pairKey = pair.key;
   const requestKey = `${pairKey}:${granularity}:${context}`;
@@ -162,18 +160,25 @@ function selectReportsForActivePair(preservePeriod = false) {
 
 function renderControls() {
   renderPairSelector();
-  const pair = activePair();
+  const pairs = comparisonPairs(state.index, state.activePairKey);
+  const periodContexts = Object.fromEntries(Object.keys(granularityLabels).map((grain) => [grain,
+    [...new Set(pairs.flatMap((pair) => state.periodContexts[pair.key]?.[grain] || []))].sort()
+  ]));
+  const reportCounts = Object.fromEntries(Object.keys(granularityLabels).map((grain) => [grain,
+    pairs.reduce((total, pair) => total + (pair.reportCounts?.[grain] || 0), 0)
+  ]));
   renderPeriodPicker({
     container: document.querySelector("#period-picker"),
-    index: indexForPair(state.index, state.activePairKey),
+    index: comparisonIndex(state.index, pairs),
     activeGranularity: state.activeGranularity,
     selectedReportIds: state.selectedReportIds,
     selectedPeriods: state.selectedPeriods,
     pickerState: periodPickerState,
-    periodContexts: state.periodContexts[state.activePairKey] || {},
-    reportCounts: pair?.reportCounts || {},
+    periodContexts,
+    reportCounts,
     onContextChange(granularity, context) {
-      ensurePeriodContext(granularity, context);
+      Promise.all(pairs.map((pair) => ensurePeriodContext(granularity, context, pair)))
+        .then(() => { if (activePair()?.selfSpu === pairs[0]?.selfSpu) renderControls(); });
     },
     onReportChange(granularity, reportId) {
       state.activeGranularity = granularity;
@@ -244,7 +249,7 @@ function trendRangeFor(entry) {
 }
 
 /**
- * 功能说明：加载当前指标所需的多个周期报告并刷新趋势图。
+ * 功能说明：并行加载当前本品各竞品的轻量趋势，独立展示失败与空值。
  * 参数 entry：当前周期的报告索引条目。
  * 返回值：Promise；完成后趋势图更新为最新请求。
  */
@@ -259,21 +264,23 @@ async function renderActiveTrend(entry) {
   const range = trendRangeFor(entry);
   showTrendState("正在加载趋势数据");
   try {
-    const result = await loadReportTrends(
-      pair,
+    const pairs = comparisonPairs(state.index, state.activePairKey);
+    const results = await Promise.allSettled(pairs.map((item) => loadReportTrends(
+      item,
       state.activeGranularity,
       range.startDate,
       range.endDate
-    );
+    )));
     if (requestId !== state.trendRequestId) {
       return;
     }
     renderTrendChart(
-      result.items || [],
+      results.map((result) => result.status === "fulfilled" ? result.value.items || [] : []),
       state.activeMetricId,
       state.activeGranularity,
       entry.start_date,
-      range
+      range,
+      results.map((result) => result.status === "rejected")
     );
   } catch (error) {
     console.error("趋势数据加载失败", error);
@@ -284,8 +291,8 @@ async function renderActiveTrend(entry) {
 }
 
 /**
- * 功能说明：按当前商品对和所选周期加载报告，隔离过期响应并展示空缺或失败状态。
- * 参数：无，从页面 state 读取商品对、粒度和起止日期。
+ * 功能说明：按当前本品和所选周期并行加载竞品报告，隔离过期响应和单侧失败。
+ * 参数：无，从页面 state 读取本品、粒度和起止日期。
  * 返回值：Promise<void>，页面更新完成后结束。
  */
 async function selectActiveReport() {
@@ -303,22 +310,30 @@ async function selectActiveReport() {
   document.querySelector("#meta").textContent = `${periodLabel} · 分析粒度：${granularityLabels[granularity]}`;
   document.querySelector("#updated-at").textContent = "正在读取所选报告";
   showPageState("正在读取所选周期报告");
-  let entry = findReportForPeriod(state.index, granularity, pairKey, period);
-  if (!entry && period) {
-    const loaded = await ensurePeriodContext(granularity, contextForEntry(granularity, period));
-    if (requestId !== state.reportRequestId) return;
-    if (!loaded) {
-      document.querySelector("#updated-at").textContent = "报告读取失败";
-      showPageState("所选周期读取失败，请重新选择以重试", true);
-      return;
+  const pairs = comparisonPairs(state.index, pairKey);
+  const slots = await Promise.all(pairs.map(async (pair) => {
+    let entry = findReportForPeriod(state.index, granularity, pair.key, period);
+    if (!entry && period) {
+      const loaded = await ensurePeriodContext(granularity, contextForEntry(granularity, period), pair);
+      if (!loaded) return { pair, entry: null, report: null, error: true };
+      entry = findReportForPeriod(state.index, granularity, pair.key, period);
     }
-    entry = findReportForPeriod(state.index, granularity, pairKey, period);
-  }
+    if (!entry) return { pair, entry: null, report: null };
+    try { return { pair, entry, report: await loadReport(entry) }; }
+    catch (error) {
+      console.error("竞品报告加载失败", pair.key, error);
+      return { pair, entry, report: null, error: true };
+    }
+  }));
+  if (requestId !== state.reportRequestId) return;
+  const available = slots.filter((slot) => slot.report);
+  const entry = available[0]?.entry;
   if (!entry) {
     state.selectedReportIds[granularity] = "";
     renderControls();
-    document.querySelector("#updated-at").textContent = "所选周期暂无报告";
-    showPageState(`${periodLabel} 当前本品与竞品暂无报告，可切换竞品或选择其他周期`);
+    const failed = slots.some((slot) => slot.error);
+    document.querySelector("#updated-at").textContent = failed ? "报告读取失败" : "所选周期暂无报告";
+    showPageState(failed ? "所选周期读取失败，请重新选择以重试" : `${periodLabel} 当前本品暂无报告，请选择其他周期`, failed);
     showTrendState("所选周期暂无趋势数据");
     return;
   }
@@ -327,15 +342,14 @@ async function selectActiveReport() {
   renderControls();
   showPageState(`正在加载${entry.period}报告`);
   try {
-    const report = await loadReport(entry);
-    if (requestId !== state.reportRequestId) return;
+    const report = available[0].report;
     document.querySelector("#sku-trigger").disabled = false;
-    const updatedAt = formatBeijingDateTime(entry.updated_at || state.index.updated_at);
+    const updatedAt = formatBeijingDateTime(available.map((slot) => slot.entry.updated_at).filter(Boolean).sort().at(-1) || state.index.updated_at);
     document.querySelector("#updated-at").textContent = updatedAt ? `数据生成于 ${updatedAt}` : "报告已加载";
     if (!(report.core_metrics || []).some((item) => item.id === state.activeMetricId)) {
       state.activeMetricId = report.core_metrics?.[0]?.id || "";
     }
-    renderDashboard(report, state.activeMetricId);
+    renderDashboard(slots, state.activeMetricId);
     await renderActiveTrend(entry);
   } catch (error) {
     console.error("报告加载失败", error);
@@ -370,10 +384,6 @@ async function initialize() {
       document.querySelector("#sku-trigger"),
       document.querySelector("#sku-dialog"),
       () => state.currentEntry
-    );
-    bindHeroSummaryDialog(
-      document.querySelector("#summary-dialog"),
-      document.querySelector("#hero-summary-trigger")
     );
     await selectActiveReport();
   } catch (error) {

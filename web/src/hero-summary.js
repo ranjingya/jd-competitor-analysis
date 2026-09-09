@@ -85,18 +85,25 @@ function parseDetail(value) {
 /**
  * 功能说明：绑定优点与弱点摘要的详情弹窗。
  * 参数 dialog：用于展示完整结论的原生 dialog 元素。
- * 参数 trigger：打开优缺点详情的摘要面板按钮。
+ * 参数 trigger：包含各竞品摘要按钮的容器。
  * 返回值：无；完成点击、遮罩关闭和焦点恢复事件绑定。
  */
 export function bindHeroSummaryDialog(dialog, trigger) {
-  trigger.addEventListener("click", () => {
+  if (trigger.dataset.dialogBound) return;
+  trigger.dataset.dialogBound = "true";
+  let opener = null;
+  trigger.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-summary-index]");
+    if (!button || button.disabled) return;
+    opener = button;
+    dialog.querySelector("#summary-dialog-title").textContent = button.dataset.dialogTitle;
     renderDetailPoints(
       dialog.querySelector("#summary-dialog-advantage"),
-      parseDetail(trigger.dataset.advantageDetail)
+      parseDetail(button.dataset.advantageDetail)
     );
     renderDetailPoints(
       dialog.querySelector("#summary-dialog-weakness"),
-      parseDetail(trigger.dataset.weaknessDetail)
+      parseDetail(button.dataset.weaknessDetail)
     );
     dialog.showModal();
   });
@@ -110,6 +117,6 @@ export function bindHeroSummaryDialog(dialog, trigger) {
     if (!inside) dialog.close();
   });
   dialog.addEventListener("close", () => {
-    trigger.focus();
+    if (opener?.isConnected) opener.focus();
   });
 }

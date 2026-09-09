@@ -21,12 +21,12 @@ function productImage(product) {
   return frame;
 }
 
-function productCopy(product, role = "self") {
+function productCopy(product, role = "self", label = "") {
   const copy = element("span", "product-select-copy");
   const heading = element("span", "product-select-heading");
   const name = element("strong", "", product.name || product.id);
   name.title = name.textContent;
-  heading.append(element("span", `product-role product-role-${role}`, role === "self" ? "本品" : "竞品"), name);
+  heading.append(element("span", `product-role product-role-${role}`, label || (role === "self" ? "本品" : "竞品")), name);
   copy.append(heading, element("small", "", `商品 ID ${product.id}`));
   return copy;
 }
@@ -131,7 +131,7 @@ function selfPicker(container, groups, selected, pickerState, onBeforeOpen, onPa
 }
 
 /**
- * 功能说明：渲染紧凑商品块；主图跳转京东，文字及其余区域切换分析。
+ * 功能说明：渲染同屏商品块；本品文字区域打开菜单，各商品主图跳转京东。
  * 参数 options：包含 container 根节点、pairs 已有报告商品对、activePairKey 当前商品对、
  * pickerState 菜单状态、onBeforeOpen 打开前回调、onPairChange 商品对切换回调。
  * 返回值：无，更新选择区 DOM；相同数据不重建菜单。
@@ -149,21 +149,12 @@ export function renderPairPicker(options) {
   // 正常业务是一至两个竞品；额外记录换行展示，不隐藏已有报告。
   container.style.setProperty("--product-columns", Math.min(3, group.competitors.length + 1));
   const children = [selfPicker(container, groups, group, pickerState, onBeforeOpen, onPairChange)];
-  for (const pair of group.competitors) {
+  for (const [index, pair] of group.competitors.entries()) {
     const product = { id: pair.competitorSpu, name: pair.competitorName, imageUrl: pair.competitorImageUrl };
-    const selected = pair.key === activePairKey;
-    const card = element("div", `product-select-item${selected ? " is-selected" : ""}`);
-    const button = element("button", "product-select-card");
-    button.type = "button";
+    const card = element("div", "product-select-item product-select-static");
+    const button = element("div", "product-select-card");
     button.dataset.pairKey = pair.key;
-    button.setAttribute("aria-label", `对比${product.name || product.id}`);
-    button.setAttribute("aria-pressed", String(selected));
-    button.append(productCopy(product, "competitor"), element("span", "product-select-marker", selected ? "✓" : "○"));
-    button.onclick = () => {
-      closePairPicker(container, pickerState);
-      onPairChange(pair.key);
-      [...container.querySelectorAll("[data-pair-key]")].find((item) => item.dataset.pairKey === pair.key)?.focus();
-    };
+    button.append(productCopy(product, "competitor", `竞品 ${index + 1}`));
     card.append(button, jdLink(product));
     children.push(card);
   }

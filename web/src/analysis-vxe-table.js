@@ -27,7 +27,7 @@ function formatTableValue(value, unit = "") {
   if (value == null || value === "" || value === "-") {
     return "-";
   }
-  return typeof value === "number" ? `${value.toFixed(2)}${unit}` : `${value}${unit}`;
+  return typeof value === "number" ? `${value.toFixed(2)}${unit}` : `${value}${String(value).startsWith("对竞品 ") ? "" : unit}`;
 }
 
 /**
@@ -417,7 +417,7 @@ export function mountAnalysisVxeTable(target, config) {
           }, [
             h(VxeTable, {
             ref: tableRef,
-            id: `analysis-vxe-${tableId}`,
+            id: `analysis-vxe-${tableId}-${config.columns.map((column) => column.key).join("-")}`,
             data: tableData.value,
             height: tableHeight.value,
             size: "small",

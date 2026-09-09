@@ -32,17 +32,8 @@
 
     <section class="page-state" id="page-state" aria-live="polite">正在加载报告数据</section>
 
-    <div id="dashboard" hidden>
-      <button class="hero" id="hero-summary-trigger" type="button" aria-haspopup="dialog" aria-controls="summary-dialog" aria-label="查看优点与弱点详情">
-        <span class="hero-block">
-          <span class="hero-label advantage">优点</span>
-          <span class="summary" id="summary">-</span>
-        </span>
-        <span class="hero-block">
-          <span class="hero-label warning">弱点</span>
-          <span class="weakness-text" id="weakness">-</span>
-        </span>
-      </button>
+    <div id="dashboard" class="comparison-dashboard" hidden>
+      <section class="comparison-summaries" id="hero-summaries" aria-label="各竞品优缺点"></section>
 
       <section class="metrics-trend" aria-label="核心指标与趋势">
         <section class="metrics" id="metrics" aria-label="核心指标选择"></section>
@@ -67,7 +58,7 @@
 
         <aside class="panel ai-recommendations-panel">
           <h2>AI 劣势建议</h2>
-          <div class="ai-recommendations-list" id="ai-recommendations"></div>
+          <div class="comparison-advice-grid" id="ai-recommendations"></div>
         </aside>
       </section>
 

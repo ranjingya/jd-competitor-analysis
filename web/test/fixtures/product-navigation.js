@@ -17,6 +17,9 @@ const configs = [
   { self: '102', comp: '203', date: today },
   { self: '102', comp: '204', date: today },
   { self: '103', comp: '205', date: today },
+  { self: '104', comp: '206', date: today },
+  { self: '104', comp: '207', date: today },
+  { self: '105', comp: '208', date: yesterday },
 ];
 const entries = configs.map((item) => ({
   self_spu: item.self, competitor_spu: item.comp, self_name: `测试本品${item.self}`,
@@ -45,10 +48,14 @@ window.fetch = async (input, init) => {
     await sleep(url.searchParams.get('competitor_spu') === '202' ? 150 : 5);
     data = { items: found, contexts: ['2026-09'] };
   } else if (url.pathname === '/api/reports/trends') {
-    data = { items: [] };
+    data = { items: [yesterday, today].map((date) => ({
+      meta: { period_start: date, period_end: date, period: date },
+      core_metrics: [{ id: 'gmv', label: '成交金额', unit: '', self_value: 100, competitor_value: Number(url.searchParams.get('competitor_spu')) }]
+    })) };
   } else {
     const entry = entries.find((item) => item.path === url.pathname);
     if (!entry) return new Response('{}', { status: 404 });
+    if (entry.competitor_spu === '206') return new Response('{}', { status: 500 });
     await sleep(entry.competitor_spu === '204' ? 150 : 5);
     data = reportFor(entry);
   }
@@ -59,7 +66,6 @@ const option = (text) => [...document.querySelectorAll('.product-select-option')
 const chooseSelf = (id) => { $('#pair-trigger').click(); option(`测试本品${id}`).click(); };
 const card = (id) => $(`.product-select-card[data-pair-key="101::${id}"]`);
 const settled = () => !$('#dashboard').hidden && !$('#updated-at').textContent.includes('正在');
-const chooseComp = (id) => { $(`[data-pair-key="102::${id}"]`).click(); };
 
 /**
  * 功能说明：在真实页面 DOM 上验证单／双竞品、商品链接、空报告和异步切换。
@@ -69,62 +75,70 @@ const chooseComp = (id) => { $(`[data-pair-key="102::${id}"]`).click(); };
 async function run() {
   await import('/src/main.js');
   await until(settled);
-  $('#pair-trigger .product-select-heading strong').click();
-  check($('#pair-trigger').getAttribute('aria-expanded') === 'true', '点击本品名称展开菜单');
-  check(document.querySelectorAll('#pair-trigger-list button').length === 3, '本品去重为三项');
-  option('测试本品101').click();
+  chooseSelf('101');
   await until(settled);
-  check(document.querySelectorAll('[data-pair-key]').length === 2, '两个竞品展示卡片');
-  check(document.querySelectorAll('.product-select-item').length === 3, '本品加双竞品共三个商品块');
-  check(document.querySelectorAll('.product-select-link').length === 3 && !document.querySelector('.product-select-card a'), '商品主图链接与选择按钮独立');
-  check([...document.querySelectorAll('.product-select-link')].every((link) => link.children.length === 1 && link.firstElementChild.classList.contains('product-select-image') && !link.querySelector('.product-select-copy')), '京东链接只包裹主图，不含名称与 ID');
+  check(document.querySelectorAll('.product-select-item').length === 3, '本品与双竞品同屏');
+  check($('#hero-summaries').textContent.includes('对比竞品 1') && $('#hero-summaries').textContent.includes('所选周期暂无报告'), '一侧缺失只显示该侧空状态');
+  check($('#metrics').textContent.includes('201.00') && !$('#metrics').textContent.includes('202.00'), '缺失侧不拿其他日期报告填充');
+  check(!$('#sku-trigger').disabled, '另一侧有报告仍可查看本品 SKU');
+  check(document.querySelectorAll('.product-select-link').length === 3 && !document.querySelector('.product-select-card a'), '商品主图链接独立');
   check([...document.querySelectorAll('.product-select-link')].every((link) => {
-    const bounds = link.getBoundingClientRect();
-    const imageBounds = link.firstElementChild.getBoundingClientRect();
-    return bounds.width === imageBounds.width && bounds.height === imageBounds.height && bounds.left === imageBounds.left && bounds.top === imageBounds.top;
-  }), '主图链接无 padding，边框紧贴图片');
-  const photoLink = card('202').parentElement.querySelector('.product-select-link');
+    const a = link.getBoundingClientRect(), b = link.firstElementChild.getBoundingClientRect();
+    return a.width === b.width && a.height === b.height && a.left === b.left && a.top === b.top;
+  }), '主图 hover 边框紧贴图片');
+  const selectedDate = $('#period-trigger').textContent;
+  card('202').querySelector('strong').click();
+  check($('#period-trigger').textContent === selectedDate && !$('#dashboard').hidden, '点击竞品文字不跳转、不切换日期');
   let photoClicked = false;
+  const photoLink = card('202').parentElement.querySelector('.product-select-link');
   photoLink.addEventListener('click', (event) => { event.preventDefault(); photoClicked = true; }, { once:true });
-  photoLink.querySelector('.product-select-image').click();
-  check(photoClicked && card('201').getAttribute('aria-pressed') === 'true', '点击竞品主图不切换分析');
+  photoLink.click();
+  check(photoClicked && $('#metrics').textContent.includes('201.00'), '点击主图只打开商品链接');
   if (innerWidth > 1050) {
     const positions = [...document.querySelectorAll('.product-select-item')].map((node) => node.getBoundingClientRect().top);
-    check(positions.every((top) => top === positions[0]), '宽屏三个商品保持一行');
+    check(positions.every((top) => top === positions[0]), '宽屏三个商品同一行');
   }
-  const selectedDate = $('#period-trigger').textContent;
-  card('202').querySelector('.product-select-heading strong').click();
-  await until(() => !$('#page-state').hidden && $('#page-state').textContent.includes('暂无报告'));
-  check(card('202').getAttribute('aria-pressed') === 'true', '点击竞品名称切换分析');
-  check($('#period-trigger').textContent === selectedDate, '缺失报告保留所选日期');
-  check($('#dashboard').hidden && $('#sku-trigger').disabled, '缺失报告隐藏旧内容并禁用 SKU');
   $('#period-trigger').click();
-  check(!document.querySelector('[data-report-id].is-selected'), '无报告的日历不误选其他日期');
   const bounds = $('#period-popover').getBoundingClientRect();
   check(bounds.left >= 0 && bounds.right <= innerWidth + 1, '日历不超出视口');
+  check([...document.querySelectorAll('[data-report-id]')].some((node) => node.dataset.reportId === '101-202'), '日历包含另一竞品独有的日期');
   document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-  card('201').querySelector('small').click();
-  await until(settled);
-  check(card('201').getAttribute('aria-pressed') === 'true', '点击竞品 ID 切换分析');
-  card('202').click();
-  card('201').click();
-  await sleep(220);
-  check(settled() && $('#metrics').textContent.includes('201.00'), '快速切换不被旧空报告请求覆盖');
   chooseSelf('102');
+  await until(settled);
+  check($('#metrics').textContent.includes('203.00') && $('#metrics').textContent.includes('204.00'), '双竞品指标同时加载');
+  await until(() => $('#trend-chart svg'));
+  check($('#trend-chart').textContent.includes('竞品 1') && $('#trend-chart').textContent.includes('竞品 2'), '三条趋势线共享图例');
+  const summaries = [...document.querySelectorAll('[data-summary-index]')];
+  summaries[1].click();
+  check($('#summary-dialog-title').textContent.includes('竞品 2'), '详情明确竞品编号');
+  check($('#summary-dialog-weakness').textContent.includes('204'), '详情来自所点击竞品');
+  check($('#summary-dialog-weakness').children.length > 0, '详情分点展示');
+  $('#summary-dialog').close();
+  await sleep(20);
+  summaries[0].click();
+  check($('#summary-dialog-advantage').textContent.includes('203'), '反复打开详情不会串竞品');
+  $('#summary-dialog').close();
+  chooseSelf('103');
+  await until(settled);
+  check(document.querySelectorAll('.product-select-item').length === 2 && document.querySelectorAll('[data-summary-index]').length === 1, '单竞品布局自动收拢');
+  chooseSelf('102');
+  chooseSelf('103');
+  await sleep(250);
+  check(settled() && $('#metrics').textContent.includes('205.00') && !$('#metrics').textContent.includes('204.00'), '旧请求不覆盖最新本品');
+  chooseSelf('104');
+  await until(settled);
+  check($('#hero-summaries').textContent.includes('报告读取失败') && $('#metrics').textContent.includes('207.00'), '首个竞品读取失败不影响第二个竞品');
+  check($('#hero-summaries [data-summary-index="0"]').disabled && !$('#hero-summaries [data-summary-index="1"]').disabled, '失败侧空槽不改变竞品编号');
+  chooseSelf('105');
+  await until(() => !$('#page-state').hidden && $('#page-state').textContent.includes('暂无报告'));
+  check($('#dashboard').hidden && $('#sku-trigger').disabled, '所选日双方无报告时清空旧看板');
+  chooseSelf('103');
   await until(settled);
   $('#pair-trigger').click();
   document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
-  check(document.activeElement === $('#pair-trigger-list').lastElementChild, '键盘导航到最后一个本品');
+  check(document.activeElement === $('#pair-trigger-list').lastElementChild, '本品菜单键盘导航');
   document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
   check($('#pair-trigger').getAttribute('aria-expanded') === 'false' && document.activeElement === $('#pair-trigger'), 'Esc 收起并恢复焦点');
-  chooseComp('204');
-  chooseComp('203');
-  await sleep(230);
-  check(settled() && $('#metrics').textContent.includes('203.00'), '慢报告响应不覆盖最新竞品');
-  chooseSelf('103');
-  await until(settled);
-  check(document.querySelectorAll('.product-select-item').length === 2, '单竞品只展示两个商品，不留空框');
-  check($('#pair-trigger').getAttribute('aria-expanded') === 'false', '切换本品后菜单自动收回');
   $('#pair-trigger').click();
   document.body.click();
   check($('#pair-trigger').getAttribute('aria-expanded') === 'false', '点击外部关闭菜单');

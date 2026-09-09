@@ -3,22 +3,19 @@ import { CustomChart, LineChart } from "echarts/charts";
 import { GridComponent, LegendComponent, TooltipComponent } from "echarts/components";
 import { SVGRenderer } from "echarts/renderers";
 import { mountAnalysisVxeTable, unmountAnalysisVxeTable } from "./analysis-vxe-table.js";
-import { compactHeroSummary, hasDetailPoints } from "./hero-summary.js";
-import { buildMissingTrendSeries, buildTrendPoints } from "./trend-data.js";
+import { bindHeroSummaryDialog, compactHeroSummary, hasDetailPoints } from "./hero-summary.js";
+import { buildMissingTrendSeries } from "./trend-data.js";
+import { comparisonMetrics, comparisonTabs, comparisonTrendPoints } from "./comparison-data.js";
+import "./comparison-dashboard.css";
 
 echarts.use([CustomChart, LineChart, GridComponent, LegendComponent, TooltipComponent, SVGRenderer]);
-
-const granularityLabels = {
-  day: "日",
-  week: "周",
-  month: "月"
-};
 
 const dashboardState = {
   data: null,
   activeTab: 0,
   activeMetricId: "",
   dimensions: {},
+  measures: {},
   sorts: {}
 };
 
@@ -34,72 +31,6 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
-/**
- * 功能说明：标准化报告中的商品引用，并为缺少完整商品对象的报告补齐字段。
- * 参数 meta：分析结果中的元信息对象。
- * 参数 role：商品角色，取值为 self 或 competitor。
- * 返回值：包含商品 ID、名称、主图和京东详情地址的展示对象。
- */
-function normalizeProductReference(meta, role) {
-  const reference = meta?.[`${role}_product`] || {};
-  const id = String(reference.id || meta?.[`${role}_spu`] || "").trim();
-  const fallbackName = role === "self" ? "本品" : "竞品";
-  return {
-    id,
-    name: String(reference.name || meta?.[`${role}_name`] || fallbackName).trim(),
-    imageUrl: String(reference.image_url || "").trim(),
-    itemUrl: id ? `https://item.jd.com/${encodeURIComponent(id)}.html` : ""
-  };
-}
-
-/**
- * 功能说明：渲染本品与竞品商品条，并为图片加载失败提供稳定占位。
- * 参数 meta：分析结果中的元信息对象。
- * 返回值：无；直接更新页头商品区域。
- */
-function renderProductComparison(meta) {
-  const target = document.querySelector("#product-comparison");
-  if (!target) {
-    return;
-  }
-  const products = [
-    { role: "self", label: "本品", ...normalizeProductReference(meta, "self") },
-    { role: "competitor", label: "竞品", ...normalizeProductReference(meta, "competitor") }
-  ];
-  target.innerHTML = products.map((product, index) => {
-    const image = product.imageUrl
-      ? `<img class="product-image" data-product-image src="${escapeHtml(product.imageUrl)}" alt="${escapeHtml(product.name)}主图" loading="eager" referrerpolicy="no-referrer">`
-      : "";
-    const content = `
-      <span class="product-image-frame ${product.imageUrl ? "has-image" : ""}">
-        ${image}
-        <span class="product-image-fallback" aria-hidden="true">
-          <svg viewBox="0 0 24 24" focusable="false">
-            <path d="M4 5.5h16v13H4zM7.5 15l3.1-3.4 2.4 2.5 1.7-1.7 2.8 2.6M16.5 8.7h.01" />
-          </svg>
-          <span>暂无主图</span>
-        </span>
-      </span>
-      <span class="product-card-copy">
-        <span class="product-card-topline">
-          <span class="product-role product-role-${product.role}">${product.label}</span>
-          <span class="product-name" title="${escapeHtml(product.name)}">${escapeHtml(product.name)}</span>
-        </span>
-        <span class="product-id">商品 ID ${escapeHtml(product.id || "未配置")}</span>
-      </span>`;
-    const card = product.itemUrl
-      ? `<a class="product-card" href="${escapeHtml(product.itemUrl)}" target="_blank" rel="noopener noreferrer" aria-label="在京东打开${product.label}：${escapeHtml(product.name)}">${content}</a>`
-      : `<span class="product-card product-card-disabled">${content}</span>`;
-    const divider = index === 0 ? `<span class="product-compare-marker" aria-hidden="true">VS</span>` : "";
-    return `${card}${divider}`;
-  }).join("");
-  target.querySelectorAll("[data-product-image]").forEach((imageElement) => {
-    imageElement.addEventListener("error", () => {
-      imageElement.hidden = true;
-      imageElement.closest(".product-image-frame")?.classList.remove("has-image");
-    }, { once: true });
-  });
-}
 
 function formatValue(value, unit = "") {
   if (value == null || value === "" || value === "-") {
@@ -108,7 +39,7 @@ function formatValue(value, unit = "") {
   if (typeof value === "number") {
     return `${value.toFixed(2)}${unit}`;
   }
-  return `${value}${unit}`;
+  return `${value}${String(value).startsWith("对竞品 ") ? "" : unit}`;
 }
 
 /**
@@ -235,7 +166,8 @@ function renderTabs() {
   const current = tabs[dashboardState.activeTab] || tabs[0] || {};
   const highlights = current.highlights || [];
   const rows = current.rows || [];
-  const columns = current.columns || [];
+  const measureKey = dashboardState.measures[current.id] || current.primaryMeasure;
+  const columns = current.measures?.find((item) => item.key === measureKey)?.columns || current.columns || [];
   const currentSort = dashboardState.sorts[current.id] || null;
   const dimensionField = current.dimension_field;
   const dimensionOptions = dimensionField
@@ -255,7 +187,7 @@ function renderTabs() {
           return `
           <article class="insight-card ${item.status === "warning" ? "warning" : "advantage"}">
             <div class="insight-card-label">
-              <p class="insight-type">${item.status === "warning" ? "劣势" : "优势"}</p>
+              <p class="insight-type">${escapeHtml(item.competitorLabel)} · ${item.status === "warning" ? "劣势" : "优势"}</p>
               <h4>${escapeHtml(item.label || "-")}</h4>
             </div>
             <div class="insight-compare ${item.status === "warning" ? "warning" : "advantage"}">
@@ -271,6 +203,10 @@ function renderTabs() {
       </div>
     </section>
     <section class="tab-section">
+      <div class="comparison-table-controls">
+        <label for="comparison-measure">对比指标</label>
+        <select id="comparison-measure">${(current.measures || []).map((item) => `<option value="${escapeHtml(item.key)}" ${item.key === measureKey ? "selected" : ""}>${escapeHtml(item.label)}</option>`).join("")}<option value="all" ${measureKey === "all" ? "selected" : ""}>全部指标与判断</option></select>
+      </div>
       ${dimensionOptions.length ? `
         <div class="dimension-tabs">
           ${dimensionOptions.map((dimension) => `
@@ -285,6 +221,11 @@ function renderTabs() {
   `;
 
   const tableTarget = document.querySelector("#analysis-vxe-mount");
+  document.querySelector("#comparison-measure").onchange = (event) => {
+    dashboardState.measures[current.id] = event.target.value;
+    delete dashboardState.sorts[current.id];
+    renderTabs();
+  };
   if (tableTarget) {
     mountAnalysisVxeTable(tableTarget, {
       id: current.id,
@@ -312,19 +253,23 @@ function renderTabs() {
 
 function renderAiRecommendations() {
   const target = document.querySelector("#ai-recommendations");
-  const reportStatus = dashboardState.data?.report_status;
+  target.innerHTML = dashboardState.slots.map((slot, index) => `<section class="comparison-advice"><h3>竞品 ${index + 1}</h3><div class="ai-recommendations-list">${recommendationsHtml(slot)}</div></section>`).join("");
+}
+
+function recommendationsHtml(slot) {
+  if (!slot.report) return `<p class="empty-inline">${slot.error ? "报告读取失败" : "所选周期暂无报告"}</p>`;
+  const reportStatus = slot.report.report_status;
   if (reportStatus === "ai_failed" || reportStatus === "pending_ai") {
     const failed = reportStatus === "ai_failed";
-    target.innerHTML = `
+    return `
       <div class="ai-report-state ${failed ? "is-error" : "is-pending"}">
         <strong>${failed ? "AI 劣势建议生成失败" : "AI 劣势建议生成中"}</strong>
       </div>`;
-    return;
   }
-  const suggestions = (dashboardState.data?.ai_recommendations || [])
+  const suggestions = (slot.report.ai_recommendations || [])
     .filter((item) => item.status === "warning")
     .slice(0, 5);
-  target.innerHTML = suggestions.map((item) => {
+  return suggestions.map((item) => {
     const actions = item.actions || [];
     return `
       <section class="ai-recommendation-card warning">
@@ -379,19 +324,20 @@ export function showTrendState(message, isError = false) {
 
 /**
  * 功能说明：使用多个周期的分析结果绘制本品和竞品趋势折线图。
- * 参数 reports：按时间升序排列的报告对象数组。
+ * 参数 reports：按竞品顺序排列的轻量趋势报告数组。
  * 参数 metricId：当前选择的核心指标 ID。
  * 参数 granularity：当前报告粒度。
  * 参数 selectedPeriodStart：当前选中报告的开始日期，用于标记趋势中的当前点。
  * 参数 range：趋势查询的自然日期范围。
+ * 参数 errors：各竞品趋势是否读取失败。
  * 返回值：无；直接更新趋势标题、范围说明和 ECharts 图表。
  */
-export function renderTrendChart(reports, metricId, granularity, selectedPeriodStart = "", range = {}) {
-  const points = buildTrendPoints(reports, metricId, granularity, range);
+export function renderTrendChart(reports, metricId, granularity, selectedPeriodStart = "", range = {}, errors = []) {
+  const points = comparisonTrendPoints(reports, metricId, granularity, range);
   const missingSeries = buildMissingTrendSeries(points);
-  const availablePoints = points.filter((item) => item.metric && item.selfValue != null && item.competitorValue != null);
+  const availablePoints = points.filter((item) => item.metric && (item.selfValue != null || item.competitorValues.some((value) => value != null)));
   if (!availablePoints.length) {
-    showTrendState("当前范围暂无可用趋势数据");
+    showTrendState(errors.some(Boolean) ? "趋势数据读取失败，请重试" : "当前范围暂无可用趋势数据", errors.some(Boolean));
     return;
   }
 
@@ -405,7 +351,7 @@ export function renderTrendChart(reports, metricId, granularity, selectedPeriodS
   const target = document.querySelector("#trend-chart");
   disposeTrendChart();
   target.innerHTML = "";
-  const missingLabels = points.filter((item) => item.missing).map((item) => item.label);
+  const missingLabels = points.filter((item) => item.missing || item.missingCompetitors.length).map((item) => `${item.label} ${item.missing ? "全部" : item.missingCompetitors.join("、")}`);
   target.setAttribute(
     "aria-label",
     `${metric.label || "指标"}本品与竞品趋势图${selectedItem ? `，当前选中 ${selectedItem.label}` : ""}${missingLabels.length ? `，无数据日期 ${missingLabels.join("、")}` : ""}`
@@ -414,7 +360,7 @@ export function renderTrendChart(reports, metricId, granularity, selectedPeriodS
   const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
   trendChartInstance.setOption({
     animationDuration: reduceMotion ? 0 : 420,
-    color: ["#0f7b73", "#b96905"],
+    color: ["#0f7b73", "#b96905", "#667085"],
     tooltip: {
       trigger: "axis",
       confine: true,
@@ -428,7 +374,8 @@ export function renderTrendChart(reports, metricId, granularity, selectedPeriodS
         const item = points[index];
         return `
           <strong>${escapeHtml(item.period)}</strong><br>
-          ${rows.map((row) => `${row.marker}${escapeHtml(row.seriesName)}　<b>${escapeHtml(formatValue(row.value, metric.unit))}</b>`).join("<br>")}
+          本品　<b>${escapeHtml(formatValue(item.selfValue, metric.unit))}</b><br>
+          ${item.competitorValues.map((value, index) => `竞品 ${index + 1}　<b>${errors[index] ? "读取失败" : value == null ? "无数据" : escapeHtml(formatValue(value, metric.unit))}</b>`).join("<br>")}
         `;
       }
     },
@@ -438,7 +385,7 @@ export function renderTrendChart(reports, metricId, granularity, selectedPeriodS
       itemWidth: 10,
       itemHeight: 10,
       textStyle: { color: "#667085", fontSize: 12 },
-      data: ["本品", "竞品"]
+      data: ["本品", ...reports.map((_, index) => `竞品 ${index + 1}${errors[index] ? "（读取失败）" : ""}`)]
     },
     grid: { top: 36, right: 18, bottom: 8, left: 8, containLabel: true },
     xAxis: {
@@ -480,8 +427,8 @@ export function renderTrendChart(reports, metricId, granularity, selectedPeriodS
           itemStyle: { borderColor: "#fffdf8", borderWidth: 3, shadowBlur: 6, shadowColor: "rgba(15, 123, 115, 0.28)" }
         } : item.selfValue)
       },
-      {
-        name: "竞品",
+      ...reports.map((_, index) => ({
+        name: `竞品 ${index + 1}${errors[index] ? "（读取失败）" : ""}`,
         type: "line",
         smooth: 0.35,
         symbol: "circle",
@@ -489,12 +436,12 @@ export function renderTrendChart(reports, metricId, granularity, selectedPeriodS
         showSymbol: true,
         connectNulls: false,
         lineStyle: { width: 3 },
-        data: points.map((item) => item.competitorValue == null ? null : item.periodStart === selectedPeriodStart ? {
-          value: item.competitorValue,
+        data: points.map((item) => item.competitorValues[index] == null ? null : item.periodStart === selectedPeriodStart ? {
+          value: item.competitorValues[index],
           symbolSize: 11,
           itemStyle: { borderColor: "#fffdf8", borderWidth: 3, shadowBlur: 6, shadowColor: "rgba(185, 105, 5, 0.25)" }
-        } : item.competitorValue)
-      }
+        } : item.competitorValues[index])
+      }))
     ]
   });
   if (typeof ResizeObserver === "function") {
@@ -504,87 +451,74 @@ export function renderTrendChart(reports, metricId, granularity, selectedPeriodS
 }
 
 /**
- * 功能说明：把一份分析结果渲染到看板。
- * 参数 data：当前粒度和周期的报告对象。
+ * 功能说明：将同一本品同一周期的竞品报告并排渲染到看板。
+ * 参数 slots：各竞品商品对、报告、索引与读取状态。
  * 参数 activeMetricId：当前选中的趋势指标 ID。
  * 返回值：无；直接更新页面内容。
  */
-export function renderDashboard(data, activeMetricId = "") {
-  dashboardState.data = data;
-  dashboardState.filter = "";
+export function renderDashboard(slots, activeMetricId = "") {
+  const data = slots.find((slot) => slot.report)?.report;
+  if (!data) return;
+  dashboardState.slots = slots;
+  dashboardState.data = { ...data, tabs: comparisonTabs(slots) };
   dashboardState.dimensions = {};
   const meta = data.meta || {};
   document.querySelector("#title").textContent = meta.title || "竞品准真实值看板";
-  document.querySelector("#meta").textContent = [
-    meta.period,
-    meta.granularity ? `分析粒度：${granularityLabels[meta.granularity] || meta.granularity}` : ""
-  ].filter(Boolean).join(" · ");
-  renderProductComparison(meta);
-  const summary = meta.summary || "-";
-  const weakness = meta.weakness_summary || "-";
-  const metricItems = data.core_metrics || [];
-  const hasAdvantageDetail = hasDetailPoints(meta.summary_detail);
-  const hasWeaknessDetail = hasDetailPoints(meta.weakness_summary_detail);
-  document.querySelector("#summary").textContent = hasAdvantageDetail
-    ? summary
-    : compactHeroSummary(metricItems, "advantage");
-  document.querySelector("#weakness").textContent = hasWeaknessDetail
-    ? weakness
-    : compactHeroSummary(metricItems, "warning");
-  const heroTrigger = document.querySelector("#hero-summary-trigger");
-  heroTrigger.dataset.advantageDetail = JSON.stringify(hasAdvantageDetail ? meta.summary_detail : summary);
-  heroTrigger.dataset.weaknessDetail = JSON.stringify(hasWeaknessDetail ? meta.weakness_summary_detail : weakness);
-  const preferredMetricId = activeMetricId || dashboardState.activeMetricId;
-  dashboardState.activeMetricId = metricItems.some((item) => item.id === preferredMetricId)
-    ? preferredMetricId
-    : metricItems[0]?.id || "";
+  const count = slots.length;
+  document.querySelector("#dashboard").style.setProperty("--comparison-count", count);
+  const summaries = document.querySelector("#hero-summaries");
+  summaries.innerHTML = slots.map((slot, index) => {
+    const report = slot.report;
+    const current = report?.meta || {};
+    const metrics = report?.core_metrics || [];
+    const advantage = hasDetailPoints(current.summary_detail) ? current.summary : compactHeroSummary(metrics, "advantage");
+    const weakness = hasDetailPoints(current.weakness_summary_detail) ? current.weakness_summary : compactHeroSummary(metrics, "warning");
+    return `<button class="hero comparison-hero" type="button" data-summary-index="${index}" ${report ? 'aria-haspopup="dialog" aria-controls="summary-dialog"' : "disabled"}>
+      <span class="comparison-label">对比竞品 ${index + 1}</span>
+      ${report ? `<span class="hero-block"><span class="hero-label warning">弱点</span><span class="weakness-text">${escapeHtml(weakness)}</span></span>
+      <span class="hero-block"><span class="hero-label advantage">优点</span><span class="summary">${escapeHtml(advantage)}</span></span>`
+      : `<span class="empty-inline">${slot.error ? "报告读取失败" : "所选周期暂无报告"}</span>`}
+    </button>`;
+  }).join("");
+  summaries.querySelectorAll("[data-summary-index]").forEach((button) => {
+    const slot = slots[Number(button.dataset.summaryIndex)];
+    if (!slot.report) return;
+    const current = slot.report.meta || {};
+    button.dataset.advantageDetail = JSON.stringify(hasDetailPoints(current.summary_detail) ? current.summary_detail : current.summary || "-");
+    button.dataset.weaknessDetail = JSON.stringify(hasDetailPoints(current.weakness_summary_detail) ? current.weakness_summary_detail : current.weakness_summary || "-");
+    button.dataset.dialogTitle = `对比竞品 ${Number(button.dataset.summaryIndex) + 1} · 优缺点`;
+  });
+  bindHeroSummaryDialog(document.querySelector("#summary-dialog"), summaries);
+  const metricItems = comparisonMetrics(slots);
+  const preferred = activeMetricId || dashboardState.activeMetricId;
+  dashboardState.activeMetricId = metricItems.some((item) => item.id === preferred) ? preferred : metricItems[0]?.id || "";
   const metrics = document.querySelector("#metrics");
   metrics.innerHTML = metricItems.map((item) => {
-    const selfText = formatValue(item.self_value, item.unit);
-    const competitorText = formatValue(item.competitor_value, item.unit);
-    const amplitudeText = formatMetricAmplitude(item);
-    const statusClass = item.status === "warning" ? "warning" : "advantage";
-    return `
-      <button class="metric-card status-${statusClass} ${item.id === dashboardState.activeMetricId ? "active" : ""}" type="button" data-metric-id="${escapeHtml(item.id)}" aria-pressed="${item.id === dashboardState.activeMetricId}">
-        <div class="metric-card-head">
-          <p class="metric-title">${escapeHtml(item.label || "-")}</p>
-          <div class="metric-gap">
-            <span>${escapeHtml(formatMetricGap(item))}</span>
-            ${amplitudeText ? `
-              <span class="metric-gap-divider" aria-hidden="true"></span>
-              <span>${escapeHtml(amplitudeText)}</span>
-            ` : ""}
-          </div>
-        </div>
-        <div class="metric-values">
-          <div>
-            <div class="metric-value self">${escapeHtml(selfText)}</div>
-            <div class="metric-sub">本品真实值</div>
-          </div>
-          <div>
-            <div class="metric-value competitor">${escapeHtml(competitorText)}</div>
-            <div class="metric-sub">竞品估算值</div>
-          </div>
-        </div>
-      </button>
-    `;
+    const statusClass = item.comparisons.some((metric) => metric?.status === "warning") ? "warning" : "advantage";
+    return `<button class="metric-card status-${statusClass} ${item.id === dashboardState.activeMetricId ? "active" : ""}" type="button" data-metric-id="${escapeHtml(item.id)}" aria-pressed="${item.id === dashboardState.activeMetricId}">
+      <p class="metric-title">${escapeHtml(item.label)}</p>
+      <div class="metric-values">
+        <div><div class="metric-value self">${escapeHtml(formatValue(item.self_value, item.unit))}</div><div class="metric-sub">本品</div></div>
+        ${item.comparisons.map((metric, index) => `<div><div class="metric-value competitor">${escapeHtml(formatValue(metric?.competitor_value, item.unit))}</div><div class="metric-sub">竞品 ${index + 1}</div></div>`).join("")}
+      </div>
+      <div class="comparison-gaps">${item.comparisons.map((metric, index) => `<div class="comparison-gap ${metric?.status === "warning" ? "warning" : "advantage"}"><span>对竞品 ${index + 1}</span><strong>${metric ? escapeHtml(formatMetricGap(metric)) : "—"}${metric && formatMetricAmplitude(metric) ? ` <span class="metric-gap-divider" aria-hidden="true"></span> ${escapeHtml(formatMetricAmplitude(metric))}` : ""}</strong></div>`).join("")}</div>
+    </button>`;
   }).join("");
   metrics.querySelectorAll("[data-metric-id]").forEach((button) => {
     button.addEventListener("click", () => {
       dashboardState.activeMetricId = button.dataset.metricId;
       metrics.querySelectorAll("[data-metric-id]").forEach((item) => {
-        const isActive = item.dataset.metricId === dashboardState.activeMetricId;
-        item.classList.toggle("active", isActive);
-        item.setAttribute("aria-pressed", String(isActive));
+        const active = item.dataset.metricId === dashboardState.activeMetricId;
+        item.classList.toggle("active", active);
+        item.setAttribute("aria-pressed", String(active));
       });
-      document.dispatchEvent(new CustomEvent("dashboard:metric-select", {
-        detail: { metricId: dashboardState.activeMetricId }
-      }));
+      document.dispatchEvent(new CustomEvent("dashboard:metric-select", { detail: { metricId: dashboardState.activeMetricId } }));
     });
   });
   renderTabs();
   renderAiRecommendations();
-  document.querySelector("#risks").textContent = `风险提示：${(data.risks || ["暂无"]).join("；")}`;
+  document.querySelector("#risks").textContent = slots.map((slot, index) => slot.report?.risks?.length
+    ? `竞品 ${index + 1}：${slot.report.risks.join("；")}` : "").filter(Boolean).join("。");
   document.querySelector("#page-state").hidden = true;
   document.querySelector("#dashboard").hidden = false;
 }
