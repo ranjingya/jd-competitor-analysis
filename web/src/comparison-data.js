@@ -1,5 +1,6 @@
 import { reportPairs, reportsForPair } from "./report-selection.js";
 import { buildTrendPoints } from "./trend-data.js";
+import { orderAnalysisColumns } from "./analysis-columns.js";
 
 /**
  * 功能说明：取得当前本品的全部有报告竞品，顺序与商品导航一致。
@@ -75,9 +76,9 @@ export function comparisonTabs(slots) {
     const nameColumn = originals[0];
     const selfColumns = originals.filter((column) => column.key.startsWith("self_"));
     const pairedColumns = originals.filter((column) => column.key !== nameColumn.key && !column.key.startsWith("self_"));
-    const columns = [nameColumn, ...selfColumns, ...slots.flatMap((_, index) => pairedColumns.map((column) => ({
+    const columns = orderAnalysisColumns([nameColumn, ...selfColumns, ...slots.flatMap((_, index) => pairedColumns.map((column) => ({
       ...column, key: `c${index}_${column.key}`, label: `竞品 ${index + 1} · ${column.label.replace(/^竞品/, "")}`
-    })))];
+    })))]);
     const allRows = new Map();
     tabs.forEach((tab, index) => (tab?.rows || []).forEach((row) => {
       const key = rowKey(base, row);
@@ -98,11 +99,9 @@ export function comparisonTabs(slots) {
       const keys = [nameColumn.key, column.key, ...slots.flatMap((_, index) => [
         `c${index}_competitor_${suffix}`, ...(gapKey ? [`c${index}_${gapKey}`] : [])
       ])];
-      return { key: column.key, label: column.label.replace(/^本品/, ""), columns: keys.map((key) => columns.find((item) => item.key === key)).filter(Boolean) };
+      return { key: column.key, label: column.label.replace(/^本品/, ""), columns: orderAnalysisColumns(keys.map((key) => columns.find((item) => item.key === key)).filter(Boolean)) };
     });
-    // 首屏使用规模指标，其他占比、判断和口径均可在指标选择中查看。
-    const primary = measures.find((measure) => measure.key === "self_visitors") || measures[0];
-    return { ...base, columns, rows, measures, primaryMeasure: primary?.key,
+    return { ...base, columns, rows, measures,
       highlights: tabs.flatMap((tab, index) => (tab?.highlights || []).map((item) => ({ ...item, competitorLabel: `竞品 ${index + 1}` }))) };
   });
 }

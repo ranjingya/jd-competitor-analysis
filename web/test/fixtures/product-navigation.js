@@ -30,7 +30,15 @@ const entries = configs.map((item) => ({
 const reportFor = (entry) => ({
   meta: { period: entry.period, granularity: 'day', summary: `优点${entry.competitor_spu}`, weakness_summary: `弱点${entry.competitor_spu}` },
   core_metrics: [{ id: 'gmv', label: '成交金额', self_value: 100, competitor_value: Number(entry.competitor_spu), gap_value: 100 - Number(entry.competitor_spu), status: 'warning', unit: '' }],
-  tabs: [], ai_recommendations: [], risks: [],
+  tabs: [{ id: 'traffic', label: '流量来源', columns: [
+    { key: 'path', label: '渠道路径' },
+    { key: 'self_visitors', label: '本品访客' },
+    { key: 'competitor_visitors', label: '竞品访客' },
+    { key: 'visitor_gap', label: '访客差距' },
+    { key: 'self_gmv', label: '本品成交金额' },
+    { key: 'competitor_gmv', label: '竞品成交金额' },
+    { key: 'gmv_gap', label: '成交金额差距' }
+  ], rows: [{ path: '测试渠道', level_1: '测试渠道', self_visitors: 100, competitor_visitors: 90, visitor_gap: 10, self_gmv: 200, competitor_gmv: 300, gmv_gap: -100 }] }], ai_recommendations: [], risks: [],
 });
 const nativeFetch = window.fetch.bind(window);
 const source = await (await nativeFetch('/index.html')).text();
@@ -81,6 +89,13 @@ async function run() {
   check($('#hero-summaries').textContent.includes('对比竞品 1') && $('#hero-summaries').textContent.includes('所选周期暂无报告'), '一侧缺失只显示该侧空状态');
   check($('#metrics').textContent.includes('201.00') && !$('#metrics').textContent.includes('202.00'), '缺失侧不拿其他日期报告填充');
   check(!$('#sku-trigger').disabled, '另一侧有报告仍可查看本品 SKU');
+  check($('[data-measure="all"]').getAttribute('aria-pressed') === 'true' && !$('#comparison-measure'), '指标默认全部且使用按钮而非下拉框');
+  $('[data-measure="self_visitors"]').click();
+  check($('[data-measure="self_visitors"]').getAttribute('aria-pressed') === 'true' && document.activeElement === $('[data-measure="self_visitors"]'), '切换指标保留键盘焦点与选中状态');
+  await until(() => document.querySelectorAll('.vxe-table--main-wrapper .vxe-header--column').length === 6);
+  const headers = [...document.querySelectorAll('.vxe-table--main-wrapper .vxe-header--column')];
+  check(headers.length === 6 && headers[1].classList.contains('analysis-derived-header') && headers[2].classList.contains('analysis-derived-header') && !headers[3].classList.contains('analysis-derived-header'), '访客指标蓝色计算列位于名称列后和原始列前');
+  $('[data-measure="all"]').click();
   check(document.querySelectorAll('.product-select-link').length === 3 && !document.querySelector('.product-select-card a'), '商品主图链接独立');
   check([...document.querySelectorAll('.product-select-link')].every((link) => {
     const a = link.getBoundingClientRect(), b = link.firstElementChild.getBoundingClientRect();

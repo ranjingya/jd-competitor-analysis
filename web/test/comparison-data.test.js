@@ -52,6 +52,8 @@ test("关键词全量外连接，独有行保留，缺失竞品列不复制另�
   assert.equal(row.c1_visitor_gap, -10);
   assert.equal(tab.rows.find((item) => item.keyword === "独有1").c1_competitor_visitors, null);
   assert.equal(tab.measures[0].columns.length, 6);
+  assert.deepEqual(tab.measures[0].columns.map((column) => column.key), ["keyword", "c0_visitor_gap", "c1_visitor_gap", "self_visitors", "c0_competitor_visitors", "c1_competitor_visitors"]);
+  assert.deepEqual(tab.columns.map((column) => column.key), ["keyword", "c0_visitor_gap", "c1_visitor_gap", "self_visitors", "c0_competitor_visitors", "c1_competitor_visitors"]);
 });
 
 test("客户画像按维度与名称组合匹配，同名不同维度不合并", () => {

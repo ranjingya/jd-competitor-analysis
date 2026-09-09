@@ -6,6 +6,7 @@ import VxeUITable, { VxeColumn, VxeTable, VxeToolbar } from "vxe-table";
 import "vxe-pc-ui/lib/style.css";
 import "vxe-table/lib/style.css";
 import "./analysis-vxe-table.css";
+import { isDerivedColumn } from "./analysis-columns.js";
 import {
   sortFlatTreeRowsBySiblings,
   sortRowsWithBottomValues
@@ -37,24 +38,6 @@ function formatTableValue(value, unit = "") {
  */
 function isProgressColumn(column) {
   return column.unit === "%" && String(column.label || "").includes("占比");
-}
-
-/**
- * 功能说明：识别由分析计算或规则判断得到的表格列，用于区别原始值和区间中位值。
- * 参数 column：当前列定义，包含字段名和展示标题。
- * 返回值：判断、差距和计算占比列返回 true，其余列返回 false。
- */
-function isDerivedColumn(column) {
-  const key = String(column.key || "");
-  const label = String(column.label || "");
-  return key === "judgement"
-    || key === "opportunity"
-    || label.includes("判断")
-    || GAP_FIELD_PATTERN.test(key)
-    || label.includes("差距")
-    || key.includes("current_level")
-    || key.includes("visitor_share")
-    || label.includes("访客占比");
 }
 
 /**
@@ -166,11 +149,11 @@ function columnWidth(column, columnIndex, tableId) {
   if (columnIndex === 0) {
     return tableId === "traffic" ? 196 : tableId === "keywords" ? 168 : 142;
   }
-  if (columnIndex === 1) {
-    return 108;
-  }
   if (isProgressColumn(column)) {
     return 160;
+  }
+  if (columnIndex === 1 && String(column.label || "").includes("判断")) {
+    return 108;
   }
   const labelLength = String(column.label || "").length;
   return Math.min(Math.max(112, labelLength * 15 + 32), 172);

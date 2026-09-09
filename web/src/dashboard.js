@@ -166,7 +166,7 @@ function renderTabs() {
   const current = tabs[dashboardState.activeTab] || tabs[0] || {};
   const highlights = current.highlights || [];
   const rows = current.rows || [];
-  const measureKey = dashboardState.measures[current.id] || current.primaryMeasure;
+  const measureKey = dashboardState.measures[current.id] || "all";
   const columns = current.measures?.find((item) => item.key === measureKey)?.columns || current.columns || [];
   const currentSort = dashboardState.sorts[current.id] || null;
   const dimensionField = current.dimension_field;
@@ -204,8 +204,10 @@ function renderTabs() {
     </section>
     <section class="tab-section">
       <div class="comparison-table-controls">
-        <label for="comparison-measure">对比指标</label>
-        <select id="comparison-measure">${(current.measures || []).map((item) => `<option value="${escapeHtml(item.key)}" ${item.key === measureKey ? "selected" : ""}>${escapeHtml(item.label)}</option>`).join("")}<option value="all" ${measureKey === "all" ? "selected" : ""}>全部指标与判断</option></select>
+        <span>对比指标</span>
+        <div class="comparison-measures" role="group" aria-label="对比指标">
+          ${[{ key: "all", label: "全部" }, ...(current.measures || [])].map((item) => `<button type="button" class="dimension-tab ${item.key === measureKey ? "active" : ""}" data-measure="${escapeHtml(item.key)}" aria-pressed="${item.key === measureKey}">${escapeHtml(item.label)}</button>`).join("")}
+        </div>
       </div>
       ${dimensionOptions.length ? `
         <div class="dimension-tabs">
@@ -221,11 +223,17 @@ function renderTabs() {
   `;
 
   const tableTarget = document.querySelector("#analysis-vxe-mount");
-  document.querySelector("#comparison-measure").onchange = (event) => {
-    dashboardState.measures[current.id] = event.target.value;
-    delete dashboardState.sorts[current.id];
-    renderTabs();
-  };
+  document.querySelectorAll("[data-measure]").forEach((button) => {
+    button.onclick = () => {
+      const key = button.dataset.measure;
+      const scrollLeft = button.parentElement.scrollLeft;
+      dashboardState.measures[current.id] = key;
+      delete dashboardState.sorts[current.id];
+      renderTabs();
+      document.querySelector(".comparison-measures").scrollLeft = scrollLeft;
+      [...document.querySelectorAll("[data-measure]")].find((item) => item.dataset.measure === key)?.focus({ preventScroll: true });
+    };
+  });
   if (tableTarget) {
     mountAnalysisVxeTable(tableTarget, {
       id: current.id,

@@ -32,9 +32,10 @@
 .comparison-dashboard .trend-chart { height:340px; min-height:0; }
 .comparison-dashboard .trend-panel { min-height:0; }
 .comparison-dashboard .insight-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
-.comparison-table-controls { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin:0 0 14px; font-size:13px; color:var(--muted); }
-.comparison-table-controls select { max-width:100%; min-height:34px; padding:4px 30px 4px 10px; color:var(--text); background:var(--panel); border:1px solid var(--line); border-radius:6px; cursor:pointer; }
-.comparison-table-controls select:hover { border-color:var(--interactive-hover-border); }
+.comparison-table-controls { display:flex; align-items:center; gap:10px; margin:0 0 14px; min-width:0; font-size:13px; color:var(--muted); }
+.comparison-table-controls > span { flex-shrink:0; }
+.comparison-measures { display:flex; align-items:center; gap:8px; min-width:0; overflow-x:auto; padding:5px; }
+.comparison-measures .dimension-tab { flex-shrink:0; white-space:nowrap; }
 .comparison-dashboard .ai-recommendations-panel { min-height:0; }
 .comparison-advice { min-width:0; }
 .comparison-advice h3 { margin:0 0 12px; font-size:14px; color:var(--muted); }
