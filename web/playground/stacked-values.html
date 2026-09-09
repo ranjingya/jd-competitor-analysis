@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>完整数据对比 · 紧凑数值预览</title>
+  <style>
+    :root { --text:#1f2933; --muted:#667085; --line:#ded6c8; --teal:#0f7b73; --advantage:#b96905; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:#f4efe6; color:var(--text); font:13px/1.5 "PingFang SC","Microsoft YaHei",Arial,sans-serif; }
+    main { width:min(1180px,calc(100% - 48px)); margin:36px auto; padding:24px; border:1px solid var(--line); border-radius:8px; background:#fffdf8; box-shadow:0 12px 32px #1f293314; }
+    header { display:flex; justify-content:space-between; gap:16px; align-items:center; margin-bottom:18px; }
+    h1 { margin:0; font-size:22px; } h1 small { color:var(--muted); font-size:11px; font-weight:400; margin-left:12px; }
+    .switch { display:flex; gap:6px; flex-shrink:0; }
+    button { font:inherit; padding:6px 10px; border:1px solid var(--line); border-radius:6px; background:transparent; color:var(--muted); cursor:pointer; transition:border-color 150ms,box-shadow 150ms; }
+    button:hover { border-color:var(--teal); box-shadow:0 4px 12px #1f293314; }
+    button[aria-pressed="true"] { color:var(--teal); border-color:var(--teal); background:#eaf4f1; }
+    button:focus-visible,.scroll:focus-visible { outline:3px solid #0f7b7350; outline-offset:3px; }
+    .scroll { overflow:auto; overscroll-behavior:contain; border:1px solid var(--line); border-radius:8px; }
+    table { width:100%; min-width:860px; border-collapse:separate; border-spacing:0; table-layout:fixed; font-variant-numeric:tabular-nums; }
+    caption { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+    .channel-col { width:17%; } .role-col { width:7%; }
+    th,td { padding:0 12px; text-align:right; }
+    thead th { height:40px; background:#e3ebf5; color:#385573; font-size:12px; font-weight:600; }
+    thead th:first-child { text-align:left; background:#f0ebe3; color:var(--text); }
+    tbody:nth-of-type(even) { background:#faf8f3; }
+    tbody+tbody tr:first-child>* { border-top:1px solid var(--line); }
+    .channel { vertical-align:top; text-align:left; padding-top:15px; font-weight:600; overflow-wrap:anywhere; }
+    .channel small { display:block; margin-top:4px; color:var(--muted); font-size:11px; font-weight:400; }
+    .role { text-align:left; font-size:11px; font-weight:400; color:var(--muted); white-space:nowrap; }
+    .self-row { height:38px; } .self-row td { font-size:14px; font-weight:700; }
+    .competitor-row { height:46px; }
+    .competitor-row .role { vertical-align:top; padding-top:5px; }
+    .competitor-row:last-child td,.competitor-row:last-child .role { padding-bottom:10px; }
+    .value { display:block; line-height:19px; }
+    .gap { display:block; font-size:11px; line-height:16px; white-space:nowrap; }
+    .gap.is-empty { visibility:hidden; }
+    .positive { color:var(--advantage); } .negative { color:var(--teal); } .neutral { color:var(--muted); }
+    footer { margin-top:10px; color:var(--muted); font-size:11px; text-align:right; }
+    #error { color:var(--teal); }
+    @media(max-width:720px) { main { width:calc(100% - 24px); padding:12px; margin:16px auto; } header { flex-wrap:wrap; } h1 { font-size:19px; } }
+    @media(prefers-reduced-motion:reduce) { button { transition:none; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>完整数据对比<small>样式预览</small></h1>
+      <div class="switch" aria-label="竞品数量">
+        <button type="button" data-count="1" aria-pressed="false">单竞品</button>
+        <button type="button" data-count="2" aria-pressed="true">双竞品</button>
+      </div>
+    </header>
+    <p id="error" hidden></p>
+    <div id="preview" class="scroll" tabindex="0" aria-label="完整数据对比，可在表格内横向滚动"></div>
+    <footer>差距按本品 − 竞品计算</footer>
+  </main>
+  <script type="module" src="./stacked-values.js"></script>
+</body>
+</html>
