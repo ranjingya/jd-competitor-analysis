@@ -162,7 +162,8 @@ function prepareTrafficRows(rows) {
       ...row,
       id: `traffic:${pathKey}`,
       parent_id: parentKey ? `traffic:${parentKey}` : null,
-      parent_path: levels.slice(0, -1).join(" > "),
+      channel_depth: Math.max(0, levels.length - 1),
+      full_channel_path: levels.join(" > "),
       path: levels.at(-1) || row.path || "-"
     };
   });
@@ -424,9 +425,12 @@ export function mountAnalysisVxeTable(target, config) {
         };
         return h(VxeColumn, props, {
           default: ({ row }) => {
-            if (compact && columnIndex === 0) return h("div", { class: "analysis-channel-label" }, [
-              row._hasChildren ? h("button", { type: "button", class: "analysis-channel-toggle", "aria-label": `${collapsed.has(row._sourceId) ? "展开" : "收起"}${row.path || row[column.key]}`, "aria-expanded": !collapsed.has(row._sourceId), onClick: () => toggleChannel(row._sourceId) }, collapsed.has(row._sourceId) ? "▸" : "▾") : null,
-              h("span", {}, [formatTableValue(row[column.key]), row.parent_path ? h("small", {}, row.parent_path) : null])
+            if (compact && columnIndex === 0) return h("div", {
+              class: ["analysis-channel-label", { "is-tree-label": isTree }],
+              style: isTree ? { paddingLeft: `${row.channel_depth * 16}px` } : undefined
+            }, [
+              row._hasChildren ? h("button", { type: "button", class: "analysis-channel-toggle", "aria-label": `${collapsed.has(row._sourceId) ? "展开" : "收起"}${row.path || row[column.key]}`, "aria-expanded": !collapsed.has(row._sourceId), onClick: () => toggleChannel(row._sourceId) }, collapsed.has(row._sourceId) ? "▸" : "▾") : isTree ? h("span", { class: "analysis-channel-spacer", "aria-hidden": "true" }) : null,
+              h("span", { title: row.full_channel_path || undefined }, formatTableValue(row[column.key]))
             ]);
             if (stacked) {
               const cell = renderCompactCell(row, column);
