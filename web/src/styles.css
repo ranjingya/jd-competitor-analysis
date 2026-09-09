@@ -6,6 +6,8 @@
   --muted: #667085;
   --teal: #0f7b73;
   --amber: #b96905;
+  --advantage: #ad5845;
+  --soft-advantage: #f6e6e2;
   --soft-teal: #dff1ec;
   --soft-amber: #f4e7d3;
   --shadow: 0 12px 32px rgba(31, 41, 51, 0.08);
@@ -1316,7 +1318,7 @@ a.product-card:active {
 
 .hero-label.advantage,
 .summary {
-  color: var(--amber);
+  color: var(--advantage);
 }
 
 .hero-label.warning,
@@ -1419,7 +1421,7 @@ a.product-card:active {
 }
 
 .summary-dialog-section.advantage {
-  color: var(--amber);
+  color: var(--advantage);
 }
 
 .summary-dialog-section.warning {
@@ -1524,7 +1526,7 @@ a.product-card:active {
 }
 
 .metric-card.status-advantage {
-  background: linear-gradient(90deg, var(--soft-amber), var(--panel) 64%);
+  background: linear-gradient(90deg, var(--soft-advantage), var(--panel) 64%);
 }
 
 .metric-card.status-warning {
@@ -1532,7 +1534,7 @@ a.product-card:active {
 }
 
 .metric-card.status-advantage.active::before {
-  background: var(--amber);
+  background: var(--advantage);
 }
 
 .metric-card.status-warning.active::before {
@@ -1608,7 +1610,7 @@ a.product-card:active {
 }
 
 .status-advantage .metric-gap {
-  color: var(--amber);
+  color: var(--advantage);
 }
 
 .status-warning .metric-gap {
@@ -1757,7 +1759,7 @@ a.product-card:active {
   padding: 7px 10px 8px;
   border: 1px solid var(--line);
   border-radius: 7px;
-  background: var(--soft-amber);
+  background: var(--soft-advantage);
 }
 
 .insight-card.warning {
@@ -1770,7 +1772,7 @@ a.product-card:active {
 }
 
 .insight-card h4 {
-  color: var(--amber);
+  color: var(--advantage);
   font-size: 13px;
   line-height: 1.35;
 }
@@ -1787,7 +1789,7 @@ a.product-card:active {
 
 .insight-card .insight-type {
   margin-top: 0;
-  color: var(--amber);
+  color: var(--advantage);
   font-size: 10px;
   font-weight: 900;
   letter-spacing: 0.08em;
@@ -1806,7 +1808,7 @@ a.product-card:active {
   align-items: center;
   gap: 6px;
   margin-top: 5px;
-  color: var(--amber);
+  color: var(--advantage);
   font-size: 12px;
   font-weight: 900;
   font-variant-numeric: tabular-nums;
@@ -2083,7 +2085,7 @@ a.product-card:active {
 }
 
 .cell-good {
-  color: var(--amber);
+  color: var(--advantage);
   font-weight: 900;
 }
 
@@ -2126,7 +2128,7 @@ a.product-card:active {
   padding: 13px 14px;
   border: 1px solid var(--line);
   border-radius: 7px;
-  background: var(--soft-amber);
+  background: var(--soft-advantage);
 }
 
 .ai-recommendation-card.warning {
@@ -2254,7 +2256,7 @@ a.product-card:active {
 }
 
 .ai-recommendation-type {
-  color: var(--amber);
+  color: var(--advantage);
   font-size: 10.5px;
   font-weight: 900;
   line-height: 1.4;
