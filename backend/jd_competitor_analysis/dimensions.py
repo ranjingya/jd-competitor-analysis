@@ -14,7 +14,8 @@ DIMENSION_NAMES = {"性别", "年龄", "地区", "省份", "城市", "其他"}
 def enrich_traffic_visitor_rates(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """补充渠道访客的同层占比和总占比。
 
-    功能说明：按同一父渠道分组计算兄弟节点访客占比，并整理源表披露的全渠道访客占比。
+    功能说明：同层占比使用直接兄弟渠道有效访客合计，总占比使用一级渠道有效访客合计。
+    各商品独立计算，不使用 SKU 汇总或源表占比，不修改渠道访客估值；分母为零时返回空值。
     参数 rows：已完成层级路径、两侧访客值和源表访客占比解析的渠道行。
     返回值：补充两侧同层访客占比和总访客占比后的渠道行。
     """
@@ -40,19 +41,16 @@ def enrich_traffic_visitor_rates(rows: list[dict[str, Any]]) -> list[dict[str, A
         totals = sibling_totals.get(levels[:-1], {})
         for side in ("self", "competitor"):
             visitor_key = f"{side}_visitors"
-            source_rate_key = f"{side}_visitor_rate"
             value = row.get(visitor_key)
             sibling_total = totals.get(visitor_key)
             total_value = root_totals.get(visitor_key)
             row[f"{side}_current_level_visitor_rate"] = (
                 value / sibling_total if isinstance(value, (int, float)) and sibling_total else None
             )
-            source_total_rate = row.get(source_rate_key)
             row[f"{side}_total_visitor_rate"] = (
-                source_total_rate
-                if isinstance(source_total_rate, (int, float))
-                else value / total_value if isinstance(value, (int, float)) and total_value else None
+                value / total_value if isinstance(value, (int, float)) and total_value else None
             )
+            row[f"{side}_visitor_rate"] = row[f"{side}_total_visitor_rate"]
     return rows
 
 

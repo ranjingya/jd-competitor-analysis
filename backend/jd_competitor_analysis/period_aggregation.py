@@ -8,6 +8,7 @@ from datetime import date, timedelta
 from typing import Any, Iterable
 
 from .report import build_core_views, build_tabs
+from .dimensions import enrich_traffic_visitor_rates
 from .time_utils import beijing_now_text
 
 
@@ -125,12 +126,15 @@ def _aggregate_core(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], l
 
 
 def _aggregate_traffic(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """按渠道路径汇总流量来源并重算占比与转化率。"""
+    """按渠道路径累加访客，再按渠道合计重算占比与转化率。
+
+    参数 rows：包含 report 的日报记录列表。
+    返回值：各渠道周期累计指标及占比，不使用核心访客作为占比分母。
+    """
 
     grouped: dict[tuple[Any, Any, Any], list[dict[str, Any]]] = defaultdict(list)
     for row in rows:
         report = row["report"]
-        daily_core = _report_comparison(report)
         daily_traffic = {
             (item.get("level_1"), item.get("level_2"), item.get("level_3")): item
             for item in report.get("traffic_sources", [])
@@ -138,41 +142,9 @@ def _aggregate_traffic(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         }
         for key, item in daily_traffic.items():
             if isinstance(item, dict):
-                level_1, level_2, level_3 = key
-                parent_key = (
-                    (level_1, level_2, None)
-                    if level_3 is not None
-                    else (level_1, None, None) if level_2 is not None else None
-                )
-                parent = daily_traffic.get(parent_key) if parent_key is not None else None
-                grouped[key].append(
-                    {
-                        "item": item,
-                        "self_total_weight": daily_core.get("visitors", {}).get("self_value"),
-                        "competitor_total_weight": daily_core.get("visitors", {}).get(
-                            "competitor_value"
-                        ),
-                        "self_current_weight": (
-                            parent.get("self_visitors")
-                            if parent is not None
-                            else daily_core.get("visitors", {}).get("self_value")
-                        ),
-                        "competitor_current_weight": (
-                            parent.get("competitor_visitors")
-                            if parent is not None
-                            else daily_core.get("visitors", {}).get("competitor_value")
-                        ),
-                        "self_total_rate": item.get("self_total_visitor_rate"),
-                        "competitor_total_rate": item.get("competitor_total_visitor_rate"),
-                        "self_current_rate": item.get("self_current_level_visitor_rate"),
-                        "competitor_current_rate": item.get(
-                            "competitor_current_level_visitor_rate"
-                        ),
-                    }
-                )
+                grouped[key].append(item)
     aggregated: dict[tuple[Any, Any, Any], dict[str, Any]] = {}
-    for key, entries in grouped.items():
-        items = [entry["item"] for entry in entries]
+    for key, items in grouped.items():
         level_1, level_2, level_3 = key
         self_visitors = _sum_values(item.get("self_visitors") for item in items)
         competitor_visitors = _sum_values(item.get("competitor_visitors") for item in items)
@@ -196,24 +168,6 @@ def _aggregate_traffic(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "visitor_gap": _difference_with_missing(self_visitors, competitor_visitors),
             "gmv_gap": _difference_with_missing(self_gmv, competitor_gmv),
             "conversion_gap_pct": None,
-            "self_total_visitor_rate": _weighted_average(
-                entries, "self_total_rate", "self_total_weight"
-            ),
-            "competitor_total_visitor_rate": _weighted_average(
-                entries, "competitor_total_rate", "competitor_total_weight"
-            ),
-            "self_visitor_rate": _weighted_average(
-                entries, "self_total_rate", "self_total_weight"
-            ),
-            "competitor_visitor_rate": _weighted_average(
-                entries, "competitor_total_rate", "competitor_total_weight"
-            ),
-            "self_current_level_visitor_rate": _weighted_average(
-                entries, "self_current_rate", "self_current_weight"
-            ),
-            "competitor_current_level_visitor_rate": _weighted_average(
-                entries, "competitor_current_rate", "competitor_current_weight"
-            ),
             "judgement": _judgement(self_visitors, competitor_visitors),
             "estimation_basis": "由可用日报汇总",
         }
@@ -225,7 +179,7 @@ def _aggregate_traffic(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             if self_conversion is not None and competitor_conversion is not None
             else None
         )
-    return sorted(aggregated.values(), key=lambda item: item["path"])
+    return enrich_traffic_visitor_rates(sorted(aggregated.values(), key=lambda item: item["path"]))
 
 
 def _aggregate_keywords(rows: list[dict[str, Any]]) -> dict[str, Any]:
