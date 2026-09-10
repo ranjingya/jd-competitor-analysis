@@ -10,6 +10,7 @@ from time import perf_counter
 from app.jobs.daily_analysis import run_warehouse_daily_analysis
 from app.jobs.period_analysis import run_period_analysis
 from app.jobs.product_images import run_product_image_sync
+from app.jobs.rebuild import run_rebuild
 from app.logging_config import configure_backend_logging
 from jd_competitor_analysis.lark_mapping import run_lark_mapping_check
 from jd_competitor_analysis.warehouse import run_warehouse_probe
@@ -106,6 +107,10 @@ def parse_args() -> argparse.Namespace:
     )
     image_sync_parser.add_argument("--log-level", default="INFO", help="日志级别。")
     image_sync_parser.set_defaults(handler=run_product_image_sync)
+
+    rebuild_parser = subparsers.add_parser("rebuild", help="备份数据库并重建已有基础报告，保留 AI，不访问数仓。")
+    rebuild_parser.add_argument("--log-level", default="INFO", help="日志级别。")
+    rebuild_parser.set_defaults(handler=run_rebuild)
 
     return parser.parse_args()
 

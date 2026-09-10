@@ -1,5 +1,25 @@
 # 部署与运维
 
+## 重建基础报告
+
+服务器更新到包含 `rebuild` 的后端镜像后执行：
+
+```bash
+docker exec jd-competitor-analysis-backend python /app/cli.py rebuild
+```
+
+本地执行：
+
+```bash
+backend/.venv/bin/python backend/cli.py rebuild
+```
+
+命令使用数据库已有日数据重算日报，再聚合已有周月报，不访问数仓、不调用 AI。报告 ID、状态、商品名称、主图及 AI 摘要和建议保留。AI 文字可能引用旧指标。
+
+运行前自动通过 SQLite 在线备份保存到 `data/backups/rebuild-<唯一编号>.db`，日志打印完整位置。全部计算完成后一次性写回；计算失败或检测到其他报告写入时取消写回。命令与日、周、月分析使用同一进程锁。
+
+没有原始日数据的报告及缺少重建源日报的周期报告保持原样，日志列出跳过原因。命令只更新已有报告，不创建缺失日期的报告，不修改日数据集或 AI 执行记录。
+
 ## 部署文件
 
 服务器部署目录为 `/home/yatui/jd-competitor-analysis`：
