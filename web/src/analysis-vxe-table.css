@@ -290,3 +290,9 @@ body.has-analysis-modal {
     transition: none;
   }
 }
+.analysis-header-label { display: inline-flex; align-items: center; gap: 4px; }
+.analysis-header-help-wrap { display: inline-flex; }
+.analysis-header-help { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: #667085; cursor: help; }
+.analysis-header-help:hover { color: #087c73; }
+.analysis-header-help:focus-visible { outline: 2px solid #087c73; outline-offset: 1px; }
+.analysis-header-tooltip { position: fixed; z-index: 10000; max-width: min(240px, calc(100vw - 16px)); box-sizing: border-box; padding: 8px 12px; border-radius: 6px; background: #1f2933; color: white; font-size: 12px; line-height: 1.6; font-weight: 400; box-shadow: 0 4px 12px #1f293326; pointer-events: none; }

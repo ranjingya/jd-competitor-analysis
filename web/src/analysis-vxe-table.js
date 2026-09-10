@@ -6,6 +6,7 @@ import VxeUITable, { VxeColumn, VxeColgroup, VxeTable, VxeToolbar } from "vxe-ta
 import "vxe-pc-ui/lib/style.css";
 import "vxe-table/lib/style.css";
 import "./analysis-vxe-table.css";
+import { TableHeaderHelp, headerHelpText } from "./table-header-help.js";
 import { isDerivedColumn } from "./analysis-columns.js";
 import { alignedRows, alignedSpan, compactColumnGroups, compactColumns, compactDifference, compactJudgement, compactSortField, compactSortRows } from "./analysis-compact.js";
 import {
@@ -429,6 +430,10 @@ export function mountAnalysisVxeTable(target, config) {
           showHeaderOverflow: "title"
         };
         return h(VxeColumn, props, {
+          header: () => h("span", { class: "analysis-header-label" }, [
+            column.label,
+            isTree && headerHelpText(column) ? h(TableHeaderHelp, { label: column.label, text: headerHelpText(column) }) : null
+          ]),
           default: ({ row }) => {
             if (compact && columnIndex === 0) return h("div", {
               class: ["analysis-channel-label", { "is-tree-label": isTree }],
