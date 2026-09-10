@@ -142,8 +142,13 @@ function renderCompactCell(row, column) {
         h("strong", { class: valueTone(gap.value, { key: "gap" }), title: `本品较${role}：${primary}` }, primary)
       ], "analysis-share-comparison", `${role}占比：${formatTableValue(competitorValue, column.unit)}，本品较${role}：${primary}`);
     }
-    return line([h("strong", {}, primary), secondary ? h("small", {}, secondary) : null], valueTone(gap.value, { key: "gap" }),
-      `本品较${role}：${primary}${secondary ? `，${secondary}` : ""}`);
+    const competitorValue = formatTableValue(row[`c${index}_competitor_${column.suffix}`], column.unit);
+    return line([
+      h("strong", { class: "analysis-competitor-original" }, competitorValue),
+      h("span", { class: ["analysis-competitor-difference", valueTone(gap.value, { key: "gap" })] }, [
+        h("strong", {}, primary), secondary ? h("small", {}, secondary) : null
+      ])
+    ], "analysis-competitor-stacked", `${role}原始值：${competitorValue}，本品较${role}：${primary}${secondary ? `，${secondary}` : ""}`);
   })]);
 }
 

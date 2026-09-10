@@ -190,6 +190,9 @@
 .analysis-compact-self-variant .analysis-progress-cell { grid-template-columns: minmax(12px, 1fr) auto; min-height: 20px; }
 .analysis-compact-line strong { font-weight: 700; }
 .analysis-compact-line small { font-size: 11px; font-weight: 400; }
+.analysis-compact-line.analysis-competitor-stacked { flex-direction: column; gap: 4px; text-align: center; }
+.analysis-competitor-original { color: #1f2933; font-size: 13px; }
+.analysis-competitor-difference { display: flex; align-items: center; justify-content: center; gap: 8px; }
 .analysis-compact-labels .analysis-compact-line { color: #667085; font-size: 11px; }
 .analysis-compact-labels .is-self { color: #1f2933; }
 .analysis-sort-basis { display: flex; gap: 6px; align-items: center; color: #667085; font-size: 11px; }
