@@ -243,7 +243,7 @@ export function mountAnalysisVxeTable(target, config) {
   const isTree = tableId === "traffic";
   const columnDefinitions = compactColumns(config.columns || [], config.competitorCount);
   const compact = columnDefinitions.some((column) => column.kind === "metric");
-  const initialBasis = config.sortState?.basis || "self";
+  const initialBasis = "self";
   const data = isTree
     ? prepareTrafficRows(config.rows || [])
     : prepareFlatRows(config.rows || [], tableId);
@@ -254,8 +254,8 @@ export function mountAnalysisVxeTable(target, config) {
     ? sortFlatTreeRowsBySiblings(compactSortRows(data, columnDefinitions, initialBasis), initialSortList)
     : sortRowsWithBottomValues(compactSortRows(data, columnDefinitions, initialBasis), initialSortList, null);
   const selfHeight = data.some((row) => columnDefinitions.some((column) => column.kind === "metric" && String(row[column.key]).startsWith("对竞品 "))) ? 48 : 28;
-  const normalTableHeight = compact ? Math.min(460, Math.max(180, 88 + data.length * (selfHeight + config.competitorCount * 28 + 24)))
-    : Math.min(380, Math.max(180, 48 + Math.min(data.length, 8) * 39));
+  const normalTableHeight = compact ? Math.min(640, Math.max(180, 88 + data.length * (selfHeight + config.competitorCount * 28 + 24)))
+    : Math.min(640, Math.max(180, 48 + data.length * 39));
 
   const AnalysisTable = {
     name: "AnalysisVxeTable",
@@ -273,7 +273,6 @@ export function mountAnalysisVxeTable(target, config) {
         tableData.value = alignedRows(logicalRows, config.competitorCount, collapsed);
         recalculate();
       };
-      const sortBasis = ref(initialBasis);
       let activeSort = config.sortState || null;
 
       const recalculate = async () => {
@@ -329,6 +328,10 @@ export function mountAnalysisVxeTable(target, config) {
         if (!(event.target instanceof Element) || !event.target.closest(".vxe-table")) {
           return;
         }
+        // 列设置弹层由组件自行滚动，不能把滚轮转交给背后的数据表格。
+        if (event.target.closest(".vxe-table-custom-wrapper")) {
+          return;
+        }
         const scrollBody = event.currentTarget.querySelector(
           ".vxe-table--main-wrapper .vxe-table--body-inner-wrapper"
         );
@@ -378,12 +381,12 @@ export function mountAnalysisVxeTable(target, config) {
           top: scrollBody?.scrollTop || 0
         };
         const sortList = order ? [{ field: compactSortField(columnDefinitions, field), order }] : [];
-        const sortableData = compactSortRows(data, columnDefinitions, sortBasis.value);
+        const sortableData = compactSortRows(data, columnDefinitions, initialBasis);
         logicalRows = isTree
           ? sortFlatTreeRowsBySiblings(sortableData, sortList)
           : sortRowsWithBottomValues(sortableData, sortList, null);
         tableData.value = compact ? alignedRows(logicalRows, config.competitorCount, collapsed) : logicalRows;
-        activeSort = order ? { key: field, direction: order, basis: sortBasis.value } : null;
+        activeSort = order ? { key: field, direction: order, basis: initialBasis } : null;
         config.onSortChange?.(activeSort);
         await recalculate();
         const refreshedScrollBody = shellRef.value?.querySelector(
@@ -479,14 +482,6 @@ export function mountAnalysisVxeTable(target, config) {
           h("header", { class: "analysis-vxe-toolbar" }, [
             h("p", { class: "section-title" }, "完整数据对比"),
             h("div", { class: "analysis-vxe-actions" }, [
-              compact ? h("label", { class: "analysis-sort-basis" }, ["排序依据", h("select", {
-                value: sortBasis.value,
-                "aria-label": "多行指标排序依据",
-                onChange: (event) => {
-                  sortBasis.value = event.target.value;
-                  if (activeSort) handleControlledSort(activeSort.key, activeSort.direction);
-                }
-              }, [h("option", { value: "self" }, "本品值"), ...Array.from({ length: config.competitorCount }, (_, index) => h("option", { value: String(index) }, `较竞品 ${index + 1} 差值`))])]) : null,
               h(VxeToolbar, {
                 ref: toolbarRef,
                 custom: true,
