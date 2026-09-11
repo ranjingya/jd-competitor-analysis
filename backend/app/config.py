@@ -27,6 +27,16 @@ def _positive_integer(name: str, default: int) -> int:
     return value
 
 
+def _choice(name: str, default: str, choices: set[str]) -> str:
+    """读取并校验枚举型环境变量。"""
+
+    value = os.getenv(name, default).strip().lower()
+    if value not in choices:
+        supported = "、".join(sorted(choices))
+        raise ValueError(f"{name} 必须是以下值之一：{supported}")
+    return value
+
+
 @dataclass(frozen=True)
 class Settings:
     """保存后端运行参数。"""
@@ -38,6 +48,9 @@ class Settings:
     deepseek_api_key: str | None
     deepseek_base_url: str
     deepseek_model: str
+    deepseek_thinking: str
+    deepseek_reasoning_effort: str
+    deepseek_max_tokens: int
     deepseek_timeout_seconds: int
     deepseek_max_attempts: int
     deepseek_pricing_path: Path
@@ -67,7 +80,14 @@ def get_settings() -> Settings:
         analysis_status_path=database_path.parent / "daily-analysis-status.json",
         deepseek_api_key=os.getenv("DEEPSEEK_API_KEY", "").strip() or None,
         deepseek_base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com").strip().rstrip("/"),
-        deepseek_model=os.getenv("DEEPSEEK_MODEL", "deepseek-v4-pro").strip(),
+        deepseek_model=os.getenv("DEEPSEEK_MODEL", "deepseek-flash").strip(),
+        deepseek_thinking=_choice(
+            "DEEPSEEK_THINKING", "enabled", {"enabled", "disabled"}
+        ),
+        deepseek_reasoning_effort=_choice(
+            "DEEPSEEK_REASONING_EFFORT", "high", {"low", "high", "max"}
+        ),
+        deepseek_max_tokens=_positive_integer("DEEPSEEK_MAX_TOKENS", 8192),
         deepseek_timeout_seconds=_positive_integer("DEEPSEEK_TIMEOUT_SECONDS", 300),
         deepseek_max_attempts=_positive_integer("DEEPSEEK_MAX_ATTEMPTS", 2),
         deepseek_pricing_path=database_path.parent / "deepseek-pricing.json",

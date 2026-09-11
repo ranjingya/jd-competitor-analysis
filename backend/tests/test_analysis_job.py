@@ -44,7 +44,7 @@ class AnalysisJobTest(unittest.TestCase):
                 tasks,
                 report_id,
                 {"facts": {"dataset_id": dataset_id}},
-                "deepseek-v4-pro",
+                "deepseek-flash",
                 "1.0",
                 "prompt-hash",
             )

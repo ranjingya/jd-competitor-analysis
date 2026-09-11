@@ -146,7 +146,7 @@ class PeriodAggregationTest(unittest.TestCase):
         """相同来源日报应复用唯一周期报告且不重复调用模型。"""
 
         analyzer = Mock()
-        analyzer.model = "deepseek-v4-pro"
+        analyzer.model = "deepseek-flash"
         analyzer.analysis_version = "1.0"
         analyzer.prompt_hash = "prompt-hash"
         analyzer.analyze.return_value = {

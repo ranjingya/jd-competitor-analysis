@@ -157,7 +157,7 @@ LARK_ALERT_OPEN_ID=<当前飞书应用下的用户 open_id>
 
 ## 日志与权限
 
-脚本运行日志保存在 `data/logs/`。DeepSeek 计费用量按月追加到 `data/logs/deepseek-usage-YYYY-MM.jsonl`，包含 Token、基础价格快照、契约校验状态和估算费用，不保存提示词或业务正文；价格取自 `data/deepseek-pricing.json`。
+脚本运行日志保存在 `data/logs/`。DeepSeek 计费用量按月追加到 `data/logs/deepseek-usage-YYYY-MM.jsonl`，包含 Token、空闲时段价格快照、契约校验状态和估算费用，不保存提示词或业务正文；价格取自 `data/deepseek-pricing.json`。定时分析安排在空闲时段执行，费用估算不判断峰谷时段。
 
 费用日志每次追加时设置为 `0644`。状态文件 `data/daily-analysis-status.json` 在后端启动时及每次写入时设置为 `0644`。宿主机用户可以读取这些文件，能否修改取决于文件所有者和权限；目录访问权限也需允许该用户进入。
 

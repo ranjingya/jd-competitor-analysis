@@ -71,7 +71,7 @@ class TaskRepositoryTest(unittest.TestCase):
             report_id or self.report_id,
             source_hash,
             payload,
-            "deepseek-v4-pro",
+            "deepseek-flash",
             "1.0",
             "prompt-hash",
             analysis_id=analysis_id,
@@ -91,7 +91,7 @@ class TaskRepositoryTest(unittest.TestCase):
         task = self.repository.list_recent("completed", 20)[0]
         report = self.reports.get_record(self.report_id)
         self.assertTrue(started.should_execute)
-        self.assertEqual(task["model"], "deepseek-v4-pro")
+        self.assertEqual(task["model"], "deepseek-flash")
         self.assertEqual(task["attempt_count"], 1)
         self.assertEqual(report["status"], "ready")
         self.assertEqual(report["report"]["meta"]["summary"], "流量规模领先")

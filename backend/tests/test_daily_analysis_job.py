@@ -62,7 +62,7 @@ def ai_analyzer() -> Mock:
     """创建返回有效 AI 结构的测试分析器。"""
 
     analyzer = Mock()
-    analyzer.model = "deepseek-v4-pro"
+    analyzer.model = "deepseek-flash"
     analyzer.analysis_version = "1.0"
     analyzer.prompt_hash = "prompt-hash"
     analyzer.analyze.return_value = {
@@ -302,6 +302,8 @@ class DailyAnalysisJobTest(unittest.TestCase):
             database_path=self.database.path, analysis_lock_path=root / "run.lock",
             analysis_status_path=root / "status.json", deepseek_api_key="test",
             deepseek_base_url="https://example.invalid", deepseek_model="test",
+            deepseek_thinking="enabled", deepseek_reasoning_effort="high",
+            deepseek_max_tokens=8192,
             deepseek_timeout_seconds=1, deepseek_max_attempts=1,
             deepseek_pricing_path=root / "pricing.json", deepseek_usage_log_dir=root,
             product_images_path=root / "images.json",

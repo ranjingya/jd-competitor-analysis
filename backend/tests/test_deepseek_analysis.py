@@ -52,7 +52,10 @@ class DeepSeekAnalyzerTest(unittest.TestCase):
             DeepSeekAnalysisConfig(
                 api_key="test-key",
                 base_url="https://api.deepseek.com",
-                model="deepseek-v4-pro",
+                model="deepseek-flash",
+                thinking="enabled",
+                reasoning_effort="high",
+                max_tokens=8192,
                 timeout_seconds=30,
                 max_attempts=max_attempts,
                 pricing_path=PRICING_PATH,
@@ -86,8 +89,11 @@ class DeepSeekAnalyzerTest(unittest.TestCase):
         request = urlopen.call_args.args[0]
         request_body = json.loads(request.data.decode("utf-8"))
         self.assertEqual(result, model_result)
-        self.assertEqual(request_body["model"], "deepseek-v4-pro")
+        self.assertEqual(request_body["model"], "deepseek-flash")
         self.assertEqual(request_body["response_format"], {"type": "json_object"})
+        self.assertEqual(request_body["thinking"], {"type": "enabled"})
+        self.assertEqual(request_body["reasoning_effort"], "high")
+        self.assertEqual(request_body["max_tokens"], 8192)
         self.assertNotIn("test-key", request_body["messages"][1]["content"])
 
     def test_invalid_content_is_rejected(self) -> None:
@@ -155,7 +161,7 @@ class DeepSeekAnalyzerTest(unittest.TestCase):
             }
             response = {
                 "id": "response-1",
-                "model": "deepseek-v4-pro",
+                "model": "deepseek-flash",
                 "system_fingerprint": "fingerprint-1",
                 "choices": [{"message": {"content": json.dumps(model_result)}}],
                 "usage": {
@@ -184,8 +190,9 @@ class DeepSeekAnalyzerTest(unittest.TestCase):
         self.assertEqual(record["analysis_id"], "analysis-1")
         self.assertEqual(record["usage"]["reasoning_tokens"], 124)
         self.assertEqual(file_mode, 0o644)
+        self.assertEqual(record["pricing"]["pricing_period"], "off_peak")
         self.assertEqual(record["pricing"]["multiplier"], 1.0)
-        self.assertEqual(record["estimated_cost"], 0.000852)
+        self.assertEqual(record["estimated_cost"], 0.000558)
         self.assertEqual(record["generation_attempt"], 1)
         self.assertEqual(record["validation_status"], "valid")
 

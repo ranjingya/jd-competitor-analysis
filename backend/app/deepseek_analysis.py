@@ -34,6 +34,9 @@ class DeepSeekAnalysisConfig:
     api_key: str
     base_url: str
     model: str
+    thinking: str
+    reasoning_effort: str
+    max_tokens: int
     timeout_seconds: int
     max_attempts: int
     pricing_path: Path
@@ -58,14 +61,24 @@ class DeepSeekAnalyzer:
             raise ValueError("DEEPSEEK_BASE_URL 不能为空")
         if not config.model.strip():
             raise ValueError("DEEPSEEK_MODEL 不能为空")
+        if config.thinking not in {"enabled", "disabled"}:
+            raise ValueError("DEEPSEEK_THINKING 必须是 enabled 或 disabled")
+        if config.reasoning_effort not in {"low", "high", "max"}:
+            raise ValueError("DEEPSEEK_REASONING_EFFORT 必须是 low、high 或 max")
+        if config.max_tokens <= 0:
+            raise ValueError("DEEPSEEK_MAX_TOKENS 必须大于 0")
         self.config = config
         self.model = config.model
         self.analysis_version = ANALYSIS_VERSION
         self.system_prompt = config.prompt_path.read_text(encoding="utf-8").strip()
         self.prompt_hash = hashlib.sha256(self.system_prompt.encode("utf-8")).hexdigest()
         LOGGER.debug(
-            "DeepSeek 分析规则已加载：model=%s，version=%s，prompt_hash=%s，path=%s",
+            "DeepSeek 分析规则已加载：model=%s，thinking=%s，effort=%s，"
+            "max_tokens=%s，version=%s，prompt_hash=%s，path=%s",
             self.model,
+            config.thinking,
+            config.reasoning_effort,
+            config.max_tokens,
             self.analysis_version,
             self.prompt_hash,
             config.prompt_path,
@@ -96,8 +109,18 @@ class DeepSeekAnalyzer:
                 },
             ],
             "response_format": {"type": "json_object"},
+            "thinking": {"type": self.config.thinking},
+            "max_tokens": self.config.max_tokens,
         }
-        LOGGER.info("开始调用 DeepSeek：model=%s", self.model)
+        if self.config.thinking == "enabled":
+            request_body["reasoning_effort"] = self.config.reasoning_effort
+        LOGGER.info(
+            "开始调用 DeepSeek：model=%s，thinking=%s，effort=%s，max_tokens=%s",
+            self.model,
+            self.config.thinking,
+            self.config.reasoning_effort if self.config.thinking == "enabled" else "none",
+            self.config.max_tokens,
+        )
         last_error: DeepSeekAnalysisError | None = None
         remaining_attempts = self.config.max_attempts
         generation_attempt = 0

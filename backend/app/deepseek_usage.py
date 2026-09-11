@@ -87,6 +87,7 @@ def load_pricing(pricing_path: Path, model: str) -> dict[str, Any] | None:
     return {
         "currency": str(data.get("currency") or "CNY"),
         "unit": str(data.get("unit") or "million_tokens"),
+        "pricing_period": str(data.get("pricing_period") or "fixed"),
         "multiplier": float(data.get("multiplier") or 1),
         "cache_hit_input": float(model_pricing["cache_hit_input"]),
         "cache_miss_input": float(model_pricing["cache_miss_input"]),
