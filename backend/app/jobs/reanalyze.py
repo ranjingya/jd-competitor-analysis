@@ -22,14 +22,14 @@ def reanalyze_reports(database_path, report_date, analyzer, self_spu=None, compe
     参数 database_path：已有数据库路径；调用方须持有分析进程锁。
     参数 report_date：业务日期，格式 YYYY-MM-DD。
     参数 analyzer：AI 分析器，负责当前提示词、请求重试及用量记录。
-    参数 self_spu：可选本品 SPU，与 competitor_spu 同时提供。
-    参数 competitor_spu：可选竞品 SPU，与 self_spu 同时提供。
+    参数 self_spu：可选本品 SPU；单独提供时选择该本品全部已有竞品报告。
+    参数 competitor_spu：可选竞品 SPU；提供时必须同时指定 self_spu。
     返回值：成功和失败数量；单项失败保留基础数据并继续其他项。
     """
     if date.fromisoformat(report_date).isoformat() != report_date:
         raise ValueError("日期格式必须为 YYYY-MM-DD")
-    if bool(self_spu) != bool(competitor_spu):
-        raise ValueError("--self-spu 和 --competitor-spu 必须同时提供")
+    if competitor_spu and not self_spu:
+        raise ValueError("提供 --competitor-spu 时必须同时提供 --self-spu")
     if not Path(database_path).is_file():
         raise FileNotFoundError(database_path)
     database = Database(database_path)
@@ -38,8 +38,11 @@ def reanalyze_reports(database_path, report_date, analyzer, self_spu=None, compe
     query = "SELECT report_id, self_spu, competitor_spu FROM reports WHERE granularity = 'day' AND start_date = ? AND end_date = ? AND status IN ('ready', 'ai_failed', 'pending_ai')"
     params = [report_date, report_date]
     if self_spu:
-        query += " AND self_spu = ? AND competitor_spu = ?"
-        params += [self_spu, competitor_spu]
+        query += " AND self_spu = ?"
+        params.append(self_spu)
+    if competitor_spu:
+        query += " AND competitor_spu = ?"
+        params.append(competitor_spu)
     with database.connection() as connection:
         rows = connection.execute(query + " ORDER BY self_spu, competitor_spu", params).fetchall()
     if not rows:

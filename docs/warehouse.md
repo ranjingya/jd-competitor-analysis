@@ -180,7 +180,13 @@ backend/.venv/bin/python backend/cli.py reanalyze --date 2026-09-13
 docker exec jd-competitor-analysis-backend python /app/cli.py reanalyze --date 2026-09-13
 ```
 
-限定一个商品对时追加 `--self-spu 本品SPU --competitor-spu 竞品SPU`，两个参数须同时提供。
+只重跑某个本品的全部已有竞品报告：
+
+```bash
+backend/.venv/bin/python backend/cli.py reanalyze --date 2026-09-13 --self-spu 100174558585
+```
+
+限定一个商品对时再追加 `--competitor-spu 竞品SPU`。竞品参数必须搭配本品参数；均不提供时处理该日期全部已有日报。
 
 此命令从数据库选择该日期已有的日报，读取保存的基础指标和五张来源表，使用当前提示词强制重新调用 AI。每次执行都会产生调用费用；不读取数仓、飞书或重算指标，不生成缺失日报，不处理周月报。成功只更新 AI 摘要、详情、发现、建议及报告状态和更新时间；失败标记 `ai_failed`，保留基础数据，并继续其他商品对。旧 AI 执行记录保留为历史版本。无匹配报告时直接报错。命令复用分析进程锁、请求重试及费用日志，不发送脚本完成通知。
 

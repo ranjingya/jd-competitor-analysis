@@ -115,7 +115,7 @@ def parse_args() -> argparse.Namespace:
 
     reanalyze_parser = subparsers.add_parser("reanalyze", help="按日期强制重跑已有日报 AI，不读数仓、不重算基础数据。")
     reanalyze_parser.add_argument("--date", required=True, help="业务日期 YYYY-MM-DD。")
-    reanalyze_parser.add_argument("--self-spu", help="可选本品 SPU，需与竞品同时提供。")
+    reanalyze_parser.add_argument("--self-spu", help="可选本品 SPU，单独指定时重跑其全部已有竞品报告。")
     reanalyze_parser.add_argument("--competitor-spu", help="可选竞品 SPU，需与本品同时提供。")
     reanalyze_parser.add_argument("--log-level", default="INFO", help="日志级别。")
     reanalyze_parser.set_defaults(handler=run_reanalyze)

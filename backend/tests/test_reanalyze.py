@@ -66,7 +66,25 @@ class ReanalyzeTest(unittest.TestCase):
     def test_invalid_selection_does_not_call_ai(self):
         """无匹配日期、商品对或不完整参数不调用 AI。"""
         for day, own, rival in [("2026-08-13", None, None), ("2026-08-11", "999", "888"),
-                                ("2026-08-11", "10001", None), ("invalid", None, None)]:
+                                ("2026-08-11", None, "20001"), ("invalid", None, None)]:
             with self.assertRaises(ValueError):
                 reanalyze_reports(self.path, day, self.ai, own, rival)
         self.ai.analyze.assert_not_called()
+
+    def test_self_only_selects_all_competitors(self):
+        """只指定本品时处理所有竞品，不修改其他本品和日期。"""
+        report = build_report_fixture("2026-08-11")
+        report["meta"]["competitor_spu"] = "20002"
+        report["meta"]["competitor_product"]["id"] = "20002"
+        second = self.repo.upsert(None, report, status="ready")
+        other_report = build_report_fixture("2026-08-11")
+        other_report["meta"]["self_spu"] = "10002"
+        other_report["meta"]["self_product"]["id"] = "10002"
+        other_id = self.repo.upsert(None, other_report, status="ready")
+        before = self.snapshot(other_id)
+        self.assertEqual(reanalyze_reports(self.path, "2026-08-11", self.ai, "10001"),
+                         {"ready": 2, "failed": 0})
+        competitors = {call.args[0]["pair"]["competitor_spu"] for call in self.ai.analyze.call_args_list}
+        self.assertEqual(competitors, {"20001", "20002"})
+        self.assertEqual(self.snapshot(second)["advantage_summary"], "新优势")
+        self.assertEqual(self.snapshot(other_id), before)
