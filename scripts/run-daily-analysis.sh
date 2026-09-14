@@ -16,6 +16,7 @@ ALREADY_RUNNING_EXIT_CODE=12
 AI_PARTIAL_FAILURE_EXIT_CODE=14
 NOTIFICATION_FILES=()
 NOTIFICATION_TITLE="京东竞品分析 · 报告更新"
+NOTIFICATION_RUN_DATE="$(date '+%Y-%m-%d')"
 
 if ! mkdir -p "$LOG_DIR"; then
   printf '%s ERROR 无法创建日志目录：%s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$LOG_DIR" >&2
@@ -150,19 +151,25 @@ generate_lark_webhook_sign() {
 }
 
 build_completion_card() {
-  # 功能说明：按粒度和日期汇总本次成功报告，无成功结果时不输出卡片。
+  # 功能说明：展示昨日日报状态与本次成功生成的历史、周月报告。
   # 参数：无，读取 NOTIFICATION_FILES、通知标题和在线看板地址。
   # 返回值：成功时输出卡片 JSON 或空文本；输入格式错误时返回非零状态。
   jq -sc --arg title "$NOTIFICATION_TITLE" --arg dashboard_url "$DASHBOARD_URL" \
+    --arg today "$NOTIFICATION_RUN_DATE" \
     --arg generated_at "$(date '+%m-%d %H:%M')" '
       if length == 0 or any(.[];
         (.total_pairs | type) != "number" or (.results | type) != "array")
       then error("缺少有效的批次通知结果") else . end
+      | (($today | strptime("%Y-%m-%d") | mktime) - 86400 | strftime("%Y-%m-%d")) as $target_date
+      | any(.[]; (.granularity // "day") == "day") as $has_daily
       | reduce (.[] | (.granularity // "day") as $granularity
           | .results[] | . + {granularity: $granularity}) as $item ({};
           ($item | [.granularity, .date, .start_date, .end_date, .self_spu, .competitor_spu] | tojson) as $key
           | if $item.status == "existing" and has($key) then . else .[$key] = $item end)
-      | [.[] | select(.status == "ready")]
+      | [.[]]
+      | if $has_daily and (any(.[]; .granularity == "day" and .date == $target_date) | not)
+        then . + [{granularity: "day", date: $target_date, status: "not_generated"}] else . end
+      | map(select(.status == "ready" or (.granularity == "day" and .date == $target_date)))
       | if length == 0 then empty else . end
       | group_by(.granularity)
       | sort_by(if .[0].granularity == "day" then 0 elif .[0].granularity == "week" then 1 else 2 end)
@@ -173,7 +180,11 @@ build_completion_card() {
                 (if .[0].granularity == "day" then .[0].date[5:]
                  elif .[0].start_date[:4] == .[0].end_date[:4] then .[0].start_date[5:] + "～" + .[0].end_date[5:]
                  else .[0].start_date + "～" + .[0].end_date end)
-                + "：成功 " + (length | tostring) + " 份")
+                + "：" + (if any(.[]; .status == "ready")
+                    then "成功 " + ([.[] | select(.status == "ready")] | length | tostring) + " 份"
+                    elif any(.[]; .status == "existing") then "报告已生成"
+                    elif all(.[]; .status == "no_data") then "暂无数据"
+                    else "暂未生成" end))
             | join("\n")))
       | join("\n\n") as $details
       | {
@@ -220,7 +231,7 @@ send_lark_completion_webhook() {
   fi
 
   if [[ -z "$card_payload" ]]; then
-    log_message INFO "本次没有成功生成的报告，不发送群通知"
+    log_message INFO "本次没有可展示的报告结果，不发送群通知"
     return 0
   fi
 
@@ -497,7 +508,7 @@ if [[ "${1:-}" == "--test-notification" || "${1:-}" == "--test-notification-priv
     fi
     card_payload="$(build_completion_card)" || exit 1
     if [[ -z "$card_payload" ]]; then
-      log_message INFO "测试结果没有成功生成的报告，不发送测试通知"
+      log_message INFO "测试结果没有可展示的报告结果，不发送测试通知"
       exit 0
     fi
     send_lark_private_card "$(jq -c '.card' <<<"$card_payload")" "私聊测试通知"

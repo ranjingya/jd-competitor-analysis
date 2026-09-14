@@ -114,14 +114,16 @@ print(values.get(sys.argv[1], "2026-09-01 12:00:00"))
         return [json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
 
     def test_no_data_allows_completion_weekly_and_monthly(self) -> None:
-        """整日无数据仍执行周月报并上报监控成功，没有成功报告时不发群通知。"""
-        self.attempt(1, [self.item("2026-08-31", "100", "no_data"),
+        """整日无数据仍执行周月报、上报监控成功并发送昨日日报状态。"""
+        self.attempt(1, [self.item("2026-09-07", "100", "no_data"),
                          self.item("2026-08-30", "100", "existing")])
         result = self.run_script()
         self.assertEqual(result.returncode, 0, result.stderr)
         requests = self.requests()
         group = [r for r in requests if "/hook/" in r["url"]]
-        self.assertEqual(len(group), 0)
+        self.assertEqual(len(group), 1)
+        self.assertIn("09-07：暂无数据", group[0]["body"])
+        self.assertNotIn("08-30", group[0]["body"])
         self.assertTrue(any(r["url"].endswith("/ping/check") for r in requests))
         self.assertFalse(any("/messages" in r["url"] or "/fail" in r["url"] for r in requests))
         commands = (self.root / "docker.jsonl").read_text()
@@ -167,7 +169,7 @@ print(values.get(sys.argv[1], "2026-09-01 12:00:00"))
         message = next(r["body"] for r in self.requests() if "/hook/" in r["url"])
         self.assertIn("周报\\n08-31～09-06：成功 1 份", message)
         self.assertIn("月报\\n08-01～08-31：成功 1 份", message)
-        self.assertNotIn("日报", message)
+        self.assertIn("09-07：报告已生成", message)
         self.assertNotIn("本次无新增", message)
         self.assertNotIn("incomplete", message)
         self.assertNotIn("不全", message)
@@ -238,14 +240,14 @@ print(values.get(sys.argv[1], "2026-09-01 12:00:00"))
         self.assertNotIn("无数据", message["content"])
         self.assertIn("生成时间：09-08 12:00", message["content"])
 
-    def test_existing_only_sends_no_group_notification(self) -> None:
-        """全部已有时不发群通知，监控仍收到成功请求。"""
-        self.attempt(1, [self.item("2026-08-31", "100", "existing")])
+    def test_existing_only_sends_group_notification(self) -> None:
+        """全部已有时发送昨日日报已生成，监控仍收到成功请求。"""
+        self.attempt(1, [self.item("2026-09-07", "100", "existing")])
         result = self.run_script()
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertFalse(any("/hook/" in r["url"] for r in self.requests()))
+        message = next(r["body"] for r in self.requests() if "/hook/" in r["url"])
+        self.assertIn("09-07：报告已生成", message)
         self.assertTrue(any(r["url"].endswith("/ping/check") for r in self.requests()))
-        self.assertIn("本次没有成功生成的报告，不发送群通知", result.stdout)
 
     def test_private_period_preview_shows_only_success_count(self) -> None:
         """单独预览周报通知时，只展示成功数量。"""
@@ -262,7 +264,7 @@ print(values.get(sys.argv[1], "2026-09-01 12:00:00"))
         self.assertNotIn("月报", content)
 
     def test_mixed_days_show_only_successful_dates(self) -> None:
-        """按日期展示成功报告，隐藏所有无数据、已有及零成功日期。"""
+        """展示昨天无数据及历史成功报告，隐藏历史已有日期。"""
         self.attempt(1, [self.item("2026-09-07", "100", "no_data"),
                          self.item("2026-09-06", "100", "ready"),
                          self.item("2026-09-06", "101", "no_data"),
@@ -274,15 +276,36 @@ print(values.get(sys.argv[1], "2026-09-01 12:00:00"))
         body = next(r["body"] for r in self.requests() if "/hook/" in r["url"])
         card = json.loads(body)["card"]
         self.assertEqual(card["header"]["title"]["content"], "京东竞品分析 · 报告更新")
-        self.assertEqual(card["elements"][0]["text"]["content"], "日报\n09-06：成功 1 份\n09-05：成功 2 份")
-        self.assertNotIn("无数据", body)
+        self.assertEqual(card["elements"][0]["text"]["content"], "日报\n09-07：暂无数据\n09-06：成功 1 份\n09-05：成功 2 份")
+        self.assertNotIn("09-04", body)
         self.assertNotIn("商品对", body)
         self.assertEqual(card["elements"][2]["actions"][0]["text"]["content"], "查看报告")
 
-    def test_empty_preview_sends_nothing(self) -> None:
-        """没有成功结果的通知预览不触发任何外部请求。"""
+    def test_empty_daily_preview_shows_not_generated(self) -> None:
+        """日报没有处理记录时展示暂未生成，不误报数仓无数据。"""
         fixture = self.root / "preview.json"
         fixture.write_text(json.dumps({"total_pairs": 0, "results": []}))
         result = self.run_script("--test-notification-private", str(fixture))
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(self.requests(), [])
+        message = json.loads(self.requests()[-1]["body"])
+        self.assertIn("09-07：暂未生成", message["content"])
+
+    def test_mixed_target_day_counts_new_reports_only(self) -> None:
+        """昨天混合状态时只计本次成功份数，不把已有和无数据计入成功。"""
+        self.attempt(1, [self.item("2026-09-07", "100", "ready"),
+                         self.item("2026-09-07", "101", "existing"),
+                         self.item("2026-09-07", "102", "no_data")])
+        result = self.run_script()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        message = next(r["body"] for r in self.requests() if "/hook/" in r["url"])
+        self.assertIn("09-07：成功 1 份", message)
+        self.assertNotIn("报告已生成", message)
+
+    def test_existing_and_no_data_target_day_shows_available_report(self) -> None:
+        """已有报告与无数据并存时展示报告已生成。"""
+        self.attempt(1, [self.item("2026-09-07", "100", "existing"),
+                         self.item("2026-09-07", "101", "no_data")])
+        result = self.run_script()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        message = next(r["body"] for r in self.requests() if "/hook/" in r["url"])
+        self.assertIn("09-07：报告已生成", message)
