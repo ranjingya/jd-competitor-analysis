@@ -11,6 +11,7 @@ from app.jobs.daily_analysis import run_warehouse_daily_analysis
 from app.jobs.period_analysis import run_period_analysis
 from app.jobs.product_images import run_product_image_sync
 from app.jobs.rebuild import run_rebuild
+from app.jobs.reanalyze import run_reanalyze
 from app.logging_config import configure_backend_logging
 from jd_competitor_analysis.lark_mapping import run_lark_mapping_check
 from jd_competitor_analysis.warehouse import run_warehouse_probe
@@ -111,6 +112,13 @@ def parse_args() -> argparse.Namespace:
     rebuild_parser = subparsers.add_parser("rebuild", help="备份数据库并重建已有基础报告，保留 AI，不访问数仓。")
     rebuild_parser.add_argument("--log-level", default="INFO", help="日志级别。")
     rebuild_parser.set_defaults(handler=run_rebuild)
+
+    reanalyze_parser = subparsers.add_parser("reanalyze", help="按日期强制重跑已有日报 AI，不读数仓、不重算基础数据。")
+    reanalyze_parser.add_argument("--date", required=True, help="业务日期 YYYY-MM-DD。")
+    reanalyze_parser.add_argument("--self-spu", help="可选本品 SPU，需与竞品同时提供。")
+    reanalyze_parser.add_argument("--competitor-spu", help="可选竞品 SPU，需与本品同时提供。")
+    reanalyze_parser.add_argument("--log-level", default="INFO", help="日志级别。")
+    reanalyze_parser.set_defaults(handler=run_reanalyze)
 
     return parser.parse_args()
 

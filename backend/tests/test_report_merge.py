@@ -30,6 +30,21 @@ def recommendation(source_id: str, source_label: str) -> dict[str, object]:
 class ReportMergeTest(unittest.TestCase):
     """验证 AI 字段边界、报告投影和最终契约。"""
 
+    def test_sop_recommendation_counts_survive_report_contract(self) -> None:
+        """单来源的零条、单条和多条建议均可通过合并及最终报告契约。"""
+        for count in (0, 1, 6):
+            with self.subTest(count=count):
+                result = {
+                    "summary": {
+                        "advantage": {"brief": "暂无明显优势", "detail": ["数据限制"]},
+                        "weakness": {"brief": "访客落后", "detail": ["按估算值对比"]},
+                    },
+                    "findings": [],
+                    "recommendations": [recommendation("traffic", "流量来源") for _ in range(count)],
+                }
+                merged = merge_ai_result(base_report(), result)
+                self.assertEqual(len(merged["ai_recommendations"]), count)
+
     def test_ai_result_is_merged_without_losing_deterministic_summary(self) -> None:
         """AI 总结应成为看板摘要，同时保留固定公式摘要用于审计。"""
 

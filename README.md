@@ -58,3 +58,4 @@ GitHub Actions 在推送 `v*` 标签后构建镜像并部署。文件配置及�
 - [数据库设计](docs/database-design.md)
 - [估算规则](docs/estimation.md) · [标准化数据](docs/normalized-data.md) · [分析结果](docs/analysis-result.md)
 - [看板说明](docs/dashboard.md)
+- [运营分析 SOP 与建议规则](docs/operations-sop.md)

@@ -166,6 +166,24 @@ docker compose exec -T jd-competitor-analysis-backend \
 
 `--yesterday` 模式以昨天为主业务日期，同时由近到远检查此前六天。同一日期和商品对已有 `ready` 报告时直接跳过；没有完整报告时重新查询数据源。显式 `--date` 用于人工重跑指定日期，会重新执行该商品对并更新同一份业务报告。
 
+### 只重跑指定日期的 AI
+
+本地项目根目录执行：
+
+```bash
+backend/.venv/bin/python backend/cli.py reanalyze --date 2026-09-13
+```
+
+服务器执行：
+
+```bash
+docker exec jd-competitor-analysis-backend python /app/cli.py reanalyze --date 2026-09-13
+```
+
+限定一个商品对时追加 `--self-spu 本品SPU --competitor-spu 竞品SPU`，两个参数须同时提供。
+
+此命令从数据库选择该日期已有的日报，读取保存的基础指标和五张来源表，使用当前提示词强制重新调用 AI。每次执行都会产生调用费用；不读取数仓、飞书或重算指标，不生成缺失日报，不处理周月报。成功只更新 AI 摘要、详情、发现、建议及报告状态和更新时间；失败标记 `ai_failed`，保留基础数据，并继续其他商品对。旧 AI 执行记录保留为历史版本。无匹配报告时直接报错。命令复用分析进程锁、请求重试及费用日志，不发送脚本完成通知。
+
 手动生成指定自然周或上一个自然周：
 
 ```bash

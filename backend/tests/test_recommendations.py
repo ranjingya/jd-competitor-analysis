@@ -24,11 +24,9 @@ def _warning_item() -> dict[str, object]:
 class RecommendationValidationTest(unittest.TestCase):
     """验证劣势建议的数量和状态约束。"""
 
-    def test_rejects_empty_recommendations(self) -> None:
-        """正式 AI 分析不能写入空数组。"""
-
-        with self.assertRaisesRegex(ValueError, "2–5"):
-            validate_recommendations([])
+    def test_accepts_empty_recommendations(self) -> None:
+        """无符合 SOP 的动作时允许空数组。"""
+        self.assertEqual(validate_recommendations([]), [])
 
     def test_accepts_multiple_source_recommendations(self) -> None:
         """覆盖多个来源的多条 warning 建议可以通过校验。"""
@@ -45,17 +43,13 @@ class RecommendationValidationTest(unittest.TestCase):
             [traffic_item, keyword_item],
         )
 
-    def test_rejects_single_recommendation(self) -> None:
-        """正式 AI 分析必须输出多条建议。"""
+    def test_accepts_single_recommendation(self) -> None:
+        """单条符合条件的建议可以保存。"""
+        self.assertEqual(len(validate_recommendations([_warning_item()])), 1)
 
-        with self.assertRaisesRegex(ValueError, "2–5"):
-            validate_recommendations([_warning_item()])
-
-    def test_rejects_single_source_recommendations(self) -> None:
-        """多条建议必须覆盖至少两个不同来源。"""
-
-        with self.assertRaisesRegex(ValueError, "至少两个不同来源"):
-            validate_recommendations([_warning_item(), _warning_item()])
+    def test_accepts_single_source_recommendations(self) -> None:
+        """建议允许全部来自同一个模块。"""
+        self.assertEqual(len(validate_recommendations([_warning_item(), _warning_item()])), 2)
 
     def test_rejects_non_warning_recommendation(self) -> None:
         """优势或中性建议不能写入劣势建议数组。"""
@@ -71,16 +65,15 @@ class RecommendationValidationTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "状态必须为 warning"):
             validate_recommendations([item, keyword_item])
 
-    def test_rejects_more_than_five_recommendations(self) -> None:
-        """劣势建议数量不能超过五条。"""
+    def test_accepts_more_than_five_recommendations(self) -> None:
+        """符合规则的建议可超过五条。"""
 
         items = []
         for index in range(6):
             item = _warning_item()
             item["source_id"] = "traffic" if index % 2 == 0 else "keywords"
             items.append(item)
-        with self.assertRaisesRegex(ValueError, "2–5"):
-            validate_recommendations(items)
+        self.assertEqual(validate_recommendations(items), items)
 
 
 if __name__ == "__main__":
