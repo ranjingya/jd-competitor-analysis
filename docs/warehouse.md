@@ -14,15 +14,14 @@
 DEEPSEEK_API_KEY=<API Key>
 DEEPSEEK_BASE_URL=https://api.deepseek.com
 DEEPSEEK_MODEL=deepseek-flash
-DEEPSEEK_THINKING=enabled
-DEEPSEEK_REASONING_EFFORT=high
-DEEPSEEK_MAX_TOKENS=8192
 DEEPSEEK_TIMEOUT_SECONDS=300
 DEEPSEEK_MAX_ATTEMPTS=2
 ```
 
-分析请求使用 DeepSeek-V4.1-Flash 的思考模式，推理强度为 `high`，单次生成上限为
-8192 Token。费用使用空闲时段单价估算；定时任务应安排在官方定义的空闲时段执行。
+分析请求按 `DEEPSEEK_MODEL` 选择模型，思考模式、推理强度和输出长度使用模型默认值，
+仍受服务端限制。请求指定 JSON 输出格式，并校验摘要、要点和建议结构。
+请求超时默认 300 秒，每次分析最多请求 2 次，网络异常与结果校验失败共享尝试次数。
+费用使用空闲时段单价估算；定时任务应安排在官方定义的空闲时段执行。
 
 项目数仓为 StarRocks，使用 MySQL 协议连接：
 

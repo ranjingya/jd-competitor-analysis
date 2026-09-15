@@ -138,8 +138,7 @@ class PeriodAnalysisJobTest(unittest.TestCase):
         settings = SimpleNamespace(
             database_path=self.root / "data.db", analysis_lock_path=self.root / "analysis.lock",
             deepseek_api_key="test", deepseek_base_url="https://example.invalid",
-            deepseek_model="test", deepseek_thinking="enabled",
-            deepseek_reasoning_effort="high", deepseek_max_tokens=8192,
+            deepseek_model="test",
             deepseek_timeout_seconds=1, deepseek_max_attempts=1,
             deepseek_pricing_path=self.root / "pricing.json", deepseek_usage_log_dir=self.root / "logs",
         )

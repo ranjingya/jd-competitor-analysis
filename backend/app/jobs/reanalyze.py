@@ -105,7 +105,7 @@ def run_reanalyze(args):
             raise SystemExit(12)
         analyzer = DeepSeekAnalyzer(DeepSeekAnalysisConfig(**{
             name: getattr(settings, f"deepseek_{name}") for name in (
-                "api_key", "base_url", "model", "thinking", "reasoning_effort", "max_tokens",
+                "api_key", "base_url", "model",
                 "timeout_seconds", "max_attempts", "pricing_path", "usage_log_dir")
         }))
         counts = reanalyze_reports(settings.database_path, args.date, analyzer,

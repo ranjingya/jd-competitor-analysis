@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import json
+import os
 import stat
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from app.config import get_settings
 from app.deepseek_analysis import (
     DeepSeekAnalysisConfig,
     DeepSeekAnalysisError,
@@ -40,6 +42,25 @@ class FakeResponse:
 class DeepSeekAnalyzerTest(unittest.TestCase):
     """验证请求参数和返回契约。"""
 
+    def test_generation_environment_does_not_override_model_defaults(self) -> None:
+        """环境中的生成参数不影响模型默认值，超时和重试仍可配置。"""
+
+        get_settings.cache_clear()
+        self.addCleanup(get_settings.cache_clear)
+        with patch("app.config.load_dotenv"), patch.dict(os.environ, {
+            "DEEPSEEK_THINKING": "disabled",
+            "DEEPSEEK_REASONING_EFFORT": "low",
+            "DEEPSEEK_MAX_TOKENS": "8192",
+            "DEEPSEEK_TIMEOUT_SECONDS": "300",
+            "DEEPSEEK_MAX_ATTEMPTS": "2",
+        }, clear=True):
+            settings = get_settings()
+        self.assertFalse(hasattr(settings, "deepseek_thinking"))
+        self.assertFalse(hasattr(settings, "deepseek_reasoning_effort"))
+        self.assertFalse(hasattr(settings, "deepseek_max_tokens"))
+        self.assertEqual(settings.deepseek_timeout_seconds, 300)
+        self.assertEqual(settings.deepseek_max_attempts, 2)
+
     def _analyzer(
         self,
         prompt_path: Path,
@@ -53,9 +74,6 @@ class DeepSeekAnalyzerTest(unittest.TestCase):
                 api_key="test-key",
                 base_url="https://api.deepseek.com",
                 model="deepseek-flash",
-                thinking="enabled",
-                reasoning_effort="high",
-                max_tokens=8192,
                 timeout_seconds=30,
                 max_attempts=max_attempts,
                 pricing_path=PRICING_PATH,
@@ -91,9 +109,8 @@ class DeepSeekAnalyzerTest(unittest.TestCase):
         self.assertEqual(result, model_result)
         self.assertEqual(request_body["model"], "deepseek-flash")
         self.assertEqual(request_body["response_format"], {"type": "json_object"})
-        self.assertEqual(request_body["thinking"], {"type": "enabled"})
-        self.assertEqual(request_body["reasoning_effort"], "high")
-        self.assertEqual(request_body["max_tokens"], 8192)
+        self.assertEqual(set(request_body), {"model", "messages", "response_format"})
+        self.assertEqual(urlopen.call_args.kwargs["timeout"], 30)
         self.assertNotIn("test-key", request_body["messages"][1]["content"])
 
     def test_invalid_content_is_rejected(self) -> None:
