@@ -614,7 +614,10 @@ class ReportRepository:
         with self.database.connection() as connection:
             row = connection.execute(
                 """
-                SELECT report_id, dataset_id, status, quality_status
+                SELECT report_id, dataset_id, status, quality_status,
+                       (SELECT json_extract(d.self_product_json, '$.quality.warehouse_sku_count')
+                        FROM analysis_datasets d WHERE d.dataset_id = reports.dataset_id)
+                       AS warehouse_sku_count
                 FROM reports
                 WHERE granularity = 'day' AND start_date = ? AND end_date = ?
                   AND self_spu = ? AND competitor_spu = ?
@@ -689,6 +692,8 @@ class ReportRepository:
             "start_date >= ?",
             "end_date <= ?",
             "status = 'ready'",
+            "NOT EXISTS (SELECT 1 FROM analysis_datasets d WHERE d.dataset_id = reports.dataset_id "
+            "AND json_extract(d.self_product_json, '$.quality.warehouse_sku_count') = 0)",
         ]
         parameters: list[Any] = [start_date, end_date]
         if self_spu and competitor_spu:

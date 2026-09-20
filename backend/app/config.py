@@ -69,7 +69,7 @@ def get_settings() -> Settings:
         deepseek_base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com").strip().rstrip("/"),
         deepseek_model=os.getenv("DEEPSEEK_MODEL", "deepseek-flash").strip(),
         deepseek_timeout_seconds=_positive_integer("DEEPSEEK_TIMEOUT_SECONDS", 300),
-        deepseek_max_attempts=_positive_integer("DEEPSEEK_MAX_ATTEMPTS", 2),
+        deepseek_max_attempts=_positive_integer("DEEPSEEK_MAX_ATTEMPTS", 3),
         deepseek_pricing_path=database_path.parent / "deepseek-pricing.json",
         deepseek_usage_log_dir=database_path.parent / "logs",
     )

@@ -150,6 +150,19 @@ def process_daily_pair(
             "analysis_id": None,
         }
 
+    if not dataset.get("self_product", {}).get("quality", {}).get("warehouse_sku_count", 0):
+        LOGGER.info(
+            "本品 SKU 明细缺失，跳过报告和 AI：date=%s，self=%s，competitor=%s",
+            selected_date, product_pair.self_spu, product_pair.competitor_spu,
+        )
+        return {
+            "self_spu": product_pair.self_spu,
+            "competitor_spu": product_pair.competitor_spu,
+            "status": "incomplete", "quality_status": quality_status,
+            "dataset_id": dataset_id, "report_id": None, "analysis_id": None,
+            "message": "本品 SKU 明细缺失",
+        }
+
     if progress_callback is not None:
         progress_callback("deterministic_analysis", product_pair)
     report = analyze_daily_dataset(dataset, title=title, product_images=product_images)
@@ -520,13 +533,15 @@ def _existing_report_result(
 def _repair_strategy(report_state: dict[str, Any] | None) -> str:
     """判断最近七天日报的修复方式。
 
-    功能说明：完整报告直接跳过；基础数据完整且 AI 失败时只重试 AI；其他状态执行
+    功能说明：缺少 SKU 明细的报告重新读数仓；完整报告直接跳过；基础数据完整且 AI 失败时只重试 AI；其他状态执行
     数仓读取、确定性分析和 AI 分析的完整流程。
     参数 report_state：报告仓库返回的日报状态摘要，不存在报告时为空。
     返回值：`existing`、`ai_only` 或 `full`。
     """
 
     if report_state is None:
+        return "full"
+    if report_state.get("warehouse_sku_count") == 0:
         return "full"
     if report_state.get("status") == "ready":
         return "existing"
@@ -915,15 +930,16 @@ def run_warehouse_daily_analysis(args: Any) -> None:
                         pair_results.append(item_result)
                     pair_counts = {
                         status: sum(item["status"] == status for item in pair_results)
-                        for status in ("ready", "existing", "no_data", "ai_failed", "failed")
+                        for status in ("ready", "existing", "no_data", "incomplete", "ai_failed", "failed")
                     }
                     LOGGER.info(
-                        "[%s/%s] 商品对完成：generated=%s，existing=%s，no_data=%s，failed=%s，耗时=%.1fs",
+                        "[%s/%s] 商品对完成：generated=%s，existing=%s，no_data=%s，incomplete=%s，failed=%s，耗时=%.1fs",
                         pair_index,
                         len(product_pairs),
                         pair_counts["ready"],
                         pair_counts["existing"],
                         pair_counts["no_data"],
+                        pair_counts["incomplete"],
                         pair_counts["ai_failed"] + pair_counts["failed"],
                         perf_counter() - pair_started_at,
                     )
@@ -968,6 +984,7 @@ def run_warehouse_daily_analysis(args: Any) -> None:
                         "ready",
                         "existing",
                         "no_data",
+                        "incomplete",
                         "ai_failed",
                         "invalid",
                         "failed",
@@ -1007,10 +1024,11 @@ def run_warehouse_daily_analysis(args: Any) -> None:
                 )
                 raise SystemExit(AI_PARTIAL_FAILURE_EXIT_CODE)
             LOGGER.info(
-                "日报任务完成：generated=%s，existing=%s，no_data=%s，failed=%s，耗时=%.1fs",
+                "日报任务完成：generated=%s，existing=%s，no_data=%s，incomplete=%s，failed=%s，耗时=%.1fs",
                 summary["counts"]["ready"],
                 summary["counts"]["existing"],
                 summary["counts"]["no_data"],
+                summary["counts"]["incomplete"],
                 summary["counts"]["failed"] + summary["counts"]["ai_failed"],
                 perf_counter() - run_started_at,
             )

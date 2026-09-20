@@ -52,14 +52,13 @@ class DeepSeekAnalyzerTest(unittest.TestCase):
             "DEEPSEEK_REASONING_EFFORT": "low",
             "DEEPSEEK_MAX_TOKENS": "8192",
             "DEEPSEEK_TIMEOUT_SECONDS": "300",
-            "DEEPSEEK_MAX_ATTEMPTS": "2",
         }, clear=True):
             settings = get_settings()
         self.assertFalse(hasattr(settings, "deepseek_thinking"))
         self.assertFalse(hasattr(settings, "deepseek_reasoning_effort"))
         self.assertFalse(hasattr(settings, "deepseek_max_tokens"))
         self.assertEqual(settings.deepseek_timeout_seconds, 300)
-        self.assertEqual(settings.deepseek_max_attempts, 2)
+        self.assertEqual(settings.deepseek_max_attempts, 3)
 
     def _analyzer(
         self,
@@ -135,7 +134,7 @@ class DeepSeekAnalyzerTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             prompt_path = Path(temp_dir) / "prompt.md"
             prompt_path.write_text("请只返回 JSON。", encoding="utf-8")
-            analyzer = self._analyzer(prompt_path, max_attempts=2)
+            analyzer = self._analyzer(prompt_path, max_attempts=3)
             model_result = {
                 "summary": {
                     "advantage": {"brief": "流量领先", "detail": ["本品流量规模领先。"]},
@@ -145,6 +144,7 @@ class DeepSeekAnalyzerTest(unittest.TestCase):
                 "recommendations": [],
             }
             responses = [
+                FakeResponse({"choices": [{"message": {"content": "{}"}}]}),
                 FakeResponse({"choices": [{"message": {"content": "{}"}}]}),
                 FakeResponse(
                     {"choices": [{"message": {"content": json.dumps(model_result)}}]}
@@ -157,7 +157,7 @@ class DeepSeekAnalyzerTest(unittest.TestCase):
                 result = analyzer.analyze({"facts": {"visitors": 10}})
 
         self.assertEqual(result, model_result)
-        self.assertEqual(urlopen.call_count, 2)
+        self.assertEqual(urlopen.call_count, 3)
 
     def test_usage_and_estimated_cost_are_written_to_monthly_jsonl(self) -> None:
         """成功响应应记录 Token、基础价格快照和估算费用。"""

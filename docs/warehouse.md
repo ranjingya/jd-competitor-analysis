@@ -15,12 +15,16 @@ DEEPSEEK_API_KEY=<API Key>
 DEEPSEEK_BASE_URL=https://api.deepseek.com
 DEEPSEEK_MODEL=deepseek-flash
 DEEPSEEK_TIMEOUT_SECONDS=300
-DEEPSEEK_MAX_ATTEMPTS=2
+DEEPSEEK_MAX_ATTEMPTS=3
 ```
 
 分析请求按 `DEEPSEEK_MODEL` 选择模型，思考模式、推理强度和输出长度使用模型默认值，
 仍受服务端限制。请求指定 JSON 输出格式，并校验摘要、要点和建议结构。
-请求超时默认 300 秒，每次分析最多请求 2 次，网络异常与结果校验失败共享尝试次数。
+请求超时默认 300 秒，每次分析默认最多请求 3 次（首次请求加 2 次重试），网络异常与结果校验失败共享尝试次数。
+
+本品 SKU 日明细为 0 条时保存数据集，跳过报告和 AI 分析，结果为 `incomplete`，不作为任务失败。
+有 SKU 记录但指标为 0 属于有效数据。近 7 天检查会重新读取缺 SKU 的日期，
+包括已有报告关联数据集的 `warehouse_sku_count` 为 0 的情况。周月报和单独重跑 AI 同样跳过这些缺 SKU 的日报。
 费用使用空闲时段单价估算；定时任务应安排在官方定义的空闲时段执行。
 
 项目数仓为 StarRocks，使用 MySQL 协议连接：

@@ -50,6 +50,12 @@ def reanalyze_reports(database_path, report_date, analyzer, self_spu=None, compe
     LOGGER.info("AI 重分析开始：date=%s，reports=%s", report_date, len(rows))
     counts = {"ready": 0, "failed": 0}
     for index, row in enumerate(rows, 1):
+        state = reports.find_day_report_for_repair(report_date, row["self_spu"], row["competitor_spu"])
+        if state and state.get("warehouse_sku_count") == 0:
+            counts["incomplete"] = counts.get("incomplete", 0) + 1
+            LOGGER.info("AI 重分析跳过：self=%s，competitor=%s，原因=本品 SKU 明细缺失",
+                        row["self_spu"], row["competitor_spu"])
+            continue
         started = perf_counter()
         analysis_id = None
         try:

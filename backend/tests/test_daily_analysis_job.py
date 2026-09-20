@@ -45,7 +45,7 @@ def dataset_payload(status: str = "partial") -> dict[str, object]:
         },
         "self_product": {
             "sku_components": [],
-            "quality": {"status": "partial"},
+            "quality": {"status": "partial", "warehouse_sku_count": 1},
         },
         "sources": {},
         "quality": {"status": status, "issues": []},
@@ -95,6 +95,42 @@ class DailyAnalysisJobTest(unittest.TestCase):
 
         self.temporary_directory.cleanup()
 
+    @patch("app.jobs.daily_analysis.analyze_daily_dataset")
+    @patch("app.jobs.daily_analysis.build_daily_dataset")
+    def test_missing_sku_skips_analysis_and_preserves_dataset(self, build_dataset, analyze_dataset):
+        """SKU 明细缺失时保存数据集，不生成报告或调用 AI。"""
+        dataset = dataset_payload()
+        dataset["self_product"]["quality"]["warehouse_sku_count"] = 0
+        build_dataset.return_value = dataset
+        analyzer = ai_analyzer()
+        result = process_daily_pair(Mock(), Mock(), self.pair, "2026-08-18",
+                                    self.datasets, self.reports, self.tasks, analyzer)
+        self.assertEqual(result["status"], "incomplete")
+        self.assertIsNotNone(result["dataset_id"])
+        self.assertIsNone(result["report_id"])
+        self.assertEqual(self.tasks.list_recent(), [])
+        analyze_dataset.assert_not_called()
+        analyzer.analyze.assert_not_called()
+        self.assertEqual(_date_data_status("2026-08-18", [result], 1, True)["status"], "available")
+
+    def test_historical_missing_sku_report_requires_reload(self):
+        """已完成但缺 SKU 的历史日报应补查，且不进入周月报或单独 AI 分析。"""
+        from app.jobs.reanalyze import reanalyze_reports
+        dataset = dataset_payload()
+        dataset["self_product"]["quality"]["warehouse_sku_count"] = 0
+        dataset_id = self.datasets.store(dataset)
+        report_id = self.reports.upsert(dataset_id, report_payload())
+        with self.database.connection() as connection:
+            connection.execute("UPDATE reports SET status = 'ready' WHERE report_id = ?", (report_id,))
+        state = self.reports.find_day_report_for_repair("2026-08-18", "10001", "20001")
+        self.assertEqual(state["warehouse_sku_count"], 0)
+        self.assertEqual(_repair_strategy(state), "full")
+        self.assertEqual(self.reports.list_ready_day_reports("2026-08-18", "2026-08-18"), [])
+        analyzer = ai_analyzer()
+        result = reanalyze_reports(self.database.path, "2026-08-18", analyzer)
+        self.assertEqual(result["incomplete"], 1)
+        analyzer.analyze.assert_not_called()
+
     @patch("app.jobs.daily_analysis.build_ai_task_payload")
     @patch("app.jobs.daily_analysis.analyze_daily_dataset")
     @patch("app.jobs.daily_analysis.build_daily_dataset")
@@ -107,6 +143,7 @@ class DailyAnalysisJobTest(unittest.TestCase):
         """有效数据应依次写入数据集、报告和 AI 执行记录。"""
 
         build_dataset.return_value = dataset_payload()
+        build_dataset.return_value["self_product"]["spu_daily_metrics"] = {"visitors": 0, "gmv": 0}
         analyze_dataset.return_value = report_payload()
         build_task_payload.return_value = {"facts": {"metric": 1}}
         analyzer = ai_analyzer()
