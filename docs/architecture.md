@@ -46,6 +46,23 @@ FastAPI 和 CLI 是 Backend 容器中的独立进程，共享 `/app/data/data.db
 
 ## API
 
+### React 看板接口
+
+React 看板使用独立命名空间，成功响应为 `{"data": ...}`，失败响应为 `{"error": {"code": "...", "message": "...", "details": []}}`。OpenAPI 提供导航、周期、趋势、报告、SKU 和任务状态的响应模型。历史报告扩展字段按原值保留，缺失值与零值分别表达。
+
+```text
+GET /api/v1/competitor/product-pairs
+GET /api/v1/competitor/reports/periods
+GET /api/v1/competitor/reports/trends
+GET /api/v1/competitor/reports/{report_id}
+GET /api/v1/competitor/reports/{report_id}/skus
+GET /api/v1/competitor/analysis-status
+```
+
+前端通过报告 ID 组装请求路径；报告条目中的 `path` 用于独立竞品页面。版本化接口与独立页面接口使用同一个只读仓库，查询不会生成报告或启动分析任务。非法参数返回 400 或 422，报告不存在返回 404，内部异常返回不包含内部路径的 500 错误。完整报告的动态分析模块保留 JSON 契约，核心指标和导航字段使用显式类型。
+
+### 独立竞品页面接口
+
 ```text
 GET  /api/product-pairs
 GET  /api/analysis-status
