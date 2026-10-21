@@ -9,7 +9,7 @@ from fastapi.routing import APIRoute
 
 from ..config import get_settings
 from ..job_status import read_daily_analysis_status
-from ..repositories.report_repository import ReportRepository
+from ..repositories.report_repository import ReportQueryError, ReportRepository
 from .contracts import AnalysisStatus, Envelope, ErrorResponse, ProductPairs, Periods, Report, ReportSkus, Trends
 from .dependencies import get_report_repository
 
@@ -35,7 +35,7 @@ class ReadRoute(APIRoute):
             except RequestValidationError as error:
                 code, message, status = "INVALID_REQUEST", "请求参数不正确", 422
                 details = [{"field": ".".join(map(str, e["loc"])), "reason": e["type"]} for e in error.errors()]
-            except ValueError as error:
+            except ReportQueryError as error:
                 code, message, status, details = "INVALID_REQUEST", str(error), 400, []
             except Exception:
                 LOGGER.exception("竞品查询异常：接口=%s", self.path)

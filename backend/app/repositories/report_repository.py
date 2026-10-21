@@ -18,6 +18,12 @@ from ..database import Database
 
 
 LOGGER = logging.getLogger(__name__)
+
+
+class ReportQueryError(ValueError):
+    """表示报告查询参数不符合粒度、日期或周期约定。"""
+
+
 REPORT_STATUSES = {"pending_ai", "ready", "ai_failed"}
 GRANULARITIES = {"day", "week", "month"}
 REPORT_TOP_LEVEL_FIELDS = {
@@ -204,11 +210,11 @@ def _validate_period_context(granularity: str, context: str) -> None:
 
     expected_length = 4 if granularity == "month" else 7
     if len(context) != expected_length:
-        raise ValueError("月报上下文必须为 YYYY，日报和周报上下文必须为 YYYY-MM")
+        raise ReportQueryError("月报上下文必须为 YYYY，日报和周报上下文必须为 YYYY-MM")
     try:
         date.fromisoformat(f"{context}-01" if expected_length == 7 else f"{context}-01-01")
     except ValueError as error:
-        raise ValueError("周期上下文格式无效") from error
+        raise ReportQueryError("周期上下文格式无效") from error
 
 
 class ReportRepository:
@@ -938,7 +944,7 @@ class ReportRepository:
         """
 
         if granularity not in GRANULARITIES:
-            raise ValueError(f"不支持的报告粒度：{granularity}")
+            raise ReportQueryError(f"不支持的报告粒度：{granularity}")
         _validate_period_context(granularity, context)
         context_length = 4 if granularity == "month" else 7
         with self.database.connection() as connection:
@@ -1007,14 +1013,14 @@ class ReportRepository:
         """
 
         if granularity not in GRANULARITIES:
-            raise ValueError(f"不支持的报告粒度：{granularity}")
+            raise ReportQueryError(f"不支持的报告粒度：{granularity}")
         try:
             parsed_start = date.fromisoformat(start_date)
             parsed_end = date.fromisoformat(end_date)
         except ValueError as error:
-            raise ValueError("趋势日期格式必须为 YYYY-MM-DD") from error
+            raise ReportQueryError("趋势日期格式必须为 YYYY-MM-DD") from error
         if parsed_start > parsed_end:
-            raise ValueError("趋势开始日期不能晚于结束日期")
+            raise ReportQueryError("趋势开始日期不能晚于结束日期")
         with self.database.connection() as connection:
             rows = connection.execute(
                 """
