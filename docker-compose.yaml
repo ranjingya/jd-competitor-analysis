@@ -1,6 +1,6 @@
 services:
   jd-competitor-analysis-web:
-    image: "ghcr.io/ranjingya/jd-competitor-analysis-web:latest"
+    image: "ghcr.io/ranjingya/jd-competitor-analysis-web:v0.2.3"
     container_name: jd-competitor-analysis-web
     restart: unless-stopped
     environment:
@@ -23,7 +23,7 @@ services:
       - traefik-network
 
   jd-competitor-analysis-backend:
-    image: "ghcr.io/ranjingya/jd-competitor-analysis-backend:latest"
+    image: "ghcr.io/ranjingya/jd-competitor-analysis-backend:v0.2.3"
     container_name: jd-competitor-analysis-backend
     restart: unless-stopped
     env_file:
